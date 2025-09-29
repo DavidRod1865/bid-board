@@ -122,10 +122,7 @@ const AppContent: React.FC = () => {
               // Check if bid already exists to prevent duplicates
               setBids(prev => {
                 const exists = prev.some(bid => bid.id === newBid.id);
-                if (exists) {
-                  return prev; // Don't add duplicate
-                }
-                return [...prev, newBid as Bid];
+                return exists ? prev : [...prev, newBid as Bid];
               });
             }
           }
@@ -203,7 +200,11 @@ const AppContent: React.FC = () => {
             case 'INSERT':
               if (payload.new && typeof payload.new === 'object') {
                 const newVendor = payload.new as Vendor;
-                setVendors(prev => [...prev, newVendor]);
+                // Check for duplicates before adding
+                setVendors(prev => {
+                  const exists = prev.some(v => v.id === newVendor.id);
+                  return exists ? prev : [...prev, newVendor];
+                });
               }
               break;
             case 'UPDATE':
@@ -265,10 +266,15 @@ const AppContent: React.FC = () => {
 
     // Cleanup subscriptions on unmount
     return () => {
-      realtimeManager.unsubscribeAll();
-      bidVendorsChannel.unsubscribe();
-      vendorsChannel.unsubscribe();
-      projectNotesChannel.unsubscribe();
+      // Clean up all subscriptions to prevent memory leaks
+      try {
+        realtimeManager.unsubscribeAll();
+        bidVendorsChannel.unsubscribe();
+        vendorsChannel.unsubscribe();
+        projectNotesChannel.unsubscribe();
+      } catch (error) {
+        console.warn('Error during subscription cleanup:', error);
+      }
     };
   }, []);
 
@@ -328,8 +334,7 @@ const AppContent: React.FC = () => {
   const handleAddVendor = async (vendorData: Omit<Vendor, 'id'>) => {
     try {
       const newVendor = await dbOperations.createVendor(vendorData);
-      // Update state immediately for better UX, real-time subscription will sync
-      setVendors(prevVendors => [...prevVendors, newVendor]);
+      // Let real-time subscription handle state update to prevent duplicates
       return newVendor;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add vendor');
@@ -340,12 +345,7 @@ const AppContent: React.FC = () => {
   const handleUpdateVendor = async (vendorId: number, updatedVendor: Partial<Vendor>) => {
     try {
       await dbOperations.updateVendor(vendorId, updatedVendor);
-      // Update state immediately for better UX, real-time subscription will sync
-      setVendors(prevVendors => 
-        prevVendors.map(vendor => 
-          vendor.id === vendorId ? { ...vendor, ...updatedVendor } : vendor
-        )
-      );
+      // Let real-time subscription handle state update to prevent conflicts
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update vendor');
     }
@@ -354,8 +354,7 @@ const AppContent: React.FC = () => {
   const handleDeleteVendor = async (vendorId: number) => {
     try {
       await dbOperations.deleteVendor(vendorId);
-      // Update state immediately for better UX, real-time subscription will sync
-      setVendors(prevVendors => prevVendors.filter(vendor => vendor.id !== vendorId));
+      // Let real-time subscription handle state update to prevent conflicts
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete vendor');
     }

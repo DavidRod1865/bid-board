@@ -76,12 +76,15 @@ const VendorPage: React.FC<VendorPageProps> = ({
   };
 
   const handleAddVendorSubmit = async (vendorData: Omit<Vendor, "id">) => {
+    if (isOperationLoading) return; // Prevent double submission
+    
     setIsOperationLoading(true);
     try {
       await onAddVendor?.(vendorData);
       setIsAddModalOpen(false);
     } catch (error) {
       // In a full implementation, you might want to show a user-friendly error message
+      console.error('Failed to add vendor:', error);
     } finally {
       setIsOperationLoading(false);
     }
