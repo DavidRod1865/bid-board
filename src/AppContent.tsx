@@ -113,16 +113,36 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     // Subscribe to bid changes
     realtimeManager.subscribeToBids((payload: any) => {
-      switch (payload.eventType) {
+      const eventType = payload.eventType || payload.event;
+      switch (eventType) {
         case 'INSERT':
           if (payload.new && typeof payload.new === 'object') {
             // Transform the payload to match our Bid interface
-            const newBid = payload.new as any;
-            if (newBid.id && newBid.title) {
+            const rawBid = payload.new as any;
+            if (rawBid.id && (rawBid.title || rawBid.project_name)) {
+              // Transform to match the structure from getBids() 
+              const transformedBid: Bid = {
+                id: rawBid.id,
+                title: rawBid.title || rawBid.project_name,
+                project_name: rawBid.project_name,
+                project_email: rawBid.project_email,
+                project_address: rawBid.project_address,
+                general_contractor: rawBid.general_contractor,
+                project_description: rawBid.project_description,
+                due_date: rawBid.due_date,
+                status: rawBid.status,
+                priority: rawBid.priority,
+                estimated_value: rawBid.estimated_value,
+                notes: rawBid.notes,
+                created_by: rawBid.created_by,
+                assign_to: rawBid.assign_to,
+                file_location: rawBid.file_location
+              };
+              
               // Check if bid already exists to prevent duplicates
               setBids(prev => {
-                const exists = prev.some(bid => bid.id === newBid.id);
-                return exists ? prev : [...prev, newBid as Bid];
+                const exists = prev.some(bid => bid.id === transformedBid.id);
+                return exists ? prev : [...prev, transformedBid];
               });
             }
           }
@@ -159,7 +179,8 @@ const AppContent: React.FC = () => {
           table: 'bid_vendors'
         },
         (payload: any) => {
-          switch (payload.eventType) {
+          const bidVendorEventType = payload.eventType || payload.event;
+          switch (bidVendorEventType) {
             case 'INSERT':
               if (payload.new && typeof payload.new === 'object') {
                 const newBidVendor = payload.new as BidVendor;
@@ -196,7 +217,8 @@ const AppContent: React.FC = () => {
           table: 'vendors'
         },
         (payload: any) => {
-          switch (payload.eventType) {
+          const vendorEventType = payload.eventType || payload.event;
+          switch (vendorEventType) {
             case 'INSERT':
               if (payload.new && typeof payload.new === 'object') {
                 const newVendor = payload.new as Vendor;
@@ -237,7 +259,8 @@ const AppContent: React.FC = () => {
           table: 'project_notes'
         },
         (payload: any) => {
-          switch (payload.eventType) {
+          const noteEventType = payload.eventType || payload.event;
+          switch (noteEventType) {
             case 'INSERT':
               if (payload.new && typeof payload.new === 'object') {
                 const newNote = payload.new as ProjectNote;
@@ -306,8 +329,32 @@ const AppContent: React.FC = () => {
 
   const handleAddBid = async (bidData: Omit<Bid, 'id'>) => {
     try {
-      await dbOperations.createBid(bidData);
-      // Don't update state here - let real-time subscription handle it
+      const newBid = await dbOperations.createBid(bidData);
+      
+      // Use optimistic update for bids since real-time might be delayed
+      // The deduplication logic in the real-time subscription will prevent duplicates
+      const transformedBid: Bid = {
+        id: newBid.id,
+        title: newBid.title || newBid.project_name,
+        project_name: newBid.project_name,
+        project_email: newBid.project_email,
+        project_address: newBid.project_address,
+        general_contractor: newBid.general_contractor,
+        project_description: newBid.project_description,
+        due_date: newBid.due_date,
+        status: newBid.status,
+        priority: newBid.priority,
+        estimated_value: newBid.estimated_value,
+        notes: newBid.notes,
+        created_by: newBid.created_by,
+        assign_to: newBid.assign_to,
+        file_location: newBid.file_location
+      };
+      
+      setBids(prev => {
+        const exists = prev.some(bid => bid.id === transformedBid.id);
+        return exists ? prev : [transformedBid, ...prev];
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add bid');
     }
@@ -315,8 +362,31 @@ const AppContent: React.FC = () => {
 
   const handleCopyProject = async (_originalProjectId: number, newProjectData: Omit<Bid, 'id'>) => {
     try {
-      await dbOperations.createBid(newProjectData);
-      // Don't update state here - let real-time subscription handle it
+      const newBid = await dbOperations.createBid(newProjectData);
+      
+      // Use optimistic update for consistency with handleAddBid
+      const transformedBid: Bid = {
+        id: newBid.id,
+        title: newBid.title || newBid.project_name,
+        project_name: newBid.project_name,
+        project_email: newBid.project_email,
+        project_address: newBid.project_address,
+        general_contractor: newBid.general_contractor,
+        project_description: newBid.project_description,
+        due_date: newBid.due_date,
+        status: newBid.status,
+        priority: newBid.priority,
+        estimated_value: newBid.estimated_value,
+        notes: newBid.notes,
+        created_by: newBid.created_by,
+        assign_to: newBid.assign_to,
+        file_location: newBid.file_location
+      };
+      
+      setBids(prev => {
+        const exists = prev.some(bid => bid.id === transformedBid.id);
+        return exists ? prev : [transformedBid, ...prev];
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to copy project');
     }
