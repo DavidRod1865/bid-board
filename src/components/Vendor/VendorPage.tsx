@@ -4,6 +4,8 @@ import Sidebar from "../ui/Sidebar";
 import VendorList from "./VendorList";
 import AddVendorModal from "./AddVendorModal";
 import ConfirmationModal from "../ui/ConfirmationModal";
+import ToastContainer from "../ui/ToastContainer";
+import { useToast } from "../../hooks/useToast";
 
 interface VendorPageProps {
   vendors: Vendor[];
@@ -22,6 +24,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
   onEditVendor,
   onDeleteVendor,
 }) => {
+  const { toasts, removeToast, showSuccess, showError } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isOperationLoading, setIsOperationLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -41,7 +44,8 @@ const VendorPage: React.FC<VendorPageProps> = ({
       // This would open an edit modal in a full implementation
       // For now, just call the handler with empty data
       await onEditVendor(vendorId, {});
-    } catch (error) {
+    } catch {
+      showError('Edit Failed', 'Failed to edit vendor. Please try again.');
     } finally {
       setIsOperationLoading(false);
     }
@@ -65,7 +69,9 @@ const VendorPage: React.FC<VendorPageProps> = ({
       await onDeleteVendor(vendorToDelete.id);
       setShowDeleteModal(false);
       setVendorToDelete(null);
-    } catch (error) {
+      showSuccess('Vendor Deleted', `Successfully deleted ${vendorToDelete.company_name}`);
+    } catch {
+      showError('Delete Failed', 'Failed to delete vendor. Please try again.');
     } finally {
       setIsOperationLoading(false);
     }
@@ -82,9 +88,9 @@ const VendorPage: React.FC<VendorPageProps> = ({
     try {
       await onAddVendor?.(vendorData);
       setIsAddModalOpen(false);
-    } catch (error) {
-      // In a full implementation, you might want to show a user-friendly error message
-      console.error('Failed to add vendor:', error);
+      showSuccess('Vendor Added', `Successfully added ${vendorData.company_name}`);
+    } catch {
+      showError('Add Failed', 'Failed to add vendor. Please try again.');
     } finally {
       setIsOperationLoading(false);
     }
@@ -107,6 +113,13 @@ const VendorPage: React.FC<VendorPageProps> = ({
     setCurrentPage(1);
   }, [vendors]);
 
+  // Show error toast when error prop changes
+  useEffect(() => {
+    if (error) {
+      showError('Loading Error', `Error loading vendors: ${error}`);
+    }
+  }, [error, showError]);
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -128,13 +141,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
 
         <div className="flex-1 bg-gray-50 flex flex-col">
           <div className="p-6 pb-0 max-w-7xl mx-auto w-full">
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-800 text-sm">
-                  Error loading vendors: {error}
-                </p>
-              </div>
-            )}
+            {/* Error handling via toast notifications only */}
           </div>
           
           <div className="flex-1 p-6 pt-4 max-w-7xl mx-auto w-full">
@@ -202,6 +209,9 @@ const VendorPage: React.FC<VendorPageProps> = ({
         cancelText="Cancel"
         variant="danger"
       />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
     </div>
   );
 };

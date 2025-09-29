@@ -112,7 +112,7 @@ const VendorList: React.FC<VendorListProps> = ({
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="max-w-7xl mx-auto w-full">
+      <div className="mx-auto w-full">
         <SearchFilters
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}

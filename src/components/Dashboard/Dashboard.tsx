@@ -125,9 +125,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
       await onAddProject(projectData);
       setIsAddModalOpen(false);
+      showSuccess('Project Added', `Successfully added ${projectData.title || projectData.project_name}`);
     } catch (error) {
-      // Error handling should be managed by the parent component
-      // or a global error handling system
+      showError('Add Failed', error instanceof Error ? error.message : 'Failed to add project. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -142,9 +142,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
       await onCopyProject(originalProjectId, newProjectData);
       setIsCopyModalOpen(false);
+      showSuccess('Project Copied', `Successfully copied project as ${newProjectData.title || newProjectData.project_name}`);
     } catch (error) {
-      // Error handling should be managed by the parent component
-      // or a global error handling system
+      showError('Copy Failed', error instanceof Error ? error.message : 'Failed to copy project. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -235,7 +235,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         isEmailingReport={isEmailingReport}
       />
       
-      <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full">
+      <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="p-6 pb-0">
           <SearchFilters
             searchTerm={searchTerm}

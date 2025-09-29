@@ -64,9 +64,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     if (!formData.project_name.trim()) {
       newErrors.project_name = 'Project name is required';
     }
-    if (!formData.project_email.trim()) {
-      newErrors.project_email = 'Project email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.project_email)) {
+    if (formData.project_email.trim() && !/\S+@\S+\.\S+/.test(formData.project_email)) {
       newErrors.project_email = 'Please enter a valid email address';
     }
     if (!formData.project_address.trim()) {
@@ -147,7 +145,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project Email *
+              Project Email
             </label>
             <Input
               type="email"
