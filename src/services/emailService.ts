@@ -1,0 +1,217 @@
+interface EmailAttachment {
+  filename: string;
+  fileblob: string; // Base64 encoded
+  mimetype: string;
+}
+
+interface EmailRequest {
+  sender: string;
+  to: string[];
+  subject: string;
+  html_body: string;
+  attachments?: EmailAttachment[];
+}
+
+interface EmailResponse {
+  request_id: string;
+  data: {
+    email_id: string;
+    succeeded: number;
+    failed: number;
+  };
+}
+
+class EmailService {
+  private apiKey: string;
+  private senderEmail: string;
+  private apiUrl = import.meta.env.DEV ? '/api/smtp2go/v3/email/send' : 'https://api.smtp2go.com/v3/email/send';
+
+  constructor() {
+    this.apiKey = import.meta.env.VITE_SMTP2GO_API_KEY;
+    this.senderEmail = import.meta.env.VITE_SMTP2GO_SENDER_EMAIL;
+
+    if (!this.apiKey || !this.senderEmail) {
+      throw new Error('SMTP2GO configuration missing. Please check environment variables.');
+    }
+  }
+
+  /**
+   * Send email with optional PDF attachment
+   */
+  async sendEmail(
+    to: string,
+    subject: string,
+    htmlBody: string,
+    pdfBlob?: Blob,
+    pdfFilename?: string
+  ): Promise<EmailResponse> {
+    try {
+      const emailRequest: EmailRequest = {
+        sender: this.senderEmail,
+        to: [to],
+        subject,
+        html_body: htmlBody
+      };
+
+      // Add PDF attachment if provided
+      if (pdfBlob && pdfFilename) {
+        const base64Data = await this.blobToBase64(pdfBlob);
+        emailRequest.attachments = [{
+          filename: pdfFilename,
+          fileblob: base64Data,
+          mimetype: 'application/pdf'
+        }];
+      }
+
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Smtp2go-Api-Key': this.apiKey
+        },
+        body: JSON.stringify(emailRequest)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SMTP2GO API error (${response.status}): ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      // Check if email was successfully sent
+      if (result.data && result.data.failed > 0) {
+        throw new Error('Email sending failed on SMTP2GO server');
+      }
+
+      return result;
+    } catch (error) {
+      throw new Error(
+        error instanceof Error 
+          ? `Failed to send email: ${error.message}`
+          : 'Failed to send email: Unknown error'
+      );
+    }
+  }
+
+  /**
+   * Send weekly bids and vendor costs report
+   */
+  async sendWeeklyVendorCostsReport(
+    pdfBlob: Blob,
+    projectCount: number,
+    pendingVendorCount: number
+  ): Promise<EmailResponse> {
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const filename = `weekly-bids-vendor-costs-due-${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    const subject = `Weekly Bids & Vendor Costs Due Report - ${projectCount} Projects Need Attention`;
+    
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .header { background-color: #d4af37; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; }
+          .summary { background-color: #f9f9f9; padding: 15px; border-left: 4px solid #d4af37; margin: 20px 0; }
+          .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>With Pride HVAC</h1>
+          <h2>Weekly Bids & Vendor Costs Due Report</h2>
+        </div>
+        
+        <div class="content">
+          <p>Dear Team,</p>
+          
+          <p>Please find attached the weekly report generated on <strong>${currentDate}</strong> covering all upcoming bid and vendor cost deadlines.</p>
+          
+          <div class="summary">
+            <h3>Report Summary</h3>
+            <ul>
+              <li><strong>${projectCount}</strong> projects have bids and/or vendor costs due within the next 7 days</li>
+              <li><strong>${pendingVendorCount}</strong> vendors have pending cost submissions</li>
+            </ul>
+          </div>
+          
+          <p>The attached PDF report provides detailed information about:</p>
+          <ul>
+            <li>Bids due within the next 7 days</li>
+            <li>Vendor costs due within the next 7 days (regardless of bid due date)</li>
+            <li>Vendors that have submitted costs vs. those still pending</li>
+            <li>Contact information for follow-up on pending submissions</li>
+          </ul>
+          
+          <p>Please review the report and follow up as needed to ensure timely submissions.</p>
+          
+          <p>Best regards,<br>
+          Bid Dashboard System<br>
+          With Pride HVAC</p>
+        </div>
+        
+        <div class="footer">
+          <p>This report was automatically generated by the Bid Dashboard system.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail(
+      'estimating@withpridehvac.net',
+      subject,
+      htmlBody,
+      pdfBlob,
+      filename
+    );
+  }
+
+  /**
+   * Convert Blob to Base64 string
+   */
+  private async blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  /**
+   * Test email configuration
+   */
+  async testConfiguration(): Promise<boolean> {
+    try {
+      const testSubject = 'Test Email from Bid Dashboard';
+      const testBody = '<p>This is a test email to verify SMTP2GO configuration.</p>';
+      
+      await this.sendEmail(
+        this.senderEmail,
+        testSubject,
+        testBody
+      );
+      
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+}
+
+// Export singleton instance
+export const emailService = new EmailService();
+export default emailService;
