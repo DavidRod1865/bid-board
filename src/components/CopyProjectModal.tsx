@@ -44,7 +44,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       due_date: '',
       status: 'New',
       priority: false,
-      estimated_value: 0,
+      file_location: '',
       notes: '',
       created_by: currentDbUser?.id || null,
       assign_to: currentDbUser?.id || null
@@ -74,7 +74,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
         due_date: '', // Clear due date for new project
         status: 'New', // Reset to New status
         priority: project.priority,
-        estimated_value: project.estimated_value || 0,
+        file_location: project.file_location || '',
         notes: project.notes || '',
         created_by: currentDbUser?.id || null,
         assign_to: currentDbUser?.id || null // Auto-assign to current user
@@ -121,7 +121,8 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       due_date: new Date(formData.due_date).toISOString(),
       created_by: formData.created_by || null, // Convert empty string to null
       assign_to: formData.assign_to || null, // Convert empty string to null
-      file_location: null, // Add file_location
+      file_location: formData.file_location || null, // Use form file_location
+      estimated_value: 0, // Set default estimated value
     };
 
     onCopyProject(selectedProjectId!, projectData);
@@ -220,7 +221,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
               </div>
             </div>
 
-            {/* Status & Estimated Value */}
+            {/* Status & File Location */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -241,15 +242,13 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Value
+                  File Location
                 </label>
                 <Input
-                  type="number"
-                  value={formData.estimated_value}
-                  onChange={(e) => handleInputChange('estimated_value', parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  value={formData.file_location}
+                  onChange={(e) => handleInputChange('file_location', e.target.value)}
+                  placeholder="Enter file location or path"
                   disabled={isLoading}
                 />
               </div>
