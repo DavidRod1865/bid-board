@@ -1,6 +1,5 @@
 import React from "react";
 import withPrideLogo from "../assets/With Pride Logo.png";
-import ductImage from "../assets/duct.png";
 import { useAuth0 } from "../auth";
 
 const LoginPage: React.FC = () => {
@@ -59,7 +58,7 @@ const LoginPage: React.FC = () => {
       <div className="w-1/2 relative overflow-hidden">
         {/* Background Image */}
         <img
-          src={ductImage}
+          src="https://withpridehvac.net/wp-content/uploads/2019/02/second-banner.jpg"
           alt="Background"
           className="absolute inset-0 w-full h-full object-cover"
         />
