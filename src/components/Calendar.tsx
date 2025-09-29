@@ -112,7 +112,6 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
 
   // Get events for a specific day
   const getEventsForDay = (day: number): CalendarEvent[] => {
-    const dayDate = new Date(year, month, day);
     return filteredEvents.filter(event => {
       const eventDate = new Date(event.date);
       return (
@@ -241,7 +240,7 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar
-        statusFilter=""
+        statusFilter={[]}
         setStatusFilter={handleStatusFilter}
         onNewProject={handleNewProject}
         onCopyProject={handleCopyProject}

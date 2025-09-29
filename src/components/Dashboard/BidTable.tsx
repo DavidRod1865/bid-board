@@ -187,7 +187,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       {!isLoading && sortedBids.length > 0 && (
         <div className="flex-1 overflow-y-auto">
           {sortedBids.map((bid) => {
-            const assignedUser = getUserById(bid.assign_to);
+            const assignedUser = bid.assign_to ? getUserById(bid.assign_to) : undefined;
             const urgency = getBidUrgency(bid.due_date, bid.status);
             const isUpdating = updatingStatus.has(bid.id);
             const hasError = statusErrors.has(bid.id);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useLocation, useParams, useNavigate } from 'react-router-dom';
+import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import type { User, Bid, Vendor, BidVendor, ProjectNote } from './types';
 import { dbOperations, realtimeManager, supabase } from './lib/supabase';
 import Dashboard from './components/Dashboard/Dashboard';
@@ -60,7 +60,6 @@ const AppContent: React.FC = () => {
   const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const location = useLocation();
 
   // Load initial data from Supabase
   useEffect(() => {
@@ -113,7 +112,7 @@ const AppContent: React.FC = () => {
   // Set up real-time subscriptions
   useEffect(() => {
     // Subscribe to bid changes
-    const bidsChannel = realtimeManager.subscribeToBids((payload: any) => {
+    realtimeManager.subscribeToBids((payload: any) => {
       switch (payload.eventType) {
         case 'INSERT':
           if (payload.new && typeof payload.new === 'object') {
@@ -301,19 +300,17 @@ const AppContent: React.FC = () => {
 
   const handleAddBid = async (bidData: Omit<Bid, 'id'>) => {
     try {
-      const newBid = await dbOperations.createBid(bidData);
+      await dbOperations.createBid(bidData);
       // Don't update state here - let real-time subscription handle it
-      // setBids(prevBids => [...prevBids, newBid]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add bid');
     }
   };
 
-  const handleCopyProject = async (originalProjectId: number, newProjectData: Omit<Bid, 'id'>) => {
+  const handleCopyProject = async (_originalProjectId: number, newProjectData: Omit<Bid, 'id'>) => {
     try {
-      const newBid = await dbOperations.createBid(newProjectData);
+      await dbOperations.createBid(newProjectData);
       // Don't update state here - let real-time subscription handle it
-      // setBids(prevBids => [...prevBids, newBid]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to copy project');
     }
@@ -390,7 +387,8 @@ const AppContent: React.FC = () => {
         last_follow_up_date: (newBidVendor as any).last_follow_up_date,
         response_notes: (newBidVendor as any).response_notes,
         responded_by: (newBidVendor as any).responded_by,
-        is_priority: (newBidVendor as any).is_priority || false
+        is_priority: (newBidVendor as any).is_priority || false,
+        cost_amount: (newBidVendor as any).cost_amount
       };
       
       setBidVendors(prevBidVendors => [...prevBidVendors, transformedBidVendor]);
@@ -430,11 +428,6 @@ const AppContent: React.FC = () => {
   const getUserById = (userId: string): User | undefined => {
     return users.find(user => user.id === userId);
   };
-
-  const isProjectDetail = location.pathname.startsWith('/project/');
-  const isVendorPage = location.pathname === '/vendors';
-  const isVendorDetail = location.pathname.startsWith('/vendor/');
-  const isCalendarPage = location.pathname === '/calendar';
 
   // Show loading state
   if (loading) {

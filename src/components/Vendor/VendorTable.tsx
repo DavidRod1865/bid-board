@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import type { Vendor, BidVendor } from "../../types";
 import {
-  getVendorDueDate,
-  isVendorOverdue,
   getVendorStatusColor,
 } from "../../utils/statusUtils";
 import { formatDate, formatCurrency } from "../../utils/formatters";

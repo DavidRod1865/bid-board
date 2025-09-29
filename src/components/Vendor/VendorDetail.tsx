@@ -37,7 +37,7 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
   });
 
   // Sidebar state
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   // Fetch vendor data on component mount
   useEffect(() => {

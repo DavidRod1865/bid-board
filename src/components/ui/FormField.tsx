@@ -28,6 +28,8 @@ interface TextareaProps {
   rows?: number;
   disabled?: boolean;
   className?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  autoFocus?: boolean;
 }
 
 interface SelectProps {
@@ -100,7 +102,9 @@ export const Textarea: React.FC<TextareaProps> = ({
   placeholder,
   rows = 3,
   disabled = false,
-  className = ''
+  className = '',
+  onKeyDown,
+  autoFocus
 }) => {
   const baseClasses = `
     w-full px-3 py-2 border border-gray-300 rounded-md 
@@ -117,6 +121,8 @@ export const Textarea: React.FC<TextareaProps> = ({
       rows={rows}
       disabled={disabled}
       className={`${baseClasses} ${className}`}
+      onKeyDown={onKeyDown}
+      autoFocus={autoFocus}
     />
   );
 };

@@ -117,7 +117,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
 
       <div className="flex-1 flex">
         <Sidebar
-          statusFilter=""
+          statusFilter={[]}
           setStatusFilter={handleStatusFilter}
           onNewProject={handleNewProject}
           onAddVendor={handleAddVendorClick}

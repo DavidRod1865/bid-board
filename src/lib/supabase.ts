@@ -155,6 +155,7 @@ export const dbOperations = {
       })
       if (error) throw error
     } catch (err) {
+      // Ignore errors for presence updates
     }
   },
 
@@ -453,7 +454,11 @@ export const dbOperations = {
         details_param: details
       })
       
+      if (error) {
+        console.error('Activity logging error:', error)
+      }
     } catch (err) {
+      // Ignore activity logging errors
     }
   },
 
@@ -499,7 +504,7 @@ export const dbOperations = {
     return data
   },
 
-  async createOrUpdateUserProfile(auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
+  async createOrUpdateUserProfile(_auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
     // First check if user already exists by email
     const existingUsers = await this.getUsers();
     const existingUser = existingUsers.find(u => u.email === userData.email);

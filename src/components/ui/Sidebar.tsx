@@ -84,7 +84,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         </svg>
       ),
       path: '/',
-      onClick: () => navigate('/')
+      onClick: () => navigate('/'),
+      disabled: false
     },
     {
       id: 'vendors',
@@ -95,7 +96,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         </svg>
       ),
       path: '/vendors',
-      onClick: () => navigate('/vendors')
+      onClick: () => navigate('/vendors'),
+      disabled: false
     },
     {
       id: 'calendar',
@@ -106,7 +108,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         </svg>
       ),
       path: '/calendar',
-      onClick: () => navigate('/calendar')
+      onClick: () => navigate('/calendar'),
+      disabled: false
     }
   ];
 

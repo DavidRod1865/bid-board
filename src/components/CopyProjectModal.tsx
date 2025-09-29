@@ -121,7 +121,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       due_date: new Date(formData.due_date).toISOString(),
       created_by: formData.created_by || null, // Convert empty string to null
       assign_to: formData.assign_to || null, // Convert empty string to null
-      file_location: formData.file_location || null, // Add file_location
+      file_location: null, // Add file_location
     };
 
     onCopyProject(selectedProjectId!, projectData);

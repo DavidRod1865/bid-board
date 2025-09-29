@@ -13,8 +13,7 @@ interface AddNoteModalProps {
 const AddNoteModal: React.FC<AddNoteModalProps> = ({
   isOpen,
   onClose,
-  onAddNote,
-  isLoading = false
+  onAddNote
 }) => {
   const [noteContent, setNoteContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

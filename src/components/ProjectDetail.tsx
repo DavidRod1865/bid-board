@@ -52,7 +52,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Sidebar state
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   // Tab state for bottom panel
   const [activeTab, setActiveTab] = useState("vendors");

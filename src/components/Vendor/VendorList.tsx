@@ -22,7 +22,7 @@ const VendorList: React.FC<VendorListProps> = ({
   const [sortField, setSortField] = useState<keyof Vendor | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState(""); // Dummy for SearchFilters compatibility
+  const [statusFilter, setStatusFilter] = useState<string[]>([]); // Dummy for SearchFilters compatibility
   const navigate = useNavigate();
 
   const handleSort = (field: keyof Vendor) => {
@@ -78,7 +78,7 @@ const VendorList: React.FC<VendorListProps> = ({
     return filtered;
   }, [vendors, searchTerm]);
 
-  const sortedVendors = React.useMemo(() => {
+  React.useMemo(() => {
     if (!sortField) return filteredVendors;
 
     return [...filteredVendors].sort((a, b) => {
@@ -142,7 +142,7 @@ const VendorList: React.FC<VendorListProps> = ({
         ) : (
           /* Table Body */
           <div className="flex-1 overflow-y-auto">
-            {vendors.map((vendor) => (
+            {filteredVendors.map((vendor) => (
             <div
               key={vendor.id}
               className="grid grid-cols-[1.8fr_2.5fr_1.5fr_1.2fr_2fr] border-b border-gray-200 px-4 py-3 items-center transition-all hover:bg-gray-50 relative cursor-pointer"
