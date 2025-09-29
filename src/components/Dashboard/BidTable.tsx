@@ -281,11 +281,6 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               {/* Bid Date */}
               <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
                 <span>{formatDate(bid.due_date, 'short')}</span>
-                {urgency.level === 'dueToday' && (
-                  <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">
-                    DUE TODAY
-                  </span>
-                )}
               </div>
 
               {/* Vendor Response Rate */}
