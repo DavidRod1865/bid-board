@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { Textarea } from './ui/FormField';
 import Button from './ui/Button';
+import ToastContainer from './ui/ToastContainer';
+import { useToast } from '../hooks/useToast';
 
 interface AddNoteModalProps {
   isOpen: boolean;
@@ -15,6 +17,7 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
   onClose,
   onAddNote
 }) => {
+  const { toasts, removeToast, showSuccess, showError } = useToast();
   const [noteContent, setNoteContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,8 +38,9 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
       await onAddNote(noteContent.trim());
       setNoteContent('');
       onClose();
+      showSuccess('Note Added', 'Successfully added project note');
     } catch (error) {
-      // Error handling could be improved with toast notifications
+      showError('Add Failed', error instanceof Error ? error.message : 'Failed to add note. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -51,7 +55,7 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      handleSubmit(e as any);
+      handleSubmit(e);
     }
   };
 
@@ -95,6 +99,9 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
           </Button>
         </div>
       </form>
+      
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
     </Modal>
   );
 };

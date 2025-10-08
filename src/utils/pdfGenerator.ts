@@ -3,21 +3,48 @@ import autoTable from 'jspdf-autotable';
 import type { 
   WeeklyDueReport, 
   ProjectCostsDue, 
-  ReportSummary, 
-  VendorCostsDueData 
+  ReportSummary,  
 } from './reportFilters';
 import { 
-  formatDueDate, 
-  getDueDateUrgency, 
   sortProjectsByUrgency 
 } from './reportFilters';
+import type { Vendor } from '../types';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: typeof autoTable;
+    lastAutoTable?: {
+      finalY: number;
+    };
   }
 }
+
+// Design constants for consistent styling
+const DESIGN = {
+  colors: {
+    primary: [212, 175, 55] as [number, number, number], // Brand gold
+    dark: [45, 45, 45] as [number, number, number], // Dark text
+    gray: [128, 128, 128] as [number, number, number], // Muted text
+    lightGray: [245, 245, 245] as [number, number, number], // Background
+    success: [34, 139, 34] as [number, number, number], // Green
+    pending: [255, 140, 0] as [number, number, number], // Orange
+    border: [220, 220, 220] as [number, number, number], // Light border
+  },
+  fonts: {
+    title: 22,
+    heading: 16,
+    subheading: 14,
+    body: 11,
+    small: 9,
+    caption: 8,
+  },
+  spacing: {
+    section: 25,
+    paragraph: 15,
+    line: 8,
+  }
+};
 
 export class WeeklyVendorCostsPDFGenerator {
   private doc: jsPDF;
@@ -30,7 +57,7 @@ export class WeeklyVendorCostsPDFGenerator {
     this.doc = new jsPDF();
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
-    this.margin = 20;
+    this.margin = 25; // Increased margin for breathing room
     this.currentY = this.margin;
   }
 
@@ -39,7 +66,7 @@ export class WeeklyVendorCostsPDFGenerator {
    */
   generateReport(report: WeeklyDueReport, summary: ReportSummary): Blob {
     this.addHeader();
-    this.addSummary(summary);
+    this.addSummaryCards(summary);
     this.addProjectDetails(report);
     this.addFooter();
     
@@ -47,260 +74,316 @@ export class WeeklyVendorCostsPDFGenerator {
   }
 
   /**
-   * Add header with company branding
+   * Add clean, professional header
    */
   private addHeader(): void {
-    // Company header background
-    this.doc.setFillColor(212, 175, 55); // #d4af37
-    this.doc.rect(0, 0, this.pageWidth, 50, 'F');
-    
-    // Company name
-    this.doc.setTextColor(255, 255, 255);
-    this.doc.setFontSize(24);
+    // Clean header with subtle styling
+    this.doc.setTextColor(...DESIGN.colors.dark);
+    this.doc.setFontSize(DESIGN.fonts.title);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('With Pride HVAC', this.pageWidth / 2, 20, { align: 'center' });
+    this.doc.text('With Pride Air Conditioning & Heating', this.pageWidth / 2, this.currentY + 15, { align: 'center' });
     
     // Report title
-    this.doc.setFontSize(16);
+    this.doc.setFontSize(DESIGN.fonts.heading);
     this.doc.setFont('helvetica', 'normal');
-    this.doc.text('Weekly Bids & Vendor Costs Due Report', this.pageWidth / 2, 35, { align: 'center' });
+    this.doc.setTextColor(...DESIGN.colors.gray);
+    this.doc.text('Weekly Bids & Vendor Costs Report', this.pageWidth / 2, this.currentY + 30, { align: 'center' });
     
-    this.currentY = 60;
+    // Generation date
+    this.doc.setFontSize(DESIGN.fonts.body);
+    this.doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })}`, this.pageWidth / 2, this.currentY + 42, { align: 'center' });
+    
+    // Subtle divider line
+    this.doc.setDrawColor(...DESIGN.colors.primary);
+    this.doc.setLineWidth(2);
+    this.doc.line(this.margin, this.currentY + 55, this.pageWidth - this.margin, this.currentY + 55);
+    
+    this.currentY += 70;
   }
 
   /**
-   * Add executive summary section
+   * Add summary as clean cards instead of table
    */
-  private addSummary(summary: ReportSummary): void {
-    this.doc.setTextColor(0, 0, 0);
-    this.doc.setFontSize(14);
+  private addSummaryCards(summary: ReportSummary): void {
+    this.doc.setTextColor(...DESIGN.colors.dark);
+    this.doc.setFontSize(DESIGN.fonts.heading);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('Executive Summary', this.margin, this.currentY);
+    this.doc.text('Summary', this.margin, this.currentY);
     
-    this.currentY += 10;
+    this.currentY += DESIGN.spacing.paragraph;
     
-    // Summary table
-    const summaryData = [
-      ['Report Date', summary.reportDate],
-      ['Projects with Upcoming Deadlines', summary.totalProjects.toString()],
-      ['Vendors with Pending Submissions', summary.totalPendingVendors.toString()],
-      ['Vendors with Submitted Costs', summary.totalSubmittedVendors.toString()]
-    ];
+    // Card layout for metrics (now 2 cards instead of 3)
+    const cardWidth = (this.pageWidth - (2 * this.margin) - 10) / 2;
+    const cardHeight = 35;
+    const cardSpacing = 10;
     
-    autoTable(this.doc, {
-      startY: this.currentY,
-      head: [['Metric', 'Value']],
-      body: summaryData,
-      theme: 'grid',
-      headStyles: { 
-        fillColor: [212, 175, 55],
-        textColor: [255, 255, 255],
-        fontSize: 12,
-        fontStyle: 'bold'
-      },
-      bodyStyles: { fontSize: 11 },
-      margin: { left: this.margin, right: this.margin },
-      columnStyles: {
-        0: { cellWidth: 100 },
-        1: { cellWidth: 50, halign: 'center' }
-      }
-    });
+    // Projects card
+    this.addSummaryCard(
+      this.margin,
+      this.currentY,
+      cardWidth,
+      cardHeight,
+      summary.totalProjects.toString(),
+      'Bids Due',
+      DESIGN.colors.primary
+    );
     
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 20;
+    // Pending vendors card
+    this.addSummaryCard(
+      this.margin + cardWidth + cardSpacing,
+      this.currentY,
+      cardWidth,
+      cardHeight,
+      summary.totalPendingVendors.toString(),
+      'Costs Pending',
+      DESIGN.colors.pending
+    );
+    
+    this.currentY += cardHeight + DESIGN.spacing.section;
   }
 
   /**
-   * Add detailed project information
+   * Add individual summary card
+   */
+  private addSummaryCard(
+    x: number, 
+    y: number, 
+    width: number, 
+    height: number, 
+    value: string, 
+    label: string, 
+    accentColor: [number, number, number]
+  ): void {
+    // Card background
+    this.doc.setFillColor(...DESIGN.colors.lightGray);
+    this.doc.rect(x, y, width, height, 'F');
+    
+    // Accent border
+    this.doc.setDrawColor(...accentColor);
+    this.doc.setLineWidth(3);
+    this.doc.line(x, y, x + width, y);
+    
+    // Value
+    this.doc.setTextColor(...DESIGN.colors.dark);
+    this.doc.setFontSize(24);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(value, x + width / 2, y + 18, { align: 'center' });
+    
+    // Label
+    this.doc.setFontSize(DESIGN.fonts.body);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(...DESIGN.colors.gray);
+    this.doc.text(label, x + width / 2, y + 30, { align: 'center' });
+  }
+
+  /**
+   * Add detailed project information with clean layout
    */
   private addProjectDetails(report: WeeklyDueReport): void {
     const sortedProjects = sortProjectsByUrgency(report);
     
-    this.doc.setFontSize(14);
+    this.doc.setFontSize(DESIGN.fonts.heading);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('Project Details', this.margin, this.currentY);
+    this.doc.setTextColor(...DESIGN.colors.dark);
+    this.doc.text('Bid Details', this.margin, this.currentY);
     
-    this.currentY += 15;
+    this.currentY += DESIGN.spacing.paragraph;
     
     sortedProjects.forEach((project, index) => {
-      this.addProjectSection(project, index === sortedProjects.length - 1);
+      this.addCleanProjectSection(project, index === sortedProjects.length - 1);
     });
   }
 
   /**
-   * Add individual project section
+   * Add individual project with clean, scannable design
    */
-  private addProjectSection(project: ProjectCostsDue, isLastProject: boolean): void {
+  private addCleanProjectSection(project: ProjectCostsDue, isLastProject: boolean): void {
     // Check if we need a new page
-    if (this.currentY > this.pageHeight - 100) {
+    if (this.currentY > this.pageHeight - 120) {
       this.doc.addPage();
-      this.currentY = this.margin;
+      this.currentY = this.margin + 20;
     }
     
-    // Project header
-    this.doc.setFillColor(248, 249, 250); // Light gray background
-    this.doc.rect(this.margin, this.currentY - 5, this.pageWidth - (2 * this.margin), 20, 'F');
+    // Calculate total pending vendors for this project
+    const totalPendingVendors = Object.values(project.dueDates)
+      .reduce((total, dueDateData) => total + dueDateData.pendingVendors.length, 0);
     
-    this.doc.setTextColor(0, 0, 0);
-    this.doc.setFontSize(12);
+    // Project header with clean styling
+    this.doc.setFillColor(255, 255, 255); // White background
+    this.doc.setDrawColor(...DESIGN.colors.border);
+    this.doc.setLineWidth(1);
+    this.doc.rect(this.margin, this.currentY, this.pageWidth - (2 * this.margin), 25);
+    
+    // Project title
+    this.doc.setTextColor(...DESIGN.colors.dark);
+    this.doc.setFontSize(DESIGN.fonts.subheading);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text(
-      `PROJECT: ${project.bid.title}`, 
-      this.margin + 5, 
-      this.currentY + 8
-    );
+    this.doc.text(project.bid.title, this.margin + 10, this.currentY + 10);
     
-    // Project bid due date with urgency indicator
-    this.doc.setFont('helvetica', 'normal');
-    this.doc.setFontSize(10);
+    // Due date - simplified presentation
     const bidDueDate = new Date(project.bid.due_date);
     const today = new Date();
-    const isWithinWeek = (bidDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+    const daysUntilDue = Math.ceil((bidDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (isWithinWeek) {
-      this.doc.setTextColor(220, 53, 69); // Red for urgent bid
+    let dueDateText = `Due: ${bidDueDate.toLocaleDateString()}`;
+    if (daysUntilDue <= 7 && daysUntilDue >= 0) {
+      dueDateText += ` (${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''})`;
+    }
+    
+    this.doc.setFontSize(DESIGN.fonts.body);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(...DESIGN.colors.gray);
+    this.doc.text(dueDateText, this.pageWidth - this.margin - 10, this.currentY + 10, { align: 'right' });
+    
+    // Add pending vendor count to header
+    if (totalPendingVendors > 0) {
+      this.doc.setFontSize(DESIGN.fonts.small);
       this.doc.setFont('helvetica', 'bold');
+      this.doc.setTextColor(...DESIGN.colors.pending);
       this.doc.text(
-        `⚠ BID DUE: ${bidDueDate.toLocaleDateString()}`,
-        this.pageWidth - this.margin - 5,
-        this.currentY + 8,
-        { align: 'right' }
-      );
-    } else {
-      this.doc.setTextColor(108, 117, 125); // Gray for non-urgent
-      this.doc.text(
-        `Bid Due: ${bidDueDate.toLocaleDateString()}`,
-        this.pageWidth - this.margin - 5,
-        this.currentY + 8,
-        { align: 'right' }
+        `${totalPendingVendors} vendor${totalPendingVendors !== 1 ? 's' : ''} pending`,
+        this.margin + 10,
+        this.currentY + 20
       );
     }
     
-    this.currentY += 25;
+    this.currentY += 35;
     
-    // Process each due date for this project
-    const sortedDueDates = Object.keys(project.dueDates).sort((a, b) => 
-      new Date(a).getTime() - new Date(b).getTime()
-    );
-    
-    sortedDueDates.forEach(dueDate => {
-      this.addDueDateSection(dueDate, project.dueDates[dueDate]);
-    });
+    // Create consolidated vendor table for all due dates
+    this.addConsolidatedVendorTable(project);
     
     // Add spacing between projects
     if (!isLastProject) {
-      this.currentY += 10;
+      this.currentY += DESIGN.spacing.paragraph;
     }
   }
 
   /**
-   * Add due date section with vendor details
+   * Add consolidated vendor table for all due dates in a project
    */
-  private addDueDateSection(
-    dueDate: string, 
-    dueDateData: { totalVendors: number; pendingVendors: VendorCostsDueData[]; submittedVendors: VendorCostsDueData[] }
-  ): void {
-    const urgency = getDueDateUrgency(dueDate);
-    const formattedDate = formatDueDate(dueDate);
+  private addConsolidatedVendorTable(project: ProjectCostsDue): void {
+    // Collect all vendors from all due dates
+    const allVendorData: Array<{
+      vendor: Vendor | null | undefined;
+      status: string;
+      dueDate: string;
+      formattedDueDate: string;
+    }> = [];
     
-    // Due date header with urgency color
-    let headerColor: [number, number, number] = [108, 117, 125]; // Default gray
-    if (urgency === 'today') headerColor = [220, 53, 69]; // Red
-    else if (urgency === 'tomorrow') headerColor = [255, 193, 7]; // Yellow
-    else if (urgency === 'thisWeek') headerColor = [255, 152, 0]; // Orange
-    
-    this.doc.setFontSize(11);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.setTextColor(...headerColor);
-    this.doc.text(
-      `Vendor Costs Due: ${formattedDate}`,
-      this.margin + 10,
-      this.currentY
-    );
-    
-    this.currentY += 12;
-    
-    // Create vendor table data
-    const vendorTableData: string[][] = [];
-    
-    // Add submitted vendors first
-    dueDateData.submittedVendors.forEach(vendorData => {
-      vendorTableData.push([
-        '✓',
-        vendorData.vendor?.company_name || 'Unknown Vendor',
-        'Submitted',
-        vendorData.vendor?.contact_person || '-',
-        vendorData.vendor?.phone || '-',
-        vendorData.vendor?.email || '-'
-      ]);
+    Object.entries(project.dueDates).forEach(([dueDate, dueDateData]) => {
+      // Add submitted vendors
+      dueDateData.submittedVendors.forEach(vendorData => {
+        allVendorData.push({
+          vendor: vendorData.vendor,
+          status: 'Complete',
+          dueDate,
+          formattedDueDate: new Date(dueDate).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          })
+        });
+      });
+      
+      // Add pending vendors
+      dueDateData.pendingVendors.forEach(vendorData => {
+        allVendorData.push({
+          vendor: vendorData.vendor,
+          status: 'Pending',
+          dueDate,
+          formattedDueDate: new Date(dueDate).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          })
+        });
+      });
     });
     
-    // Add pending vendors
-    dueDateData.pendingVendors.forEach(vendorData => {
-      vendorTableData.push([
-        '⚠',
-        vendorData.vendor?.company_name || 'Unknown Vendor',
-        'PENDING',
-        vendorData.vendor?.contact_person || '-',
-        vendorData.vendor?.phone || '-',
-        vendorData.vendor?.email || '-'
-      ]);
+    // Sort by due date, then by status (Complete first, then Pending)
+    allVendorData.sort((a, b) => {
+      const dateCompare = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      if (dateCompare !== 0) return dateCompare;
+      
+      // If same date, show Complete status first
+      if (a.status !== b.status) {
+        return a.status === 'Complete' ? -1 : 1;
+      }
+      return 0;
     });
     
-    if (vendorTableData.length > 0) {
+    if (allVendorData.length > 0) {
+      const vendorTableData = allVendorData.map(data => [
+        data.vendor?.company_name || 'Unknown Vendor',
+        data.status,
+        data.formattedDueDate,
+        this.formatContactInfo(data.vendor)
+      ]);
+      
       autoTable(this.doc, {
         startY: this.currentY,
-        head: [['Status', 'Vendor', 'Cost Status', 'Contact', 'Phone', 'Email']],
+        head: [['Vendor Company', 'Status', 'Due Date', 'Contact']],
         body: vendorTableData,
-        theme: 'striped',
+        theme: 'plain',
         headStyles: { 
-          fillColor: [52, 58, 64],
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: 'bold'
+          fillColor: false,
+          textColor: DESIGN.colors.gray,
+          fontSize: DESIGN.fonts.small,
+          fontStyle: 'bold',
+          lineColor: DESIGN.colors.border,
+          lineWidth: 0.5
         },
-        bodyStyles: { fontSize: 8 },
+        bodyStyles: { 
+          fontSize: DESIGN.fonts.small,
+          lineColor: DESIGN.colors.border,
+          lineWidth: 0.1
+        },
         margin: { left: this.margin + 15, right: this.margin },
         columnStyles: {
-          0: { cellWidth: 12, halign: 'center' },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 35 }
+          0: { cellWidth: 50 },
+          1: { cellWidth: 25, halign: 'center' as const },
+          2: { cellWidth: 25, halign: 'center' as const },
+          3: { cellWidth: 48 }
         },
         didParseCell: (data: any) => {
-          // Style pending rows differently
-          if (data.cell.text[0] === '⚠') {
-            data.cell.styles.textColor = [220, 53, 69]; // Red for pending
-            if (data.column.index === 2) { // Cost Status column
+          // Style status column
+          if (data.column.index === 1) {
+            if (data.cell.text[0] === 'Complete') {
+              data.cell.styles.textColor = DESIGN.colors.success;
+              data.cell.styles.fontStyle = 'bold';
+            } else if (data.cell.text[0] === 'Pending') {
+              data.cell.styles.textColor = DESIGN.colors.pending;
               data.cell.styles.fontStyle = 'bold';
             }
-          } else if (data.cell.text[0] === '✓') {
-            data.cell.styles.textColor = [40, 167, 69]; // Green for submitted
           }
         }
       });
       
-      this.currentY = (this.doc as any).lastAutoTable.finalY;
+      this.currentY = (this.doc.lastAutoTable?.finalY || this.currentY) + 10;
     }
-    
-    // Add summary for this due date
-    const pendingCount = dueDateData.pendingVendors.length;
-    
-    this.doc.setTextColor(0, 0, 0);
-    this.doc.setFontSize(9);
-    this.doc.setFont('helvetica', 'italic');
-    this.doc.text(
-      `Summary: ${pendingCount} of ${dueDateData.totalVendors} vendors pending`,
-      this.margin + 15,
-      this.currentY + 8
-    );
-    
-    this.currentY += 20;
   }
 
   /**
-   * Add footer
+   * Format contact information cleanly
+   */
+  private formatContactInfo(vendor: Vendor | null | undefined): string {
+    if (!vendor) return '-';
+    
+    const parts: string[] = [];
+    if (vendor.contact_person) parts.push(vendor.contact_person);
+    if (vendor.phone) parts.push(vendor.phone);
+    if (vendor.email) parts.push(vendor.email);
+    
+    return parts.length > 0 ? parts.join(' • ') : '-';
+  }
+
+  /**
+   * Add clean, professional footer
    */
   private addFooter(): void {
     const pageCount = this.doc.getNumberOfPages();
@@ -308,34 +391,27 @@ export class WeeklyVendorCostsPDFGenerator {
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i);
       
-      // Footer line
-      this.doc.setDrawColor(212, 175, 55);
+      // Simple footer line
+      this.doc.setDrawColor(...DESIGN.colors.border);
       this.doc.setLineWidth(0.5);
-      this.doc.line(this.margin, this.pageHeight - 25, this.pageWidth - this.margin, this.pageHeight - 25);
+      this.doc.line(this.margin, this.pageHeight - 20, this.pageWidth - this.margin, this.pageHeight - 20);
       
       // Footer text
-      this.doc.setTextColor(128, 128, 128);
-      this.doc.setFontSize(8);
+      this.doc.setTextColor(...DESIGN.colors.gray);
+      this.doc.setFontSize(DESIGN.fonts.caption);
       this.doc.setFont('helvetica', 'normal');
       
       this.doc.text(
-        'Generated by Bid Dashboard System - With Pride HVAC',
+        'With Pride Air Conditioning & Heating',
         this.margin,
-        this.pageHeight - 15
+        this.pageHeight - 12
       );
       
       this.doc.text(
         `Page ${i} of ${pageCount}`,
         this.pageWidth - this.margin,
-        this.pageHeight - 15,
+        this.pageHeight - 12,
         { align: 'right' }
-      );
-      
-      this.doc.text(
-        new Date().toLocaleString(),
-        this.pageWidth / 2,
-        this.pageHeight - 15,
-        { align: 'center' }
       );
     }
   }

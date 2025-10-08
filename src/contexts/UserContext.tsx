@@ -33,6 +33,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const fetchUserProfile = async () => {
     if (!user?.sub || !isAuthenticated) {
+      console.log('UserContext: User not authenticated or missing sub:', { sub: user?.sub, isAuthenticated });
       setUserProfile(null);
       setIsLoading(false);
       return;
@@ -40,21 +41,37 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
     try {
       setError(null);
+      console.log('UserContext: Starting user profile fetch for:', { 
+        email: user.email, 
+        name: user.name, 
+        sub: user.sub 
+      });
       
       // First try to get user from database
+      console.log('UserContext: Fetching existing users from database...');
       const users = await dbOperations.getUsers();
+      console.log('UserContext: Found', users.length, 'users in database');
+      
       let dbUser = users.find(u => u.email === user.email);
+      console.log('UserContext: Existing user found by email:', !!dbUser);
       
       if (!dbUser && user.email && user.name) {
-        // User doesn't exist in database, create them
-        dbUser = await dbOperations.createOrUpdateUserProfile(user.sub, {
-          email: user.email,
-          name: user.name,
-          color_preference: '#d4af37'
-        });
+        console.log('UserContext: Creating new user in database...');
+        try {
+          dbUser = await dbOperations.createOrUpdateUserProfile(user.sub, {
+            email: user.email,
+            name: user.name,
+            color_preference: '#d4af37'
+          });
+          console.log('UserContext: Successfully created user in database:', dbUser);
+        } catch (createError) {
+          console.error('UserContext: Failed to create user in database:', createError);
+          // Continue with fallback logic
+        }
       }
       
       if (dbUser) {
+        console.log('UserContext: Using database user profile');
         setUserProfile(dbUser);
         // Also save to localStorage as backup
         localStorage.setItem(`user_profile_${user.sub}`, JSON.stringify(dbUser));
@@ -62,17 +79,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       }
       
       // Fallback: Check localStorage for existing profile
+      console.log('UserContext: Checking localStorage for existing profile...');
       const savedProfile = localStorage.getItem(`user_profile_${user.sub}`);
       if (savedProfile) {
         try {
           const parsedProfile = JSON.parse(savedProfile);
+          console.log('UserContext: Using localStorage profile');
           setUserProfile(parsedProfile);
           return;
         } catch (parseErr) {
+          console.error('UserContext: Failed to parse localStorage profile:', parseErr);
         }
       }
       
       // Create initial profile if none exists
+      console.log('UserContext: Creating fallback local profile...');
       const initialProfile: UserProfile = {
         id: user.sub,
         email: user.email || '',
@@ -83,7 +104,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       };
       setUserProfile(initialProfile);
       localStorage.setItem(`user_profile_${user.sub}`, JSON.stringify(initialProfile));
+      console.log('UserContext: Created fallback profile (user not saved to database)');
     } catch (err) {
+      console.error('UserContext: Error in fetchUserProfile:', err);
       setError('Failed to load user profile');
     } finally {
       setIsLoading(false);
@@ -137,6 +160,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   useEffect(() => {
     if (!authLoading) {
+      // Test database connection on first load
+      dbOperations.testDatabaseConnection().then(result => {
+        if (!result.success) {
+          console.error('UserContext: Database connection test failed during initialization');
+        }
+      });
+      
       fetchUserProfile();
     }
   }, [user?.sub, isAuthenticated, authLoading]);

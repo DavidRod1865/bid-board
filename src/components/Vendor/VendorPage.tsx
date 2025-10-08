@@ -140,11 +140,11 @@ const VendorPage: React.FC<VendorPageProps> = ({
         />
 
         <div className="flex-1 bg-gray-50 flex flex-col">
-          <div className="p-6 pb-0 max-w-7xl mx-auto w-full">
+          <div className="p-6 pb-0 mx-auto w-full">
             {/* Error handling via toast notifications only */}
           </div>
           
-          <div className="flex-1 p-6 pt-4 max-w-7xl mx-auto w-full">
+          <div className="flex-1 p-6 pt-4 mx-auto w-full">
             <VendorList
               vendors={paginatedVendors}
               onEditVendor={handleEditVendor}

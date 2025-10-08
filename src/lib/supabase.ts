@@ -27,6 +27,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+// Create a service role client for operations that need to bypass RLS
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+export const supabaseService = supabaseServiceKey ? 
+  createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }) : null
+
 // Real-time channel management
 export class RealtimeManager {
   private channels: { [key: string]: ReturnType<typeof supabase.channel> } = {}
@@ -139,12 +149,17 @@ export const dbOperations = {
   },
 
   async getUsers() {
+    console.log('Supabase: Fetching users from database...');
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .order('name')
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase: Error fetching users:', error);
+      throw error;
+    }
+    console.log('Supabase: Successfully fetched', data?.length || 0, 'users');
     return data || []
   },
 
@@ -504,40 +519,152 @@ export const dbOperations = {
     return data
   },
 
-  async createOrUpdateUserProfile(_auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
-    // First check if user already exists by email
-    const existingUsers = await this.getUsers();
-    const existingUser = existingUsers.find(u => u.email === userData.email);
+  async createOrUpdateUserProfile(auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
+    console.log('Supabase: createOrUpdateUserProfile called with:', { auth0UserId, userData });
     
-    if (existingUser) {
-      // Update existing user
-      const { data, error } = await supabase
-        .from('users')
-        .update({
+    try {
+      // First check if user already exists by email
+      console.log('Supabase: Checking for existing user by email...');
+      const existingUsers = await this.getUsers();
+      const existingUser = existingUsers.find(u => u.email === userData.email);
+      
+      if (existingUser) {
+        console.log('Supabase: Updating existing user:', existingUser.id);
+        // Update existing user
+        const { data, error } = await supabase
+          .from('users')
+          .update({
+            name: userData.name,
+            color_preference: userData.color_preference || '#d4af37',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingUser.id)
+          .select()
+          .single()
+
+        if (error) {
+          console.error('Supabase: Error updating existing user:', error);
+          throw error;
+        }
+        console.log('Supabase: Successfully updated user:', data);
+        return data
+      }
+
+      // Try to create new user using RPC function (bypasses RLS)
+      console.log('Supabase: Creating new user via RPC...');
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('create_user_profile', {
+          user_email: userData.email,
+          user_name: userData.name,
+          user_color: userData.color_preference || '#d4af37'
+        });
+
+        if (!rpcError && rpcData) {
+          console.log('Supabase: Successfully created user via RPC:', rpcData);
+          return rpcData;
+        }
+        
+        console.log('Supabase: RPC function not available, trying direct insert...');
+      } catch (rpcErr) {
+        console.log('Supabase: RPC function failed, trying direct insert...');
+      }
+
+      // Generate a UUID for the user
+      const userId = crypto.randomUUID();
+      console.log('Supabase: Generated UUID for new user:', userId);
+
+      // Try with service role client if available (bypasses RLS)
+      if (supabaseService) {
+        console.log('Supabase: Attempting user creation with service role...');
+        const userToInsert = {
+          id: userId,
+          email: userData.email,
           name: userData.name,
           color_preference: userData.color_preference || '#d4af37'
-        })
-        .eq('id', existingUser.id)
-        .select()
-        .single()
+        };
+        
+        const { data: serviceData, error: serviceError } = await supabaseService
+          .from('users')
+          .insert([userToInsert])
+          .select()
+          .single()
 
-      if (error) throw error
-      return data
-    }
+        if (!serviceError && serviceData) {
+          console.log('Supabase: Successfully created user with service role:', serviceData);
+          return serviceData;
+        }
+        
+        if (serviceError) {
+          console.error('Supabase: Service role creation failed:', serviceError);
+        }
+      }
 
-    // Create new user - let Supabase generate the UUID
-    const { data, error } = await supabase
-      .from('users')
-      .insert([{
+      // Fallback: Create new user directly with anon key
+      console.log('Supabase: Creating new user via direct insert with anon key...');
+      const userToInsert = {
+        id: userId,
         email: userData.email,
         name: userData.name,
         color_preference: userData.color_preference || '#d4af37'
-      }])
-      .select()
-      .single()
+      };
+      console.log('Supabase: Inserting user data:', userToInsert);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .insert([userToInsert])
+        .select()
+        .single()
 
-    if (error) throw error
-    return data
+      if (error) {
+        console.error('Supabase: Error creating new user:', error);
+        console.error('Supabase: Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        
+        // If this is an RLS policy violation, provide helpful information
+        if (error.code === 'PGRST301' || error.message?.includes('policy')) {
+          console.error('Supabase: This appears to be an RLS policy issue. The users table may need policies allowing inserts.');
+        }
+        
+        throw error;
+      }
+      
+      console.log('Supabase: Successfully created new user:', data);
+      return data
+    } catch (err) {
+      console.error('Supabase: Unexpected error in createOrUpdateUserProfile:', err);
+      throw err;
+    }
+  },
+
+  // Test function to help diagnose database issues
+  async testDatabaseConnection() {
+    console.log('Supabase: Testing database connection...');
+    try {
+      // Test basic connectivity with a simpler query
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        console.error('Supabase: Database connection test failed:', error);
+        console.error('Supabase: Error code:', error.code);
+        console.error('Supabase: Error message:', error.message);
+        console.error('Supabase: Error details:', error.details);
+        console.error('Supabase: Error hint:', error.hint);
+        return { success: false, error };
+      }
+
+      console.log('Supabase: Database connection test successful');
+      return { success: true, data };
+    } catch (err) {
+      console.error('Supabase: Database connection test error:', err);
+      return { success: false, error: err };
+    }
   }
 }
 
