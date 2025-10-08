@@ -277,7 +277,6 @@ class EmailService {
                     
                     <div class="signature">
                       <p>Best regards,<br>
-                      <strong>With Pride Bid Board/strong><br>
                       With Pride Air Conditioning & Heating</p>
                     </div>
                   </td>
