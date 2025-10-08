@@ -33,7 +33,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const fetchUserProfile = async () => {
     if (!user?.sub || !isAuthenticated) {
-      console.log('UserContext: User not authenticated or missing sub:', { sub: user?.sub, isAuthenticated });
       setUserProfile(null);
       setIsLoading(false);
       return;

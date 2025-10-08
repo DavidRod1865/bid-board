@@ -149,7 +149,6 @@ export const dbOperations = {
   },
 
   async getUsers() {
-    console.log('Supabase: Fetching users from database...');
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -159,7 +158,6 @@ export const dbOperations = {
       console.error('Supabase: Error fetching users:', error);
       throw error;
     }
-    console.log('Supabase: Successfully fetched', data?.length || 0, 'users');
     return data || []
   },
 
@@ -544,16 +542,13 @@ export const dbOperations = {
   },
 
   async createOrUpdateUserProfile(auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
-    console.log('Supabase: createOrUpdateUserProfile called with:', { auth0UserId, userData });
     
     try {
       // First check if user already exists by email
-      console.log('Supabase: Checking for existing user by email...');
       const existingUsers = await this.getUsers();
       const existingUser = existingUsers.find(u => u.email === userData.email);
       
       if (existingUser) {
-        console.log('Supabase: Updating existing user:', existingUser.id);
         // Update existing user
         const { data, error } = await supabase
           .from('users')
@@ -570,12 +565,10 @@ export const dbOperations = {
           console.error('Supabase: Error updating existing user:', error);
           throw error;
         }
-        console.log('Supabase: Successfully updated user:', data);
         return data
       }
 
       // Try to create new user using RPC function (bypasses RLS)
-      console.log('Supabase: Creating new user via RPC...');
       try {
         const { data: rpcData, error: rpcError } = await supabase.rpc('create_user_profile', {
           user_email: userData.email,
@@ -584,22 +577,17 @@ export const dbOperations = {
         });
 
         if (!rpcError && rpcData) {
-          console.log('Supabase: Successfully created user via RPC:', rpcData);
           return rpcData;
         }
         
-        console.log('Supabase: RPC function not available, trying direct insert...');
       } catch (rpcErr) {
-        console.log('Supabase: RPC function failed, trying direct insert...');
       }
 
       // Generate a UUID for the user
       const userId = crypto.randomUUID();
-      console.log('Supabase: Generated UUID for new user:', userId);
 
       // Try with service role client if available (bypasses RLS)
       if (supabaseService) {
-        console.log('Supabase: Attempting user creation with service role...');
         const userToInsert = {
           id: userId,
           email: userData.email,
@@ -614,7 +602,6 @@ export const dbOperations = {
           .single()
 
         if (!serviceError && serviceData) {
-          console.log('Supabase: Successfully created user with service role:', serviceData);
           return serviceData;
         }
         
@@ -624,14 +611,12 @@ export const dbOperations = {
       }
 
       // Fallback: Create new user directly with anon key
-      console.log('Supabase: Creating new user via direct insert with anon key...');
       const userToInsert = {
         id: userId,
         email: userData.email,
         name: userData.name,
         color_preference: userData.color_preference || '#d4af37'
       };
-      console.log('Supabase: Inserting user data:', userToInsert);
       
       const { data, error } = await supabase
         .from('users')
@@ -656,7 +641,6 @@ export const dbOperations = {
         throw error;
       }
       
-      console.log('Supabase: Successfully created new user:', data);
       return data
     } catch (err) {
       console.error('Supabase: Unexpected error in createOrUpdateUserProfile:', err);
@@ -666,7 +650,6 @@ export const dbOperations = {
 
   // Test function to help diagnose database issues
   async testDatabaseConnection() {
-    console.log('Supabase: Testing database connection...');
     try {
       // Test basic connectivity with a simpler query
       const { data, error } = await supabase
@@ -683,7 +666,6 @@ export const dbOperations = {
         return { success: false, error };
       }
 
-      console.log('Supabase: Database connection test successful');
       return { success: true, data };
     } catch (err) {
       console.error('Supabase: Database connection test error:', err);

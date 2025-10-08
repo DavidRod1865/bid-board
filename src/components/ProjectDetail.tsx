@@ -659,7 +659,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                           users={users}
                           projectNotes={projectNotes}
                           setProjectNotes={setProjectNotes}
-                          currentUser={currentUser}
                         />
                       )}
                       {!currentUser && (

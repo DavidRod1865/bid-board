@@ -24,7 +24,6 @@ interface DashboardProps {
   projectNotes?: ProjectNote[];
   // setBids: React.Dispatch<React.SetStateAction<Bid[]>>; // TODO: Remove if not needed
   handleStatusChange: (bidId: number, newStatus: string) => Promise<void>;
-  getUserById: (userId: string) => User | undefined;
   users: User[];
   isLoading?: boolean;
   onAddProject?: (projectData: Omit<Bid, 'id'>) => Promise<void>;
@@ -38,7 +37,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   projectNotes = [],
   // setBids, // TODO: Remove if not needed
   handleStatusChange, 
-  getUserById,
   users,
   isLoading = false,
   onAddProject,
@@ -273,7 +271,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               bids={paginatedBids} 
               bidVendors={bidVendors}
               projectNotes={projectNotes}
-              getUserById={getUserById}
               onStatusChange={handleStatusChange}
               isLoading={isLoading}
             />

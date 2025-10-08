@@ -9,7 +9,6 @@ interface ProjectTableProps {
   bids: Bid[];
   bidVendors?: any[]; // Add bidVendors prop
   projectNotes?: ProjectNote[];
-  getUserById: (userId: string) => User | undefined;
   onStatusChange?: (bidId: number, newStatus: string) => Promise<void>;
   isLoading?: boolean;
   // Pagination props
@@ -25,7 +24,6 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   bids,
   bidVendors = [],
   projectNotes = [],
-  getUserById,
   onStatusChange,
   isLoading = false,
 }) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Bid, User, ProjectNote } from '../types';
 import { formatRelativeDate } from '../utils/formatters';
 import ConfirmationModal from './ui/ConfirmationModal';
@@ -12,15 +12,13 @@ interface ProjectNotesProps {
   users: User[];
   projectNotes: ProjectNote[];
   setProjectNotes: React.Dispatch<React.SetStateAction<ProjectNote[]>>;
-  currentUser: User;
 }
 
 const ProjectNotes: React.FC<ProjectNotesProps> = ({
   bid,
   users,
   projectNotes,
-  setProjectNotes,
-  currentUser
+  setProjectNotes
 }) => {
   const { toasts, removeToast, showSuccess, showError } = useToast();
   const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
