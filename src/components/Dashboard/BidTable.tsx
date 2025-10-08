@@ -4,7 +4,6 @@ import type { Bid, User, ProjectNote } from "../../types";
 import { getStatusColor } from "../../utils/statusUtils";
 import { formatDate, getBidUrgencyClasses, getBidUrgency, getBidDisplayStatus } from "../../utils/formatters";
 import { BID_STATUSES } from "../../utils/constants";
-import UserAvatar from "../ui/UserAvatar";
 
 interface ProjectTableProps {
   bids: Bid[];
@@ -140,7 +139,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
       {/* Table Header */}
-      <div className="grid grid-cols-[2.2fr_1.2fr_1.5fr_1.2fr_1.8fr_2.5fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
+      <div className="grid grid-cols-[2.2fr_1.2fr_1.5fr_1.2fr_4fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
         <SortableHeader field="title">PROJECT NAME</SortableHeader>
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center justify-center cursor-pointer" onClick={() => handleSort('status')}>
           STATUS
@@ -159,10 +158,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
           )}
         </div>
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center justify-center">
-          VENDOR RESPONSES
-        </div>
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center justify-center">
-          ASSIGNED TO
+          RESPONSES
         </div>
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center">
           NOTES
@@ -187,7 +183,6 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       {!isLoading && sortedBids.length > 0 && (
         <div className="flex-1 overflow-y-auto">
           {sortedBids.map((bid) => {
-            const assignedUser = bid.assign_to ? getUserById(bid.assign_to) : undefined;
             const urgency = getBidUrgency(bid.due_date, bid.status);
             const isUpdating = updatingStatus.has(bid.id);
             const hasError = statusErrors.has(bid.id);
@@ -208,7 +203,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             return (
             <div
               key={bid.id}
-              className={`grid grid-cols-[2.2fr_1.2fr_1.5fr_1.2fr_1.8fr_2.5fr] border-b border-gray-200 px-4 py-3 items-center transition-all relative cursor-pointer ${getBidUrgencyClasses(bid.due_date, bid.status)}`}
+              className={`grid grid-cols-[2.2fr_1.2fr_1.5fr_1.2fr_4fr] border-b border-gray-200 px-4 py-3 items-center transition-all relative cursor-pointer ${getBidUrgencyClasses(bid.due_date, bid.status)}`}
               onClick={(e) => handleRowClick(bid.id, e)}
             >
               {/* Status accent line - only show if no urgency highlighting */}
@@ -310,15 +305,8 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
                 )}
               </div>
 
-              {/* Assigned User */}
-              <div className="flex items-center justify-center">
-                {assignedUser && (
-                  <UserAvatar user={assignedUser} showName size="sm" />
-                )}
-              </div>
-
               {/* Notes */}
-              <div className="flex items-center text-gray-600 text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-5xl">
+              <div className="flex items-center text-gray-600 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
                 {getMostRecentNote(bid.id)}
               </div>
             </div>

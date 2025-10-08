@@ -447,6 +447,30 @@ export const dbOperations = {
     return data
   },
 
+  async updateProjectNote(noteId: number, content: string) {
+    const { data, error } = await supabase
+      .from('project_notes')
+      .update({
+        content,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noteId)
+      .select(`
+        *,
+        user:users(name, color_preference)
+      `)
+      .single()
+
+    if (error) throw error
+
+    // Log activity (skip for now to avoid auth issues)
+    // await this.logActivity('updated_project_note', 'project_note', noteId, {
+    //   content: content.substring(0, 50) + '...'
+    // })
+    
+    return data
+  },
+
   async deleteProjectNote(noteId: number) {
     const { error } = await supabase
       .from('project_notes')

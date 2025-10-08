@@ -36,9 +36,9 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
     setIsSubmitting(true);
     try {
       await onAddNote(noteContent.trim());
+      showSuccess('Note Added', 'Successfully added project note');
       setNoteContent('');
       onClose();
-      showSuccess('Note Added', 'Successfully added project note');
     } catch (error) {
       showError('Add Failed', error instanceof Error ? error.message : 'Failed to add note. Please try again.');
     } finally {
