@@ -494,9 +494,6 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const getUserById = (userId: string): User | undefined => {
-    return users.find(user => user.id === userId);
-  };
 
   // Show loading state
   if (loading) {
@@ -542,7 +539,6 @@ const AppContent: React.FC = () => {
               vendors={vendors}
               projectNotes={projectNotes}
               handleStatusChange={handleStatusChange}
-              getUserById={getUserById}
               users={users}
               onAddProject={handleAddBid}
               onCopyProject={handleCopyProject}

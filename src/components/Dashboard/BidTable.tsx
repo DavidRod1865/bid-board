@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Bid, User, ProjectNote } from "../../types";
+import type { Bid, ProjectNote } from "../../types";
 import { getStatusColor } from "../../utils/statusUtils";
 import { formatDate, getBidUrgencyClasses, getBidUrgency, getBidDisplayStatus } from "../../utils/formatters";
 import { BID_STATUSES } from "../../utils/constants";

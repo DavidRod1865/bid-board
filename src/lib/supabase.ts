@@ -541,7 +541,7 @@ export const dbOperations = {
     return data
   },
 
-  async createOrUpdateUserProfile(auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
+  async createOrUpdateUserProfile(_auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
     
     try {
       // First check if user already exists by email
