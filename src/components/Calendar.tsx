@@ -30,6 +30,18 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedDayEvents, setSelectedDayEvents] = useState<CalendarEvent[]>([]);
 
+  // Helper function to properly parse date strings avoiding timezone issues
+  const parseDate = (dateString: string): Date => {
+    // If the date string doesn't include time, treat it as local date
+    if (!dateString.includes('T') && !dateString.includes(' ')) {
+      // For date-only strings like "2025-10-09", create local date to avoid timezone shifts
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    
+    return new Date(dateString);
+  };
+
   // Get vendor by ID helper
   const getVendorById = (vendorId: number): Vendor | undefined => {
     return vendors.find(v => v.id === vendorId);
@@ -51,7 +63,7 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
           id: `bid-${bid.id}`,
           title: bid.project_name,
           type: 'bid_due',
-          date: new Date(bid.due_date),
+          date: parseDate(bid.due_date),
           status: bid.status,
           bid
         });
@@ -69,7 +81,7 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
           id: `vendor-${bidVendor.id}`,
           title: `${bid.project_name} - ${vendor.company_name}`,
           type: 'vendor_due',
-          date: new Date(bidVendor.due_date),
+          date: parseDate(bidVendor.due_date),
           vendor,
           bid,
           bidVendor
@@ -113,11 +125,11 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
   // Get events for a specific day
   const getEventsForDay = (day: number): CalendarEvent[] => {
     return filteredEvents.filter(event => {
-      const eventDate = new Date(event.date);
+      // event.date is already properly parsed from parseDate function
       return (
-        eventDate.getDate() === day &&
-        eventDate.getMonth() === month &&
-        eventDate.getFullYear() === year
+        event.date.getDate() === day &&
+        event.date.getMonth() === month &&
+        event.date.getFullYear() === year
       );
     });
   };
