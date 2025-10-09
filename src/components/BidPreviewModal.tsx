@@ -48,9 +48,20 @@ const BidPreviewModal: React.FC<BidPreviewModalProps> = ({
     }
   };
 
+  // Helper function to properly parse date strings avoiding timezone issues
+  const parseDate = (dateString: string): Date => {
+    // If the date string doesn't include time, treat it as local date
+    if (!dateString.includes('T') && !dateString.includes(' ')) {
+      // For date-only strings like "2025-10-13", create local date to avoid timezone shifts
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    return new Date(dateString);
+  };
+
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return parseDate(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
