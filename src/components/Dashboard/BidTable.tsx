@@ -244,6 +244,28 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
                         ))}
                       </select>
                     </div>
+                  ) : urgency.level === 'dueToday' ? (
+                    // Show read-only due today status with option to edit
+                    <div className="relative group">
+                      <div 
+                        className="px-3 py-2 rounded text-xs font-medium text-white bg-amber-500 cursor-pointer w-32 text-center"
+                        title="Click to change status"
+                      >
+                        {displayStatus}
+                      </div>
+                      <select
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        value={bid.status}
+                        onChange={(e) => handleStatusChange(bid.id, e.target.value)}
+                        disabled={isUpdating}
+                      >
+                        {BID_STATUSES.map(status => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   ) : (
                     // Normal status dropdown
                     <select

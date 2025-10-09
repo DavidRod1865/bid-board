@@ -1,23 +1,26 @@
 import { DATE_FORMATS, CURRENCY_FORMAT } from './constants';
 
 /**
+ * Helper function to properly parse date strings avoiding timezone issues
+ */
+const parseDate = (dateString: string): Date => {
+  // If the date string doesn't include time, treat it as local date
+  if (!dateString.includes('T') && !dateString.includes(' ')) {
+    // For date-only strings like "2025-10-09", create local date to avoid timezone shifts
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  return new Date(dateString);
+};
+
+/**
  * Format a date string to a readable format
  */
 export const formatDate = (
   dateString: string, 
   format: keyof typeof DATE_FORMATS = 'short'
 ): string => {
-  // Create date and handle timezone offset to prevent date shifting
-  const date = new Date(dateString);
-  
-  // If the date string doesn't include time, treat it as local date
-  if (!dateString.includes('T') && !dateString.includes(' ')) {
-    // For date-only strings like "2025-09-25", create local date to avoid timezone shifts
-    const [year, month, day] = dateString.split('-').map(Number);
-    const localDate = new Date(year, month - 1, day);
-    return localDate.toLocaleDateString('en-US', DATE_FORMATS[format]);
-  }
-  
+  const date = parseDate(dateString);
   return date.toLocaleDateString('en-US', DATE_FORMATS[format]);
 };
 
@@ -107,7 +110,7 @@ export const isDateInUrgencyPeriod = (date: string | null, urgencyFilter: string
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const bidDate = new Date(date);
+  const bidDate = parseDate(date);
   bidDate.setHours(0, 0, 0, 0);
   
   switch (urgencyFilter) {
@@ -133,8 +136,8 @@ export const isDateMatch = (date: string | null, dateFilter: string): boolean =>
   if (!dateFilter) return true;
   if (!date) return false;
   
-  const bidDate = new Date(date);
-  const filterDate = new Date(dateFilter);
+  const bidDate = parseDate(date);
+  const filterDate = parseDate(dateFilter);
   
   return bidDate.toDateString() === filterDate.toDateString();
 };
@@ -154,6 +157,7 @@ export const toTitleCase = (text: string): string => {
 
 /**
  * Calculate business days between two dates (excluding weekends)
+ * Returns 0 when start and end dates are the same
  */
 export const getBusinessDaysBetween = (startDate: Date, endDate: Date): number => {
   const start = new Date(startDate);
@@ -163,8 +167,15 @@ export const getBusinessDaysBetween = (startDate: Date, endDate: Date): number =
   start.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
   
+  // If start and end are the same date, return 0
+  if (start.getTime() === end.getTime()) {
+    return 0;
+  }
+  
   let businessDays = 0;
   const current = new Date(start);
+  // Start from the day after start date to exclude start date from count
+  current.setDate(current.getDate() + 1);
   
   while (current <= end) {
     const dayOfWeek = current.getDay();
@@ -188,7 +199,7 @@ export const getBidUrgency = (dueDateString: string, status: string) => {
     return { level: 'none', isOverdue: false, businessDaysRemaining: 0 };
   }
 
-  const dueDate = new Date(dueDateString);
+  const dueDate = parseDate(dueDateString);
   const today = new Date();
   
   // Compare dates only (ignore time)
@@ -264,7 +275,7 @@ export const getBidUrgencyClasses = (dueDateString: string, status: string): str
 };
 
 /**
- * Get the display status for a bid, automatically showing "Overdue (X Days)" when past due
+ * Get the display status for a bid, automatically showing "Due Today" or "Overdue (X Days)" when appropriate
  */
 export const getBidDisplayStatus = (originalStatus: string, dueDateString: string): string => {
   // Don't change status for completed bids
@@ -274,6 +285,11 @@ export const getBidDisplayStatus = (originalStatus: string, dueDateString: strin
   }
 
   const urgency = getBidUrgency(dueDateString, originalStatus);
+  
+  // If due today, show "Due Today" instead of original status
+  if (urgency.level === 'dueToday') {
+    return 'Due Today';
+  }
   
   // If overdue, show "Overdue (X Days)" instead of original status
   if (urgency.level === 'overdue' && urgency.businessDaysOverdue) {
