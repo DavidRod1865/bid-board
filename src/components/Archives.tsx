@@ -1,10 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import type { Bid } from '../types';
 import Sidebar from './ui/Sidebar';
+import SearchFilters from './Dashboard/SearchFilters';
 import ConfirmationModal from './ui/ConfirmationModal';
 import { useToast } from '../hooks/useToast';
 import { dbOperations } from '../lib/supabase';
-import { formatDate } from '../utils/formatters';
+import { formatDate, isDateInUrgencyPeriod, isDateMatch } from '../utils/formatters';
+import { getStatusColor } from '../utils/statusUtils';
 
 interface ArchivesProps {
   onAddVendor?: () => void;
@@ -16,6 +20,10 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [urgencyFilter, setUrgencyFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const navigate = useNavigate();
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -30,32 +38,32 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
 
   const { showSuccess, showError } = useToast();
 
-  useEffect(() => {
-    loadArchivedBids();
-  }, []);
-
-  const loadArchivedBids = async () => {
+  const loadArchivedBids = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await dbOperations.getArchivedBids();
       
       // Transform the data to match our Bid interface
-      const transformedBids = data.map((bid: any) => ({
+      const transformedBids = data.map((bid: Record<string, unknown>) => ({
         ...bid,
         created_by_user: bid.created_by_user,
         assigned_user: bid.assigned_user,
         archived_by_user: bid.archived_by_user
       }));
       
-      setArchivedBids(transformedBids);
+      setArchivedBids(transformedBids as unknown as Bid[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load archived bids');
       showError('Error', 'Failed to load archived bids');
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
+
+  useEffect(() => {
+    loadArchivedBids();
+  }, [loadArchivedBids]);
 
   const handleUnarchiveBid = async (bidId: number) => {
     try {
@@ -78,7 +86,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
       }
       
       showSuccess('Bid Restored', 'Bid has been restored to the main board');
-    } catch (err) {
+    } catch {
       showError('Error', 'Failed to restore bid');
     }
   };
@@ -95,18 +103,53 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
     });
   };
 
-  // Filter bids based on search term
+  const handleRowClick = (bidId: number, event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (
+      target.tagName === "BUTTON" ||
+      target.closest("button")
+    ) {
+      return;
+    }
+    navigate(`/project/${bidId}`);
+  };
+
+  // Filter bids based on search term and filters
   const filteredBids = useMemo(() => {
-    if (!searchTerm.trim()) return archivedBids;
+    if (!archivedBids || archivedBids.length === 0) {
+      return [];
+    }
+
+    let filtered = archivedBids;
     
-    const term = searchTerm.toLowerCase();
-    return archivedBids.filter(bid => 
-      bid.project_name?.toLowerCase().includes(term) ||
-      bid.general_contractor?.toLowerCase().includes(term) ||
-      bid.project_address?.toLowerCase().includes(term) ||
-      bid.status?.toLowerCase().includes(term)
-    );
-  }, [archivedBids, searchTerm]);
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(bid =>
+        bid.project_name?.toLowerCase().includes(term) ||
+        bid.general_contractor?.toLowerCase().includes(term) ||
+        bid.project_address?.toLowerCase().includes(term) ||
+        bid.status?.toLowerCase().includes(term)
+      );
+    }
+    
+    // Filter by status (multiple selection)
+    if (statusFilter.length > 0) {
+      filtered = filtered.filter(bid => statusFilter.includes(bid.status));
+    }
+
+    // Filter by urgency (based on due_date)
+    if (urgencyFilter) {
+      filtered = filtered.filter(bid => isDateInUrgencyPeriod(bid.due_date, urgencyFilter));
+    }
+
+    // Filter by specific date
+    if (dateFilter) {
+      filtered = filtered.filter(bid => isDateMatch(bid.due_date, dateFilter));
+    }
+    
+    return filtered;
+  }, [archivedBids, searchTerm, statusFilter, urgencyFilter, dateFilter]);
 
   // Dummy handlers for sidebar (archives page doesn't need these)
   const handleStatusFilter = () => {};
@@ -170,129 +213,119 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
         onAddVendor={onAddVendor || (() => {})}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Archived Bids</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                {filteredBids.length} archived bid{filteredBids.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-            
-            {/* Search */}
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search archived bids..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#d4af37] w-80"
-                />
-                <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+      <div className="flex-1 flex flex-col mx-auto w-full">
+        <div className="p-6 pb-0">
+          <SearchFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            urgencyFilter={urgencyFilter}
+            setUrgencyFilter={setUrgencyFilter}
+            dateFilter={dateFilter}
+            setDateFilter={setDateFilter}
+            searchPlaceholder="Search archived bids..."
+          />
         </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
-          {filteredBids.length === 0 ? (
+        
+        <div className="flex-1 p-6 pt-4">
+          {!loading && filteredBids.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">📁</div>
+              <div className="text-gray-400 mb-4">
+                <ArchiveBoxIcon className="mx-auto h-24 w-24" />
+              </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'No matching archived bids' : 'No archived bids'}
+                {searchTerm || statusFilter.length > 0 || urgencyFilter || dateFilter 
+                  ? 'No matching archived bids' 
+                  : 'No archived bids'
+                }
               </h3>
               <p className="text-gray-600">
-                {searchTerm 
-                  ? 'Try adjusting your search term' 
+                {searchTerm || statusFilter.length > 0 || urgencyFilter || dateFilter
+                  ? 'Try adjusting your search filters' 
                   : 'Archived bids will appear here when projects are won or lost'
                 }
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
               {/* Table Header */}
-              <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
-                <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1fr_0.5fr] gap-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  <div>Project</div>
-                  <div>General Contractor</div>
-                  <div>Due Date</div>
-                  <div>Status</div>
-                  <div>Archived Date</div>
-                  <div>Archived By</div>
-                  <div>Actions</div>
-                </div>
+              <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1fr_0.5fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project</div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">General Contractor</div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Status</div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Bid Date</div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Archived Date</div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Archived By</div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Actions</div>
               </div>
 
               {/* Table Body */}
-              <div className="divide-y divide-gray-200">
-                {filteredBids.map((bid) => (
-                  <div
-                    key={bid.id}
-                    className="px-6 py-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1fr_0.5fr] gap-4 items-center">
+              <div className="flex-1 overflow-y-auto">
+                {filteredBids.map((bid) => {
+                  return (
+                    <div
+                      key={bid.id}
+                      className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1fr_0.5fr] border-b border-gray-200 px-4 py-3 items-center transition-all relative hover:bg-gray-50 cursor-pointer"
+                      onClick={(e) => handleRowClick(bid.id, e)}
+                    >
+                      {/* Status accent line */}
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-1"
+                        style={{ backgroundColor: getStatusColor(bid.status) }}
+                      ></div>
+
                       {/* Project */}
-                      <div>
-                        <div className="font-medium text-gray-900">{bid.project_name}</div>
-                        {bid.project_address && (
-                          <div className="text-sm text-gray-500">{bid.project_address}</div>
-                        )}
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">{bid.project_name}</div>
+                          {bid.project_address && (
+                            <div className="text-sm text-gray-500">{bid.project_address}</div>
+                          )}
+                        </div>
                       </div>
 
                       {/* General Contractor */}
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-gray-600 text-center">
                         {bid.general_contractor || 'Not specified'}
                       </div>
 
-                      {/* Due Date */}
-                      <div className="text-sm text-gray-900">
-                        {formatDate(bid.due_date)}
-                      </div>
-
                       {/* Status */}
-                      <div>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          bid.status === 'Won' 
-                            ? 'bg-green-100 text-green-800'
-                            : bid.status === 'Lost'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                      <div className="flex justify-center">
+                        <span className={`px-3 py-2 rounded text-xs font-medium text-white w-32 text-center`}
+                              style={{ backgroundColor: getStatusColor(bid.status) }}>
                           {bid.status}
                         </span>
                       </div>
+                      
+                      {/* Due Date */}
+                      <div className="text-sm text-gray-600 text-center">
+                        {formatDate(bid.due_date)}
+                      </div>
+
 
                       {/* Archived Date */}
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-600 text-center">
                         {bid.archived_at ? formatDate(bid.archived_at) : 'Unknown'}
                       </div>
 
                       {/* Archived By */}
-                      <div className="text-sm text-gray-500">
-                        {(bid as any).archived_by_user?.name || 'Unknown'}
+                      <div className="text-sm text-gray-600 text-center">
+                        {(bid as Bid & { archived_by_user?: { name?: string } }).archived_by_user?.name || 'Unknown'}
                       </div>
 
                       {/* Actions */}
-                      <div className="flex justify-end">
+                      <div className="flex justify-center">
                         <button
                           onClick={() => confirmUnarchive(bid)}
-                          className="p-1 text-gray-400 hover:text-[#d4af37] transition-colors"
-                          title="Restore to main board"
+                          className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
+                          Restore
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

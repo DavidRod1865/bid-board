@@ -57,11 +57,47 @@ interface ProjectDetailWrapperProps {
 const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [individualBid, setIndividualBid] = useState<Bid | null>(null);
+  const [loadingIndividual, setLoadingIndividual] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   
   const bidId = parseInt(id || '0', 10);
   const bid = props.bids.find(b => b.id === bidId);
   
-  if (!bid) {
+  // If not found in main bids array, try to fetch individually (including archived)
+  useEffect(() => {
+    if (!bid && id && !loadingIndividual && !individualBid && !notFound) {
+      const fetchIndividualBid = async () => {
+        setLoadingIndividual(true);
+        try {
+          const fetchedBid = await dbOperations.getBidById(bidId);
+          setIndividualBid(fetchedBid);
+        } catch (error) {
+          console.error('Failed to fetch individual project:', error);
+          setNotFound(true);
+        } finally {
+          setLoadingIndividual(false);
+        }
+      };
+      
+      fetchIndividualBid();
+    }
+  }, [bid, id, bidId, loadingIndividual, individualBid, notFound]);
+  
+  const projectToShow = bid || individualBid;
+  
+  if (loadingIndividual) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#d4af37] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading project...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!projectToShow || notFound) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -79,7 +115,7 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
   
   return (
     <ProjectDetail 
-      bid={bid}
+      bid={projectToShow}
       onUpdateBid={props.onUpdateBid}
       onDeleteBid={props.onDeleteBid}
     />

@@ -198,6 +198,32 @@ export const dbOperations = {
     return data
   },
 
+  async getBidById(bidId: number) {
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        *,
+        created_by_user:users!created_by(name, email),
+        assigned_user:users!assign_to(name, email),
+        archived_by_user:users!archived_by(name, email),
+        bid_vendors(
+          id,
+          vendor_id,
+          due_date,
+          response_received_date,
+          status,
+          is_priority,
+          cost_amount,
+          vendors(company_name, specialty)
+        )
+      `)
+      .eq('id', bidId)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
   async getArchivedBids() {
     const { data, error } = await supabase
       .from('bids')

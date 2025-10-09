@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { 
+  FolderIcon,
+  ArchiveBoxIcon,
+  UsersIcon,
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  DocumentDuplicateIcon,
+  EnvelopeIcon,
+  ArrowLeftIcon,
+  PencilSquareIcon,
+  UserPlusIcon,
+  CheckIcon,
+  XMarkIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline';
 import { useAuth0 } from '../../auth';
 import { useUserProfile } from '../../contexts/UserContext';
 import UserProfileModal from '../UserProfileModal';
 import withPrideLogo from '../../assets/With Pride Logo.png';
+import { Pencil } from 'lucide-react';
 
 interface SidebarProps {
   statusFilter: string[];
@@ -80,10 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: 'projects',
       label: 'Projects',
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0H8v0z" />
-        </svg>
+        <FolderIcon className="w-5 h-5" />
       ),
       path: '/',
       onClick: () => navigate('/'),
@@ -93,9 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: 'archives',
       label: 'Archives',
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-        </svg>
+        <ArchiveBoxIcon className="w-5 h-5" />
       ),
       path: '/archives',
       onClick: () => navigate('/archives'),
@@ -105,9 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: 'vendors',
       label: 'Vendors', 
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
+        <UsersIcon className="w-5 h-5" />
       ),
       path: '/vendors',
       onClick: () => navigate('/vendors'),
@@ -117,9 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: 'calendar',
       label: 'Calendar',
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v16a2 2 0 002 2z" />
-        </svg>
+        <CalendarIcon className="w-5 h-5" />
       ),
       path: '/calendar',
       onClick: () => navigate('/calendar'),
@@ -149,14 +158,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <svg 
-            className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          {isCollapsed ? (
+            <ChevronRightIcon className="w-5 h-5 text-gray-600 transition-transform duration-200" />
+          ) : (
+            <ChevronLeftIcon className="w-5 h-5 text-gray-600 transition-transform duration-200" />
+          )}
         </button>
       </div>
 
@@ -208,9 +214,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
+                <PlusIcon className="w-5 h-5 flex-shrink-0" />
                 {!isCollapsed && <span className="font-medium text-sm">Create</span>}
               </button>
 
@@ -221,9 +225,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
+                <DocumentDuplicateIcon className="w-5 h-5 flex-shrink-0" />
                 {!isCollapsed && <span className="font-medium text-sm">Copy Project</span>}
               </button>
 
@@ -235,9 +237,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
+                <EnvelopeIcon className="w-5 h-5 flex-shrink-0" />
                 {!isCollapsed && (
                   <span className="font-medium text-sm">
                     {isEmailingReport ? 'Sending Report...' : 'Email Report'}
@@ -261,9 +261,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 ${isCollapsed ? 'justify-center' : 'justify-start'}
               `}
             >
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
+              <PlusIcon className="w-5 h-5 flex-shrink-0" />
               {!isCollapsed && <span className="font-medium text-sm">Add Vendor</span>}
             </button>
           </div>
@@ -280,9 +278,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
+                <ArrowLeftIcon className="w-5 h-5 flex-shrink-0" />
                 {!isCollapsed && <span className="font-medium text-sm">Back to Projects</span>}
               </button>
 
@@ -295,9 +291,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
+                    <PencilSquareIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Edit Project</span>}
                   </button>
 
@@ -308,9 +302,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    <Pencil className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Add Note</span>}
                   </button>
 
@@ -321,9 +313,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+                    <UserPlusIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Add Vendor</span>}
                   </button>
 
@@ -338,9 +328,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <CheckIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">{isSavingProject ? 'Saving...' : 'Save Changes'}</span>}
                   </button>
 
@@ -352,9 +340,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <XMarkIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Cancel</span>}
                   </button>
                 </>
@@ -372,9 +358,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    <TrashIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Remove Selected ({selectedVendorsCount})</span>}
                   </button>
                 ) : (
@@ -387,9 +371,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                           ${isCollapsed ? 'justify-center' : 'justify-start'}
                         `}
                       >
-                        <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                        </svg>
+                        <ArchiveBoxIcon className="w-5 h-5 flex-shrink-0" />
                         {!isCollapsed && <span className="font-medium text-sm">Archive Project</span>}
                       </button>
                     )}
@@ -400,9 +382,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         ${isCollapsed ? 'justify-center' : 'justify-start'}
                       `}
                     >
-                      <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <TrashIcon className="w-5 h-5 flex-shrink-0" />
                       {!isCollapsed && <span className="font-medium text-sm">Delete Project</span>}
                     </button>
                   </div>
@@ -423,9 +403,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
+                <ArrowLeftIcon className="w-5 h-5 flex-shrink-0" />
                 {!isCollapsed && <span className="font-medium text-sm">Back to Vendors</span>}
               </button>
 
@@ -438,9 +416,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
+                    <PencilSquareIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Edit Vendor</span>}
                   </button>
                 </>
@@ -454,9 +430,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <CheckIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">{isSavingVendor ? 'Saving...' : 'Save Changes'}</span>}
                   </button>
 
@@ -468,9 +442,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <XMarkIcon className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Cancel</span>}
                   </button>
                 </>
@@ -487,9 +459,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     ${isCollapsed ? 'justify-center' : 'justify-start'}
                   `}
                 >
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <TrashIcon className="w-5 h-5 flex-shrink-0" />
                   {!isCollapsed && <span className="font-medium text-sm">Delete Vendor</span>}
                 </button>
               </div>
