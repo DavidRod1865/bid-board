@@ -97,6 +97,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       assign_to: formData.assign_to || null, // Convert empty string to null
       estimated_value: 0, // Add default estimated_value
       notes: '', // Add default notes
+      archived: false,
+      archived_at: null,
+      archived_by: null,
     };
 
     onAddProject(projectData);

@@ -30,6 +30,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showRemoveVendorsModal, setShowRemoveVendorsModal] = useState(false);
@@ -349,6 +350,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     setShowDeleteModal(true);
   };
 
+  const handleArchiveProject = () => {
+    setShowArchiveModal(true);
+  };
+
   const handleAddNote = () => {
     setShowAddNoteModal(true);
   };
@@ -369,6 +374,28 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     }
   };
 
+  const confirmArchiveProject = async () => {
+    try {
+      if (!currentUser) {
+        setError("Unable to archive project - user not found");
+        return;
+      }
+      
+      // Use onUpdateBid to update both database and local state
+      await onUpdateBid(bid.id, {
+        archived: true,
+        archived_at: new Date().toISOString(),
+        archived_by: currentUser.id
+      });
+      
+      navigate("/");
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to archive project"
+      );
+    }
+  };
+
   const isLoading = isLoadingNotes || isLoadingVendors || isLoadingUsers;
 
   // Show loading state
@@ -381,6 +408,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             setStatusFilter={setStatusFilter}
             onEditProject={handleEditProject}
             onDeleteProject={handleDeleteProject}
+            onArchiveProject={handleArchiveProject}
             onAddNote={handleAddNote}
             onSaveProject={handleSave}
             onCancelProject={handleCancel}
@@ -409,6 +437,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
           setStatusFilter={setStatusFilter}
           onEditProject={handleEditProject}
           onDeleteProject={handleDeleteProject}
+          onArchiveProject={handleArchiveProject}
           onAddNote={handleAddNote}
           onSaveProject={handleSave}
           onCancelProject={handleCancel}
@@ -697,6 +726,18 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Archive Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showArchiveModal}
+          onClose={() => setShowArchiveModal(false)}
+          onConfirm={confirmArchiveProject}
+          title="Archive Project"
+          message="Are you sure you want to archive this project? Archived projects can be restored later from the Archives page."
+          confirmText="Archive Project"
+          cancelText="Cancel"
+          variant="warning"
+        />
 
         {/* Delete Confirmation Modal */}
         <ConfirmationModal

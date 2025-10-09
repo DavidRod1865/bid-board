@@ -11,6 +11,10 @@ interface ProjectTableProps {
   projectNotes?: ProjectNote[];
   onStatusChange?: (bidId: number, newStatus: string) => Promise<void>;
   isLoading?: boolean;
+  // Sorting props (controlled by parent)
+  sortField?: keyof Bid | null;
+  sortDirection?: "asc" | "desc";
+  onSort?: (field: keyof Bid) => void;
   // Pagination props
   currentPage?: number;
   onPageChange?: (page: number) => void;
@@ -26,9 +30,10 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   projectNotes = [],
   onStatusChange,
   isLoading = false,
+  sortField,
+  sortDirection,
+  onSort,
 }) => {
-  const [sortField, setSortField] = useState<keyof Bid | null>("due_date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set());
   const [statusErrors, setStatusErrors] = useState<Map<number, string>>(new Map());
   const navigate = useNavigate();
@@ -59,11 +64,8 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   };
 
   const handleSort = (field: keyof Bid) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
+    if (onSort) {
+      onSort(field);
     }
   };
 
@@ -99,23 +101,6 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     }
   };
 
-  const sortedBids = React.useMemo(() => {
-    if (!sortField) return bids;
-
-    return [...bids].sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      // Handle null values
-      if (aValue === null && bValue === null) return 0;
-      if (aValue === null) return sortDirection === "asc" ? 1 : -1;
-      if (bValue === null) return sortDirection === "asc" ? -1 : 1;
-
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [bids, sortField, sortDirection]);
 
   const SortableHeader: React.FC<{ field: keyof Bid; children: React.ReactNode }> = ({ 
     field, 
@@ -171,16 +156,16 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       )}
 
       {/* Empty State */}
-      {!isLoading && sortedBids.length === 0 && (
+      {!isLoading && bids.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No projects found
         </div>
       )}
 
       {/* Table Body */}
-      {!isLoading && sortedBids.length > 0 && (
+      {!isLoading && bids.length > 0 && (
         <div className="flex-1 overflow-y-auto">
-          {sortedBids.map((bid) => {
+          {bids.map((bid) => {
             const urgency = getBidUrgency(bid.due_date, bid.status);
             const isUpdating = updatingStatus.has(bid.id);
             const hasError = statusErrors.has(bid.id);

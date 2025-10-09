@@ -47,6 +47,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   
+  // Sorting state
+  const [sortField, setSortField] = useState<keyof Bid | null>("due_date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -91,19 +95,56 @@ const Dashboard: React.FC<DashboardProps> = ({
     return filtered;
   }, [bids, searchTerm, statusFilter, urgencyFilter, dateFilter]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredBids.length / itemsPerPage);
+  // Sorting logic - applied to filtered bids before pagination
+  const sortedBids = useMemo(() => {
+    if (!sortField) return filteredBids;
+
+    return [...filteredBids].sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+
+      // Handle null values
+      if (aValue === null && bValue === null) return 0;
+      if (aValue === null) return sortDirection === "asc" ? 1 : -1;
+      if (bValue === null) return sortDirection === "asc" ? -1 : 1;
+
+      // Special handling for date fields
+      if (sortField === 'due_date' || sortField === 'archived_at') {
+        const aDate = new Date(aValue as string);
+        const bDate = new Date(bValue as string);
+        const comparison = aDate.getTime() - bDate.getTime();
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
+
+      // Handle other data types
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredBids, sortField, sortDirection]);
+
+  // Pagination calculations - applied to sorted bids
+  const totalPages = Math.ceil(sortedBids.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedBids = filteredBids.slice(startIndex, endIndex);
+  const paginatedBids = sortedBids.slice(startIndex, endIndex);
 
-  // Reset to first page when filters change
+  // Reset to first page when filters or sorting change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter.length, urgencyFilter, dateFilter]);
+  }, [searchTerm, statusFilter.length, urgencyFilter, dateFilter, sortField, sortDirection]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  const handleSort = (field: keyof Bid) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
   };
 
   const handleNewProject = () => {
@@ -273,15 +314,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               projectNotes={projectNotes}
               onStatusChange={handleStatusChange}
               isLoading={isLoading}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
           )}
         </div>
         
         {/* Pagination Controls - Fixed at bottom of page */}
-        {!isLoading && filteredBids.length > 0 && (
+        {!isLoading && sortedBids.length > 0 && (
           <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center text-sm text-gray-700">
-              <span>Showing {startIndex + 1} to {Math.min(endIndex, filteredBids.length)} of {filteredBids.length} results</span>
+              <span>Showing {startIndex + 1} to {Math.min(endIndex, sortedBids.length)} of {sortedBids.length} results</span>
             </div>
             
             <div className="flex items-center gap-3">

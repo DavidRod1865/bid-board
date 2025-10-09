@@ -1,12 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import type { User, Bid, Vendor, BidVendor, ProjectNote } from './types';
+
+// Type for raw bid data from Supabase (with nested relations)
+type RawBidData = {
+  id: number;
+  title?: string;
+  project_name: string;
+  project_email?: string;
+  project_address?: string;
+  general_contractor?: string;
+  project_description?: string;
+  due_date: string;
+  status: string;
+  priority: boolean;
+  estimated_value?: number;
+  notes?: string;
+  created_by?: string;
+  assign_to?: string;
+  file_location?: string;
+  archived?: boolean;
+  archived_at?: string;
+  archived_by?: string;
+  bid_vendors?: Array<BidVendor & { vendors?: { company_name: string; specialty?: string } }>;
+  created_by_user?: { name: string; email: string };
+  assigned_user?: { name: string; email: string };
+};
+
+// Type for realtime payload from Supabase
+type RealtimePayload = {
+  eventType?: string;
+  event?: string;
+  new?: Record<string, unknown>;
+  old?: Record<string, unknown>;
+};
 import { dbOperations, realtimeManager, supabase } from './lib/supabase';
 import Dashboard from './components/Dashboard/Dashboard';
 import ProjectDetail from './components/ProjectDetail';
 import VendorPage from './components/Vendor/VendorPage';
 import VendorDetail from './components/Vendor/VendorDetail';
 import Calendar from './components/Calendar';
+import Archives from './components/Archives';
 
 interface ProjectDetailWrapperProps {
   bids: Bid[];
@@ -77,17 +111,17 @@ const AppContent: React.FC = () => {
 
         // Transform bids data to extract bid_vendors
         const extractedBidVendors: BidVendor[] = [];
-        const transformedBids = bidsData.map((bid: any) => {
+        const transformedBids = bidsData.map((bid: RawBidData) => {
           // Extract bid_vendors from the nested structure
           if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
-            extractedBidVendors.push(...bid.bid_vendors.map((bv: any) => ({
+            extractedBidVendors.push(...bid.bid_vendors.map((bv) => ({
               ...bv,
               bid_id: bid.id
             })));
           }
           
           // Return bid without the nested bid_vendors
-          const { bid_vendors, ...bidWithoutVendors } = bid;
+          const { bid_vendors: _, ...bidWithoutVendors } = bid;
           return bidWithoutVendors as Bid;
         });
 
@@ -112,31 +146,34 @@ const AppContent: React.FC = () => {
   // Set up real-time subscriptions
   useEffect(() => {
     // Subscribe to bid changes
-    realtimeManager.subscribeToBids((payload: any) => {
+    realtimeManager.subscribeToBids((payload: RealtimePayload) => {
       const eventType = payload.eventType || payload.event;
       switch (eventType) {
         case 'INSERT':
           if (payload.new && typeof payload.new === 'object') {
             // Transform the payload to match our Bid interface
-            const rawBid = payload.new as any;
+            const rawBid = payload.new as RawBidData;
             if (rawBid.id && (rawBid.title || rawBid.project_name)) {
               // Transform to match the structure from getBids() 
               const transformedBid: Bid = {
                 id: rawBid.id,
                 title: rawBid.title || rawBid.project_name,
                 project_name: rawBid.project_name,
-                project_email: rawBid.project_email,
-                project_address: rawBid.project_address,
-                general_contractor: rawBid.general_contractor,
-                project_description: rawBid.project_description,
+                project_email: rawBid.project_email || null,
+                project_address: rawBid.project_address || null,
+                general_contractor: rawBid.general_contractor || null,
+                project_description: rawBid.project_description || null,
                 due_date: rawBid.due_date,
                 status: rawBid.status,
                 priority: rawBid.priority,
-                estimated_value: rawBid.estimated_value,
-                notes: rawBid.notes,
-                created_by: rawBid.created_by,
-                assign_to: rawBid.assign_to,
-                file_location: rawBid.file_location
+                estimated_value: rawBid.estimated_value || null,
+                notes: rawBid.notes || null,
+                created_by: rawBid.created_by || null,
+                assign_to: rawBid.assign_to || null,
+                file_location: rawBid.file_location || null,
+                archived: rawBid.archived || false,
+                archived_at: rawBid.archived_at || null,
+                archived_by: rawBid.archived_by || null
               };
               
               // Check if bid already exists to prevent duplicates
@@ -149,7 +186,7 @@ const AppContent: React.FC = () => {
           break;
         case 'UPDATE':
           if (payload.new && typeof payload.new === 'object') {
-            const updatedBid = payload.new as any;
+            const updatedBid = payload.new as RawBidData;
             if (updatedBid.id) {
               setBids(prev => prev.map(bid => 
                 bid.id === updatedBid.id ? { ...bid, ...updatedBid } as Bid : bid
@@ -159,7 +196,7 @@ const AppContent: React.FC = () => {
           break;
         case 'DELETE':
           if (payload.old && typeof payload.old === 'object') {
-            const deletedBid = payload.old as any;
+            const deletedBid = payload.old as RawBidData;
             if (deletedBid.id) {
               setBids(prev => prev.filter(bid => bid.id !== deletedBid.id));
             }
@@ -178,18 +215,18 @@ const AppContent: React.FC = () => {
           schema: 'public',
           table: 'bid_vendors'
         },
-        (payload: any) => {
+        (payload: RealtimePayload) => {
           const bidVendorEventType = payload.eventType || payload.event;
           switch (bidVendorEventType) {
             case 'INSERT':
               if (payload.new && typeof payload.new === 'object') {
-                const newBidVendor = payload.new as BidVendor;
+                const newBidVendor = payload.new as unknown as BidVendor;
                 setBidVendors(prev => [...prev, newBidVendor]);
               }
               break;
             case 'UPDATE':
               if (payload.new && typeof payload.new === 'object') {
-                const updatedBidVendor = payload.new as BidVendor;
+                const updatedBidVendor = payload.new as unknown as BidVendor;
                 setBidVendors(prev => prev.map(bv => 
                   bv.id === updatedBidVendor.id ? updatedBidVendor : bv
                 ));
@@ -197,7 +234,7 @@ const AppContent: React.FC = () => {
               break;
             case 'DELETE':
               if (payload.old && typeof payload.old === 'object') {
-                const deletedBidVendor = payload.old as BidVendor;
+                const deletedBidVendor = payload.old as unknown as BidVendor;
                 setBidVendors(prev => prev.filter(bv => bv.id !== deletedBidVendor.id));
               }
               break;
@@ -216,12 +253,12 @@ const AppContent: React.FC = () => {
           schema: 'public',
           table: 'vendors'
         },
-        (payload: any) => {
+        (payload: RealtimePayload) => {
           const vendorEventType = payload.eventType || payload.event;
           switch (vendorEventType) {
             case 'INSERT':
               if (payload.new && typeof payload.new === 'object') {
-                const newVendor = payload.new as Vendor;
+                const newVendor = payload.new as unknown as Vendor;
                 // Check for duplicates before adding
                 setVendors(prev => {
                   const exists = prev.some(v => v.id === newVendor.id);
@@ -231,7 +268,7 @@ const AppContent: React.FC = () => {
               break;
             case 'UPDATE':
               if (payload.new && typeof payload.new === 'object') {
-                const updatedVendor = payload.new as Vendor;
+                const updatedVendor = payload.new as unknown as Vendor;
                 setVendors(prev => prev.map(v => 
                   v.id === updatedVendor.id ? updatedVendor : v
                 ));
@@ -239,7 +276,7 @@ const AppContent: React.FC = () => {
               break;
             case 'DELETE':
               if (payload.old && typeof payload.old === 'object') {
-                const deletedVendor = payload.old as Vendor;
+                const deletedVendor = payload.old as unknown as Vendor;
                 setVendors(prev => prev.filter(v => v.id !== deletedVendor.id));
               }
               break;
@@ -258,18 +295,18 @@ const AppContent: React.FC = () => {
           schema: 'public',
           table: 'project_notes'
         },
-        (payload: any) => {
+        (payload: RealtimePayload) => {
           const noteEventType = payload.eventType || payload.event;
           switch (noteEventType) {
             case 'INSERT':
               if (payload.new && typeof payload.new === 'object') {
-                const newNote = payload.new as ProjectNote;
+                const newNote = payload.new as unknown as ProjectNote;
                 setProjectNotes(prev => [...prev, newNote]);
               }
               break;
             case 'UPDATE':
               if (payload.new && typeof payload.new === 'object') {
-                const updatedNote = payload.new as ProjectNote;
+                const updatedNote = payload.new as unknown as ProjectNote;
                 setProjectNotes(prev => prev.map(n => 
                   n.id === updatedNote.id ? updatedNote : n
                 ));
@@ -277,7 +314,7 @@ const AppContent: React.FC = () => {
               break;
             case 'DELETE':
               if (payload.old && typeof payload.old === 'object') {
-                const deletedNote = payload.old as ProjectNote;
+                const deletedNote = payload.old as unknown as ProjectNote;
                 setProjectNotes(prev => prev.filter(n => n.id !== deletedNote.id));
               }
               break;
@@ -317,11 +354,18 @@ const AppContent: React.FC = () => {
   const handleUpdateBid = async (bidId: number, updatedBid: Partial<Bid>) => {
     try {
       await dbOperations.updateBid(bidId, updatedBid);
-      setBids(prevBids => 
-        prevBids.map(bid => 
-          bid.id === bidId ? { ...bid, ...updatedBid } : bid
-        )
-      );
+      
+      // If the bid is being archived, remove it from the main dashboard
+      if (updatedBid.archived === true) {
+        setBids(prevBids => prevBids.filter(bid => bid.id !== bidId));
+      } else {
+        // Otherwise, update the bid in the list
+        setBids(prevBids => 
+          prevBids.map(bid => 
+            bid.id === bidId ? { ...bid, ...updatedBid } : bid
+          )
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update bid');
     }
@@ -348,7 +392,10 @@ const AppContent: React.FC = () => {
         notes: newBid.notes,
         created_by: newBid.created_by,
         assign_to: newBid.assign_to,
-        file_location: newBid.file_location
+        file_location: newBid.file_location,
+        archived: newBid.archived || false,
+        archived_at: newBid.archived_at || null,
+        archived_by: newBid.archived_by || null
       };
       
       setBids(prev => {
@@ -380,7 +427,10 @@ const AppContent: React.FC = () => {
         notes: newBid.notes,
         created_by: newBid.created_by,
         assign_to: newBid.assign_to,
-        file_location: newBid.file_location
+        file_location: newBid.file_location,
+        archived: newBid.archived || false,
+        archived_at: newBid.archived_at || null,
+        archived_by: newBid.archived_by || null
       };
       
       setBids(prev => {
@@ -445,19 +495,20 @@ const AppContent: React.FC = () => {
       });
       
       // Transform the response to match our BidVendor type
+      const bidVendorResponse = newBidVendor as BidVendor & { vendors?: Vendor };
       const transformedBidVendor: BidVendor = {
-        id: (newBidVendor as any).id,
+        id: bidVendorResponse.id,
         bid_id: bidId,
-        vendor_id: (newBidVendor as any).vendor_id,
-        due_date: (newBidVendor as any).due_date,
-        response_received_date: (newBidVendor as any).response_received_date,
-        status: (newBidVendor as any).status,
-        follow_up_count: (newBidVendor as any).follow_up_count || 0,
-        last_follow_up_date: (newBidVendor as any).last_follow_up_date,
-        response_notes: (newBidVendor as any).response_notes,
-        responded_by: (newBidVendor as any).responded_by,
-        is_priority: (newBidVendor as any).is_priority || false,
-        cost_amount: (newBidVendor as any).cost_amount
+        vendor_id: bidVendorResponse.vendor_id,
+        due_date: bidVendorResponse.due_date,
+        response_received_date: bidVendorResponse.response_received_date,
+        status: bidVendorResponse.status,
+        follow_up_count: bidVendorResponse.follow_up_count || 0,
+        last_follow_up_date: bidVendorResponse.last_follow_up_date,
+        response_notes: bidVendorResponse.response_notes,
+        responded_by: bidVendorResponse.responded_by,
+        is_priority: bidVendorResponse.is_priority || false,
+        cost_amount: bidVendorResponse.cost_amount
       };
       
       setBidVendors(prevBidVendors => [...prevBidVendors, transformedBidVendor]);
@@ -492,6 +543,11 @@ const AppContent: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove vendors from bid');
     }
+  };
+
+  const handleBidRestored = (restoredBid: Bid) => {
+    // Add the restored bid back to the main bids list
+    setBids(prevBids => [restoredBid, ...prevBids]);
   };
 
 
@@ -590,6 +646,10 @@ const AppContent: React.FC = () => {
               vendors={vendors}
             />
           } 
+        />
+        <Route 
+          path="/archives" 
+          element={<Archives onBidRestored={handleBidRestored} />} 
         />
       </Routes>
     </div>

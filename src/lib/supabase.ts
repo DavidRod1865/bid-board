@@ -191,7 +191,66 @@ export const dbOperations = {
           vendors(company_name, specialty)
         )
       `)
+      .or('archived.is.null,archived.eq.false')
       .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  async getArchivedBids() {
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        *,
+        created_by_user:users!created_by(name, email),
+        assigned_user:users!assign_to(name, email),
+        archived_by_user:users!archived_by(name, email),
+        bid_vendors(
+          id,
+          vendor_id,
+          due_date,
+          response_received_date,
+          status,
+          is_priority,
+          cost_amount,
+          vendors(company_name, specialty)
+        )
+      `)
+      .eq('archived', true)
+      .order('archived_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  async archiveBid(bidId: number, userId: string) {
+    const { data, error } = await supabase
+      .from('bids')
+      .update({
+        archived: true,
+        archived_at: new Date().toISOString(),
+        archived_by: userId
+      })
+      .eq('id', bidId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async unarchiveBid(bidId: number) {
+    const { data, error } = await supabase
+      .from('bids')
+      .update({
+        archived: false,
+        archived_at: null,
+        archived_by: null
+      })
+      .eq('id', bidId)
+      .select()
+      .single()
 
     if (error) throw error
     return data

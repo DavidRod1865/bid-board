@@ -121,6 +121,9 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       assign_to: formData.assign_to || null, // Convert empty string to null
       file_location: formData.file_location || null, // Use form file_location
       estimated_value: 0, // Set default estimated value
+      archived: false,
+      archived_at: null,
+      archived_by: null,
     };
 
     onCopyProject(selectedProjectId!, projectData);

@@ -15,6 +15,7 @@ interface SidebarProps {
   onAddVendor?: () => void;
   onEditProject?: () => void;
   onDeleteProject?: () => void;
+  onArchiveProject?: () => void;
   onAddNote?: () => void;
   onSaveProject?: () => void;
   onCancelProject?: () => void;
@@ -40,6 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onAddVendor,
   onEditProject,
   onDeleteProject,
+  onArchiveProject,
   onAddNote,
   onSaveProject,
   onCancelProject,
@@ -85,6 +87,18 @@ const Sidebar: React.FC<SidebarProps> = ({
       ),
       path: '/',
       onClick: () => navigate('/'),
+      disabled: false
+    },
+    {
+      id: 'archives',
+      label: 'Archives',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+        </svg>
+      ),
+      path: '/archives',
+      onClick: () => navigate('/archives'),
       disabled: false
     },
     {
@@ -347,7 +361,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
 
-            {/* Bottom action section - Remove Vendors or Delete Project */}
+            {/* Bottom action section - Remove Vendors, Archive Project, or Delete Project */}
             {!isEditingProject && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 {selectedVendorsCount > 0 ? (
@@ -364,18 +378,34 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {!isCollapsed && <span className="font-medium text-sm">Remove Selected ({selectedVendorsCount})</span>}
                   </button>
                 ) : (
-                  <button
-                    onClick={onDeleteProject}
-                    className={`
-                      w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-red-600 hover:bg-red-50 hover:text-red-700
-                      ${isCollapsed ? 'justify-center' : 'justify-start'}
-                    `}
-                  >
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    {!isCollapsed && <span className="font-medium text-sm">Delete Project</span>}
-                  </button>
+                  <div className="space-y-1">
+                    {onArchiveProject && (
+                      <button
+                        onClick={onArchiveProject}
+                        className={`
+                          w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700
+                          ${isCollapsed ? 'justify-center' : 'justify-start'}
+                        `}
+                      >
+                        <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                        {!isCollapsed && <span className="font-medium text-sm">Archive Project</span>}
+                      </button>
+                    )}
+                    <button
+                      onClick={onDeleteProject}
+                      className={`
+                        w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-red-600 hover:bg-red-50 hover:text-red-700
+                        ${isCollapsed ? 'justify-center' : 'justify-start'}
+                      `}
+                    >
+                      <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      {!isCollapsed && <span className="font-medium text-sm">Delete Project</span>}
+                    </button>
+                  </div>
                 )}
               </div>
             )}

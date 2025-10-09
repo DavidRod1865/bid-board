@@ -37,6 +37,9 @@ export interface Bid {
   created_by: string | null;
   assign_to: string | null;
   file_location: string | null;
+  archived: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
 }
 
 export interface BidVendor {
