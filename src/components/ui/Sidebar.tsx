@@ -15,7 +15,8 @@ import {
   UserPlusIcon,
   CheckIcon,
   XMarkIcon,
-  TrashIcon
+  TrashIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { useAuth0 } from '../../auth';
 import { useUserProfile } from '../../contexts/UserContext';
@@ -487,9 +488,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
                   <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                 </div>
-                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <ChevronDownIcon className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${showUserMenu ? 'transform rotate-90' : ''}`} />
               </>
             )}
           </button>
