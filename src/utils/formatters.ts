@@ -264,7 +264,7 @@ export const getBidUrgencyClasses = (dueDateString: string, status: string): str
     case 'overdue':
       return 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-300';
     case 'dueToday':
-      return 'bg-amber-50 hover:bg-amber-100 border-l-4 border-l-amber-400';
+      return 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-300';
     case 'critical':
       return 'bg-orange-50 hover:bg-orange-100 border-l-4 border-l-orange-300';
     case 'warning':
