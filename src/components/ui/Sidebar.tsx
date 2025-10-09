@@ -488,7 +488,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
                   <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                 </div>
-                <ChevronDownIcon className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${showUserMenu ? 'transform rotate-90' : ''}`} />
+                <ChevronDownIcon className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${showUserMenu ? 'transform rotate-180' : ''}`} />
               </>
             )}
           </button>
