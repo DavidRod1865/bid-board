@@ -129,9 +129,8 @@ const VendorPage: React.FC<VendorPageProps> = ({
   const handleNewProject = () => {};
 
   return (
-    <div className="flex flex-col h-screen">
-
-      <div className="flex-1 flex">
+    <>
+      <div className="flex h-screen">
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
@@ -140,11 +139,11 @@ const VendorPage: React.FC<VendorPageProps> = ({
         />
 
         <div className="flex-1 bg-gray-50 flex flex-col">
-          <div className="p-6 pb-0 mx-auto w-full">
+          <div className="p-6 pb-0 mx-auto w-full flex-shrink-0">
             {/* Error handling via toast notifications only */}
           </div>
           
-          <div className="flex-1 p-6 pt-4 mx-auto w-full">
+          <div className="flex-1 overflow-auto p-6 pt-4 mx-auto w-full">
             <VendorList
               vendors={paginatedVendors}
               onEditVendor={handleEditVendor}
@@ -157,28 +156,29 @@ const VendorPage: React.FC<VendorPageProps> = ({
           
           {/* Pagination Controls - Fixed at bottom of page */}
           {!globalLoading && vendors.length > 0 && (
-            <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between">
-              <div className="flex items-center text-sm text-gray-700">
-                <span>Showing {startIndex + 1} to {Math.min(endIndex, vendors.length)} of {vendors.length} results</span>
+            <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+              <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
+                <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, vendors.length)} of {vendors.length} results</span>
+                <span className="sm:hidden">{vendors.length} results</span>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 order-1 sm:order-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Prev
                 </button>
                 
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-700 whitespace-nowrap">
                   Page {currentPage} of {totalPages}
                 </span>
                 
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -212,7 +212,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
 
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
-    </div>
+    </>
   );
 };
 

@@ -1,23 +1,24 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { DateRangePicker } from 'react-date-range';
 import { Input } from '../ui/FormField';
 import Button from '../ui/Button';
 import { BID_STATUSES } from '../../utils/constants';
 import { getStatusColor } from '../../utils/statusUtils';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 
 interface SearchFiltersProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   statusFilter: string[];
   setStatusFilter: (statuses: string[]) => void;
-  urgencyFilter?: string;
-  setUrgencyFilter?: (urgency: string) => void;
-  dateFilter?: string;
-  setDateFilter?: (date: string) => void;
+  dateRange?: {startDate: Date | null, endDate: Date | null};
+  setDateRange?: (range: {startDate: Date | null, endDate: Date | null}) => void;
   onReset?: () => void;
   onNewProject?: () => void;
   searchPlaceholder?: string;
   showStatusFilter?: boolean;
-  showUrgencyFilter?: boolean;
+  showDateFilter?: boolean;
 }
 
 const SearchFilters: React.FC<SearchFiltersProps> = ({
@@ -25,26 +26,41 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   setSearchTerm,
   statusFilter,
   setStatusFilter,
-  urgencyFilter = '',
-  setUrgencyFilter = () => {},
-  dateFilter = '',
-  setDateFilter = () => {},
+  dateRange = {startDate: null, endDate: null},
+  setDateRange = () => {},
   onReset,
   onNewProject,
   searchPlaceholder = "Search...",
   showStatusFilter = true,
-  showUrgencyFilter = true
+  showDateFilter = true
 }) => {
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+  
   // Avoid unused variable warnings
   void onNewProject;
+
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+
+    if (showDatePicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDatePicker]);
   
   const handleReset = () => {
     setSearchTerm('');
     setStatusFilter([]);
-    if (showUrgencyFilter) {
-      setUrgencyFilter('');
-      setDateFilter('');
+    if (showDateFilter) {
+      setDateRange({startDate: null, endDate: null});
     }
+    setShowDatePicker(false);
     onReset?.();
   };
 
@@ -62,8 +78,41 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     setStatusFilter([]);
   };
 
-  const handleUrgencyFilter = (urgency: string) => {
-    setUrgencyFilter(urgencyFilter === urgency ? '' : urgency);
+  const handleDateRangeChange = (ranges: any) => {
+    const { selection } = ranges;
+    setDateRange({
+      startDate: selection.startDate,
+      endDate: selection.endDate
+    });
+  };
+
+  const formatDateRange = () => {
+    if (!dateRange.startDate && !dateRange.endDate) {
+      return 'Select date range';
+    }
+    
+    const formatDate = (date: Date) => date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+
+    if (dateRange.startDate && dateRange.endDate) {
+      if (dateRange.startDate.toDateString() === dateRange.endDate.toDateString()) {
+        return formatDate(dateRange.startDate);
+      }
+      return `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`;
+    }
+
+    if (dateRange.startDate) {
+      return `From ${formatDate(dateRange.startDate)}`;
+    }
+
+    if (dateRange.endDate) {
+      return `Until ${formatDate(dateRange.endDate)}`;
+    }
+
+    return 'Select date range';
   };
   
   return (
@@ -128,60 +177,54 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         </div>
       )}
 
-      {/* Urgency Filter Buttons and Date Filter */}
-      {showUrgencyFilter && (
+      {/* Date Range Filter */}
+      {showDateFilter && (
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 mr-2">Filter by urgency:</span>
-            
-            <button
-              onClick={() => handleUrgencyFilter('')}
-              className={`
-                px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 border
-                ${urgencyFilter === '' 
-                  ? 'bg-[#d4af37] text-white border-[#d4af37]' 
-                  : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                }
-              `}
-            >
-              All
-            </button>
-
-            <button
-              onClick={() => handleUrgencyFilter('today')}
-              className={`
-                px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 border
-                ${urgencyFilter === 'today' 
-                  ? 'bg-red-500 text-white border-red-500' 
-                  : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                }
-              `}
-            >
-              Today
-            </button>
-
-            <button
-              onClick={() => handleUrgencyFilter('thisweek')}
-              className={`
-                px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 border
-                ${urgencyFilter === 'thisweek' 
-                  ? 'bg-orange-500 text-white border-orange-500' 
-                  : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                }
-              `}
-            >
-              This Week
-            </button>
+            <span className="text-sm font-medium text-gray-700 mr-2">Filter by date:</span>
           </div>
 
-          <div className="flex items-center">
-            <Input
-              type="date"
-              placeholder="Filter by date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-40"
-            />
+          <div className="flex items-center relative" ref={datePickerRef}>
+            <button
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] min-w-48 text-left"
+            >
+              {formatDateRange()}
+            </button>
+            
+            {showDatePicker && (
+              <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg">
+                <DateRangePicker
+                  ranges={[{
+                    startDate: dateRange.startDate || new Date(),
+                    endDate: dateRange.endDate || new Date(),
+                    key: 'selection'
+                  }]}
+                  onChange={handleDateRangeChange}
+                  moveRangeOnFirstSelection={false}
+                  months={1}
+                  direction="horizontal"
+                  rangeColors={['#d4af37']}
+                />
+                <div className="p-3 border-t border-gray-200 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setDateRange({startDate: null, endDate: null});
+                      setShowDatePicker(false);
+                    }}
+                    className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setShowDatePicker(false)}
+                    className="px-3 py-1 text-sm bg-[#d4af37] text-white rounded hover:bg-[#c19b26]"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

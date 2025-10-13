@@ -9,7 +9,7 @@ import CopyProjectModal from '../CopyProjectModal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import ToastContainer from '../ui/ToastContainer';
 import { useToast } from '../../hooks/useToast';
-import { isDateInUrgencyPeriod, isDateMatch } from '../../utils/formatters';
+import { isDateInRange } from '../../utils/formatters';
 import { 
   getVendorCostsDueWithinWeek,
   groupVendorCostsByBidAndDate,
@@ -45,8 +45,10 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [urgencyFilter, setUrgencyFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateRange, setDateRange] = useState<{startDate: Date | null, endDate: Date | null}>({
+    startDate: null,
+    endDate: null
+  });
   
   // Sorting state
   const [sortField, setSortField] = useState<keyof Bid | null>("due_date");
@@ -83,18 +85,13 @@ const Dashboard: React.FC<DashboardProps> = ({
       filtered = filtered.filter(bid => statusFilter.includes(bid.status));
     }
 
-    // Filter by urgency (based on due_date)
-    if (urgencyFilter) {
-      filtered = filtered.filter(bid => isDateInUrgencyPeriod(bid.due_date, urgencyFilter));
-    }
-
-    // Filter by specific date
-    if (dateFilter) {
-      filtered = filtered.filter(bid => isDateMatch(bid.due_date, dateFilter));
+    // Filter by date range
+    if (dateRange.startDate || dateRange.endDate) {
+      filtered = filtered.filter(bid => isDateInRange(bid.due_date, dateRange.startDate, dateRange.endDate));
     }
     
     return filtered;
-  }, [bids, searchTerm, statusFilter, urgencyFilter, dateFilter]);
+  }, [bids, searchTerm, statusFilter, dateRange]);
 
   // Sorting logic - applied to filtered bids before pagination
   const sortedBids = useMemo(() => {
@@ -133,7 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Reset to first page when filters or sorting change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter.length, urgencyFilter, dateFilter, sortField, sortDirection]);
+  }, [searchTerm, statusFilter.length, dateRange, sortField, sortDirection]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -276,22 +273,20 @@ const Dashboard: React.FC<DashboardProps> = ({
       />
       
       <div className="flex-1 flex flex-col mx-auto w-full">
-        <div className="p-6 pb-0">
+        <div className="p-6 pb-0 flex-shrink-0">
           <SearchFilters
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
-            urgencyFilter={urgencyFilter}
-            setUrgencyFilter={setUrgencyFilter}
-            dateFilter={dateFilter}
-            setDateFilter={setDateFilter}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
             onNewProject={handleNewProject}
             searchPlaceholder="Search projects..."
           />
         </div>
         
-        <div className="flex-1 p-6 pt-4">
+        <div className="flex-1 overflow-auto p-6 pt-4">
           {!isLoading && bids.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
@@ -322,30 +317,31 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         {/* Pagination Controls - Fixed at bottom of page */}
         {!isLoading && sortedBids.length > 0 && (
-          <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center text-sm text-gray-700">
-              <span>Showing {startIndex + 1} to {Math.min(endIndex, sortedBids.length)} of {sortedBids.length} results</span>
+          <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+            <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
+              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, sortedBids.length)} of {sortedBids.length} results</span>
+              <span className="sm:hidden">{sortedBids.length} results</span>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 order-1 sm:order-2">
               {/* Page navigation */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Prev
                 </button>
                 
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-700 whitespace-nowrap">
                   Page {currentPage} of {totalPages}
                 </span>
                 
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

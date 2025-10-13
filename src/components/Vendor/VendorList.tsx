@@ -120,7 +120,7 @@ const VendorList: React.FC<VendorListProps> = ({
           setStatusFilter={setStatusFilter}
           searchPlaceholder="Search vendors..."
           showStatusFilter={false}
-          showUrgencyFilter={false}
+          showDateFilter={false}
         />
       </div>
 

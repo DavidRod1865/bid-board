@@ -7,7 +7,7 @@ import SearchFilters from './Dashboard/SearchFilters';
 import ConfirmationModal from './ui/ConfirmationModal';
 import { useToast } from '../hooks/useToast';
 import { dbOperations } from '../lib/supabase';
-import { formatDate, isDateInUrgencyPeriod, isDateMatch } from '../utils/formatters';
+import { formatDate, isDateInRange } from '../utils/formatters';
 import { getStatusColor } from '../utils/statusUtils';
 
 interface ArchivesProps {
@@ -21,8 +21,10 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [urgencyFilter, setUrgencyFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateRange, setDateRange] = useState<{startDate: Date | null, endDate: Date | null}>({
+    startDate: null,
+    endDate: null
+  });
   const navigate = useNavigate();
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -138,18 +140,13 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
       filtered = filtered.filter(bid => statusFilter.includes(bid.status));
     }
 
-    // Filter by urgency (based on due_date)
-    if (urgencyFilter) {
-      filtered = filtered.filter(bid => isDateInUrgencyPeriod(bid.due_date, urgencyFilter));
-    }
-
-    // Filter by specific date
-    if (dateFilter) {
-      filtered = filtered.filter(bid => isDateMatch(bid.due_date, dateFilter));
+    // Filter by date range
+    if (dateRange.startDate || dateRange.endDate) {
+      filtered = filtered.filter(bid => isDateInRange(bid.due_date, dateRange.startDate, dateRange.endDate));
     }
     
     return filtered;
-  }, [archivedBids, searchTerm, statusFilter, urgencyFilter, dateFilter]);
+  }, [archivedBids, searchTerm, statusFilter, dateRange]);
 
   // Dummy handlers for sidebar (archives page doesn't need these)
   const handleStatusFilter = () => {};
@@ -220,10 +217,8 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
             setSearchTerm={setSearchTerm}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
-            urgencyFilter={urgencyFilter}
-            setUrgencyFilter={setUrgencyFilter}
-            dateFilter={dateFilter}
-            setDateFilter={setDateFilter}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
             searchPlaceholder="Search archived bids..."
           />
         </div>
@@ -235,13 +230,13 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
                 <ArchiveBoxIcon className="mx-auto h-24 w-24" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm || statusFilter.length > 0 || urgencyFilter || dateFilter 
+                {searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate 
                   ? 'No matching archived bids' 
                   : 'No archived bids'
                 }
               </h3>
               <p className="text-gray-600">
-                {searchTerm || statusFilter.length > 0 || urgencyFilter || dateFilter
+                {searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
                   ? 'Try adjusting your search filters' 
                   : 'Archived bids will appear here when projects are won or lost'
                 }

@@ -143,6 +143,45 @@ export const isDateMatch = (date: string | null, dateFilter: string): boolean =>
 };
 
 /**
+ * Check if a date falls within the specified date range
+ */
+export const isDateInRange = (date: string | null, startDate: Date | null, endDate: Date | null): boolean => {
+  // If no range is set, show all dates
+  if (!startDate && !endDate) return true;
+  
+  // If no date to check, exclude it
+  if (!date) return false;
+  
+  const bidDate = parseDate(date);
+  bidDate.setHours(0, 0, 0, 0); // Normalize to start of day
+  
+  // If only start date is set, filter from that date onwards
+  if (startDate && !endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    return bidDate >= start;
+  }
+  
+  // If only end date is set, filter up to that date
+  if (!startDate && endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // End of day
+    return bidDate <= end;
+  }
+  
+  // If both dates are set, check if date is within range (inclusive)
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return bidDate >= start && bidDate <= end;
+  }
+  
+  return true;
+};
+
+/**
  * Convert camelCase or snake_case to Title Case
  */
 export const toTitleCase = (text: string): string => {

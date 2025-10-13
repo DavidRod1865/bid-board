@@ -101,21 +101,19 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
   // Error or vendor not found state
   if (error || !vendor) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex">
-          <Sidebar 
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-          />
-          <div className="flex-1 p-8 min-h-screen">
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                {error || "Vendor not found"}
-              </h2>
-              <Button onClick={() => navigate("/vendors")}>
-                ← Back to Vendors
-              </Button>
-            </div>
+      <div className="flex h-screen">
+        <Sidebar 
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+        />
+        <div className="flex-1 bg-gray-50 p-8 overflow-auto">
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+              {error || "Vendor not found"}
+            </h2>
+            <Button onClick={() => navigate("/vendors")}>
+              ← Back to Vendors
+            </Button>
           </div>
         </div>
       </div>
@@ -192,21 +190,19 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-
-      <div className="flex">
-        <Sidebar 
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          onEditVendor={handleEditVendor}
-          onDeleteVendor={handleDeleteVendor}
-          onSaveVendor={handleSave}
-          onCancelVendor={handleCancel}
-          isEditingVendor={isEditing}
-          isSavingVendor={isSaving}
-        />
-        
-        <div className="flex-1 p-8">
+    <div className="flex h-screen">
+      <Sidebar 
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        onEditVendor={handleEditVendor}
+        onDeleteVendor={handleDeleteVendor}
+        onSaveVendor={handleSave}
+        onCancelVendor={handleCancel}
+        isEditingVendor={isEditing}
+        isSavingVendor={isSaving}
+      />
+      
+      <div className="flex-1 bg-gray-50 p-8 overflow-auto">
           {/* Error display */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -233,8 +229,7 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
             />
           </div>
         </div>
-      </div>
-
+      
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={showDeleteModal}
