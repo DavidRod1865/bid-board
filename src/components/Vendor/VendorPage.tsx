@@ -32,7 +32,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
 
   const handleEditVendor = async (vendorId: number) => {
     if (!onEditVendor) {

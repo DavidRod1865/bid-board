@@ -314,7 +314,7 @@ export const getBidUrgencyClasses = (dueDateString: string, status: string): str
 };
 
 /**
- * Get the display status for a bid, automatically showing "Due Today" or "Overdue (X Days)" when appropriate
+ * Get the display status for a bid, automatically showing "Due Today" when appropriate
  */
 export const getBidDisplayStatus = (originalStatus: string, dueDateString: string): string => {
   // Don't change status for completed bids
@@ -330,11 +330,7 @@ export const getBidDisplayStatus = (originalStatus: string, dueDateString: strin
     return 'Due Today';
   }
   
-  // If overdue, show "Overdue (X Days)" instead of original status
-  if (urgency.level === 'overdue' && urgency.businessDaysOverdue) {
-    return `Overdue (${urgency.businessDaysOverdue} Day${urgency.businessDaysOverdue > 1 ? 's' : ''})`;
-  }
-  
+  // For overdue items, show the original status (not "Overdue")
   return originalStatus;
 };
 

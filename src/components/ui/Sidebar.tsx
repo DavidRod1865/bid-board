@@ -5,6 +5,7 @@ import {
   ArchiveBoxIcon,
   UsersIcon,
   CalendarIcon,
+  ChartBarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
@@ -133,6 +134,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       ),
       path: '/calendar',
       onClick: () => navigate('/calendar'),
+      disabled: false
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: (
+        <ChartBarIcon className="w-5 h-5" />
+      ),
+      path: '/analytics',
+      onClick: () => navigate('/analytics'),
       disabled: false
     }
   ];

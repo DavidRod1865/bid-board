@@ -25,6 +25,11 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
     startDate: null,
     endDate: null
   });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
   const navigate = useNavigate();
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -148,6 +153,21 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
     return filtered;
   }, [archivedBids, searchTerm, statusFilter, dateRange]);
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredBids.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBids = filteredBids.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter.length, dateRange]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   // Dummy handlers for sidebar (archives page doesn't need these)
   const handleStatusFilter = () => {};
   const handleNewProject = () => {};
@@ -223,7 +243,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
           />
         </div>
         
-        <div className="flex-1 p-6 pt-4">
+        <div className="flex-1 overflow-auto p-6 pt-4">
           {!loading && filteredBids.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
@@ -243,25 +263,24 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               {/* Table Header */}
-              <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1fr_0.5fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
+              <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_0.5fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project</div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">General Contractor</div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Status</div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Bid Date</div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Archived Date</div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Archived By</div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Actions</div>
               </div>
 
               {/* Table Body */}
-              <div className="flex-1 overflow-y-auto">
-                {filteredBids.map((bid) => {
+              <div>
+                {paginatedBids.map((bid) => {
                   return (
                     <div
                       key={bid.id}
-                      className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1fr_0.5fr] border-b border-gray-200 px-4 py-3 items-center transition-all relative hover:bg-gray-50 cursor-pointer"
+                      className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_0.5fr] border-b border-gray-200 px-4 py-3 items-center transition-all relative hover:bg-gray-50 cursor-pointer"
                       onClick={(e) => handleRowClick(bid.id, e)}
                     >
                       {/* Status accent line */}
@@ -298,15 +317,9 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
                         {formatDate(bid.due_date)}
                       </div>
 
-
                       {/* Archived Date */}
                       <div className="text-sm text-gray-600 text-center">
                         {bid.archived_at ? formatDate(bid.archived_at) : 'Unknown'}
-                      </div>
-
-                      {/* Archived By */}
-                      <div className="text-sm text-gray-600 text-center">
-                        {(bid as Bid & { archived_by_user?: { name?: string } }).archived_by_user?.name || 'Unknown'}
                       </div>
 
                       {/* Actions */}
@@ -325,6 +338,41 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, onBidRestored }) => {
             </div>
           )}
         </div>
+        
+        {/* Pagination Controls - Fixed at bottom of page */}
+        {!loading && filteredBids.length > 0 && (
+          <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+            <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
+              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, filteredBids.length)} of {filteredBids.length} results</span>
+              <span className="sm:hidden">{filteredBids.length} results</span>
+            </div>
+            
+            <div className="flex items-center gap-3 order-1 sm:order-2">
+              {/* Page navigation */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
+                
+                <span className="text-sm text-gray-700 whitespace-nowrap">
+                  Page {currentPage} of {totalPages}
+                </span>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Confirmation Modal */}

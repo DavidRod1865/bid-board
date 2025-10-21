@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import type { User, Bid, Vendor, BidVendor, ProjectNote } from './types';
+import AnalyticsPage from './components/Analytics/AnalyticsPage';
 
 // Type for raw bid data from Supabase (with nested relations)
 type RawBidData = {
@@ -686,6 +687,10 @@ const AppContent: React.FC = () => {
         <Route 
           path="/archives" 
           element={<Archives onBidRestored={handleBidRestored} />} 
+        />
+        <Route 
+          path="/analytics" 
+          element={<AnalyticsPage />} 
         />
       </Routes>
     </div>

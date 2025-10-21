@@ -9,7 +9,7 @@ import CopyProjectModal from '../CopyProjectModal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import ToastContainer from '../ui/ToastContainer';
 import { useToast } from '../../hooks/useToast';
-import { isDateInRange } from '../../utils/formatters';
+import { isDateInRange, getBidUrgency } from '../../utils/formatters';
 import { 
   getVendorCostsDueWithinWeek,
   groupVendorCostsByBidAndDate,
@@ -49,6 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     startDate: null,
     endDate: null
   });
+  const [overdueFilter, setOverdueFilter] = useState(false);
   
   // Sorting state
   const [sortField, setSortField] = useState<keyof Bid | null>("due_date");
@@ -63,6 +64,15 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isEmailingReport, setIsEmailingReport] = useState(false);
   const [showEmailConfirmModal, setShowEmailConfirmModal] = useState(false);
   const { toasts, removeToast, showSuccess, showError } = useToast();
+
+  // Calculate overdue count for all bids
+  const overdueCount = useMemo(() => {
+    if (!bids || bids.length === 0) return 0;
+    return bids.filter(bid => {
+      const urgency = getBidUrgency(bid.due_date, bid.status);
+      return urgency.level === 'overdue';
+    }).length;
+  }, [bids]);
 
   const filteredBids = useMemo(() => {
     if (!bids || bids.length === 0) {
@@ -89,9 +99,17 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (dateRange.startDate || dateRange.endDate) {
       filtered = filtered.filter(bid => isDateInRange(bid.due_date, dateRange.startDate, dateRange.endDate));
     }
+
+    // Filter by overdue status
+    if (overdueFilter) {
+      filtered = filtered.filter(bid => {
+        const urgency = getBidUrgency(bid.due_date, bid.status);
+        return urgency.level === 'overdue';
+      });
+    }
     
     return filtered;
-  }, [bids, searchTerm, statusFilter, dateRange]);
+  }, [bids, searchTerm, statusFilter, dateRange, overdueFilter]);
 
   // Sorting logic - applied to filtered bids before pagination
   const sortedBids = useMemo(() => {
@@ -130,7 +148,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Reset to first page when filters or sorting change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter.length, dateRange, sortField, sortDirection]);
+  }, [searchTerm, statusFilter.length, dateRange, overdueFilter, sortField, sortDirection]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -283,6 +301,9 @@ const Dashboard: React.FC<DashboardProps> = ({
             setDateRange={setDateRange}
             onNewProject={handleNewProject}
             searchPlaceholder="Search projects..."
+            overdueFilter={overdueFilter}
+            setOverdueFilter={setOverdueFilter}
+            overdueCount={overdueCount}
           />
         </div>
         

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Bid, ProjectNote } from "../../types";
 import { getStatusColor } from "../../utils/statusUtils";
-import { formatDate, getBidUrgencyClasses, getBidUrgency, getBidDisplayStatus } from "../../utils/formatters";
+import { formatDate, getBidUrgencyClasses, getBidUrgency } from "../../utils/formatters";
 import { BID_STATUSES } from "../../utils/constants";
 
 interface ProjectTableProps {
@@ -122,8 +122,9 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
       {/* Table Header */}
-      <div className="grid grid-cols-[2.2fr_1.2fr_1.5fr_1.2fr_4fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
+      <div className="grid grid-cols-[2fr_1.5fr_1fr_1.2fr_1fr_3fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
         <SortableHeader field="title">PROJECT NAME</SortableHeader>
+        <SortableHeader field="general_contractor">GENERAL CONTRACTOR</SortableHeader>
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center justify-center cursor-pointer" onClick={() => handleSort('status')}>
           STATUS
           {sortField === 'status' && (
@@ -180,13 +181,10 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             }).length;
             
             
-            // Get display status (handles overdue automatically)
-            const displayStatus = getBidDisplayStatus(bid.status, bid.due_date);
-            
             return (
             <div
               key={bid.id}
-              className={`grid grid-cols-[2.2fr_1.2fr_1.5fr_1.2fr_4fr] border-b border-gray-200 px-4 py-3 items-center transition-all relative cursor-pointer ${getBidUrgencyClasses(bid.due_date, bid.status)}`}
+              className={`grid grid-cols-[2fr_1.5fr_1fr_1.2fr_1fr_3fr] border-b border-gray-200 px-4 py-3 items-center transition-all relative cursor-pointer ${getBidUrgencyClasses(bid.due_date, bid.status)}`}
               onClick={(e) => handleRowClick(bid.id, e)}
             >
               {/* Status accent line - only show if no urgency highlighting */}
@@ -204,69 +202,27 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
                 </span>
               </div>
 
+              {/* General Contractor */}
+              <div className="flex items-center text-gray-600 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                {bid.general_contractor || 'Not specified'}
+              </div>
+
               {/* Status Dropdown */}
               <div className="flex flex-col items-center">
                 <div className="flex items-center">
-                  {urgency.level === 'overdue' ? (
-                    // Show read-only overdue status with option to edit
-                    <div className="relative group">
-                      <div 
-                        className="px-3 py-2 rounded text-xs font-medium text-white bg-red-500 cursor-pointer w-32 text-center"
-                        title="Click to change status"
-                      >
-                        {displayStatus}
-                      </div>
-                      <select
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        value={bid.status}
-                        onChange={(e) => handleStatusChange(bid.id, e.target.value)}
-                        disabled={isUpdating}
-                      >
-                        {BID_STATUSES.map(status => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : urgency.level === 'dueToday' ? (
-                    // Show read-only due today status with option to edit
-                    <div className="relative group">
-                      <div 
-                        className="px-3 py-2 rounded text-xs font-medium text-white bg-amber-500 cursor-pointer w-32 text-center"
-                        title="Click to change status"
-                      >
-                        {displayStatus}
-                      </div>
-                      <select
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        value={bid.status}
-                        onChange={(e) => handleStatusChange(bid.id, e.target.value)}
-                        disabled={isUpdating}
-                      >
-                        {BID_STATUSES.map(status => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    // Normal status dropdown
-                    <select
-                      className={`text-white border-none px-3 py-2 rounded text-xs font-medium cursor-pointer w-32 text-center appearance-none ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      value={bid.status}
-                      style={{ backgroundColor: getStatusColor(bid.status) }}
-                      onChange={(e) => handleStatusChange(bid.id, e.target.value)}
-                      disabled={isUpdating}
-                    >
-                      {BID_STATUSES.map(status => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  <select
+                    className={`text-white border-none px-3 py-2 rounded text-xs font-medium cursor-pointer w-32 text-center appearance-none ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    value={bid.status}
+                    style={{ backgroundColor: getStatusColor(bid.status) }}
+                    onChange={(e) => handleStatusChange(bid.id, e.target.value)}
+                    disabled={isUpdating}
+                  >
+                    {BID_STATUSES.map(status => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
                   {isUpdating && (
                     <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
                   )}
@@ -280,7 +236,13 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
 
               {/* Bid Date */}
               <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
-                <span>{formatDate(bid.due_date, 'short')}</span>
+                <div className={`rounded px-2 py-1 ${
+                  urgency.level === 'overdue' ? 'border-4 border-red-500' : 
+                  urgency.level === 'dueToday' ? 'border-4 border-orange-500' : 
+                  ''
+                }`}>
+                  <span>{formatDate(bid.due_date, 'short')}</span>
+                </div>
               </div>
 
               {/* Vendor Response Rate */}
