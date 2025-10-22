@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
-import type { BidCompletionAnalytics, ChartDimensions } from '../../types';
-import { transformCompletionDataForBarChart } from '../../utils/analyticsCalculations';
+import type { ActiveBidStatusData, ChartDimensions } from '../../types';
+import { transformActiveBidsForPieChart } from '../../utils/analyticsCalculations';
 import { BRAND_COLORS } from '../../utils/constants';
 
 interface BidCompletionChartProps {
-  data: BidCompletionAnalytics[];
+  data: { status: string; count: number; percentage: number }[];
   width?: number;
   height?: number;
   title?: string;
@@ -15,7 +15,7 @@ const BidCompletionChart: React.FC<BidCompletionChartProps> = ({
   data,
   width = 600,
   height = 400,
-  title = 'Average Bid Completion Time by Status'
+  title = 'Active Bids'
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<{
@@ -25,14 +25,15 @@ const BidCompletionChart: React.FC<BidCompletionChartProps> = ({
     content: string;
   }>({ visible: false, x: 0, y: 0, content: '' });
 
-  const dimensions: ChartDimensions = {
+  const dimensions: ChartDimensions = useMemo(() => ({
     width,
     height,
-    margin: { top: 20, right: 30, bottom: 60, left: 60 }
-  };
+    margin: { top: 40, right: 120, bottom: 40, left: 40 }
+  }), [width, height]);
 
   const chartWidth = dimensions.width - dimensions.margin.left - dimensions.margin.right;
   const chartHeight = dimensions.height - dimensions.margin.top - dimensions.margin.bottom;
+  const radius = Math.min(chartWidth, chartHeight) / 2;
 
   useEffect(() => {
     if (!svgRef.current || data.length === 0) return;
@@ -40,145 +41,150 @@ const BidCompletionChart: React.FC<BidCompletionChartProps> = ({
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove(); // Clear previous chart
 
-    const chartData = transformCompletionDataForBarChart(data);
+    const chartData = transformActiveBidsForPieChart(data);
     
     if (chartData.length === 0) return;
 
-    // Create main group
+    // Create main group and center it
     const g = svg
       .append('g')
-      .attr('transform', `translate(${dimensions.margin.left},${dimensions.margin.top})`);
+      .attr('transform', `translate(${dimensions.margin.left + chartWidth / 2},${dimensions.margin.top + chartHeight / 2})`);
 
-    // Scales
-    const xScale = d3
-      .scaleBand()
-      .domain(chartData.map(d => d.label))
-      .range([0, chartWidth])
-      .padding(0.1);
+    // Create pie generator
+    const pie = d3.pie<ActiveBidStatusData>()
+      .value(d => d.count)
+      .sort(null);
 
-    const yScale = d3
-      .scaleLinear()
-      .domain([0, d3.max(chartData, d => d.value) || 0])
-      .nice()
-      .range([chartHeight, 0]);
+    // Create arc generator
+    const arc = d3.arc<d3.PieArcDatum<ActiveBidStatusData>>()
+      .innerRadius(0)
+      .outerRadius(radius - 10);
 
+    // Create hover arc (slightly larger)
+    const hoverArc = d3.arc<d3.PieArcDatum<ActiveBidStatusData>>()
+      .innerRadius(0)
+      .outerRadius(radius - 5);
 
-    // Create bars
-    const bars = g
-      .selectAll('.bar')
-      .data(chartData)
+    // Generate pie data
+    const pieData = pie(chartData);
+
+    // Create pie slices
+    const slices = g.selectAll('.slice')
+      .data(pieData)
       .enter()
-      .append('rect')
-      .attr('class', 'bar')
-      .attr('x', d => xScale(d.label) || 0)
-      .attr('width', xScale.bandwidth())
-      .attr('y', chartHeight)
-      .attr('height', 0)
-      .attr('fill', d => d.color || BRAND_COLORS.primary)
-      .attr('stroke', 'none')
+      .append('g')
+      .attr('class', 'slice');
+
+    // Add paths for each slice
+    const paths = slices
+      .append('path')
+      .attr('d', arc)
+      .attr('fill', d => d.data.color)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 2)
       .style('cursor', 'pointer');
 
-    // Animate bars
-    bars
-      .transition()
-      .duration(750)
-      .ease(d3.easeQuadOut)
-      .attr('y', d => yScale(d.value))
-      .attr('height', d => chartHeight - yScale(d.value));
+    // Add slice labels (percentages)
+    slices
+      .append('text')
+      .attr('transform', d => `translate(${arc.centroid(d)})`)
+      .attr('text-anchor', 'middle')
+      .style('font-size', '12px')
+      .style('font-weight', '600')
+      .style('fill', '#fff')
+      .text(d => d.data.percentage > 5 ? `${d.data.percentage}%` : ''); // Only show percentage if slice is large enough
 
     // Add hover effects
-    bars
+    paths
       .on('mouseover', function(event, d) {
+        // Darken the color and ensure opacity stays at 1
+        const originalColor = d.data.color;
+        const darkerColor = d3.color(originalColor)?.darker(0.3).toString() || originalColor;
+        
         d3.select(this)
-          .transition()
-          .duration(200)
-          .attr('opacity', 0.8)
-          .attr('stroke', BRAND_COLORS.dark)
-          .attr('stroke-width', 2);
+          .attr('d', hoverArc(d))
+          .style('fill', darkerColor);
 
         const tooltipContent = `
-          <strong>${d.label}</strong><br/>
-          Average Time: ${d.value.toFixed(1)} hours<br/>
-          Projects: ${d.metadata?.count || 0}
+          <strong>${d.data.status}</strong><br/>
+          Count: ${d.data.count}<br/>
+          Percentage: ${d.data.percentage}%
         `;
 
         setTooltip({
           visible: true,
-          x: event.pageX,
-          y: event.pageY,
+          x: event.clientX,
+          y: event.clientY,
           content: tooltipContent
         });
       })
       .on('mousemove', function(event) {
         setTooltip(prev => ({
           ...prev,
-          x: event.pageX,
-          y: event.pageY
+          x: event.clientX,
+          y: event.clientY
         }));
       })
-      .on('mouseout', function() {
+      .on('mouseout', function(_, d) {
         d3.select(this)
-          .transition()
-          .duration(200)
-          .attr('opacity', 1)
-          .attr('stroke', 'none');
+          .attr('d', arc(d))
+          .style('fill', d.data.color);
 
         setTooltip(prev => ({ ...prev, visible: false }));
       });
 
-    // Add value labels on bars
-    g.selectAll('.bar-label')
-      .data(chartData)
-      .enter()
+    // Add center text showing total count
+    const totalBids = chartData.reduce((sum, d) => sum + d.count, 0);
+    const centerGroup = g.append('g').attr('class', 'center-text');
+    
+    centerGroup
       .append('text')
-      .attr('class', 'bar-label')
-      .attr('x', d => (xScale(d.label) || 0) + xScale.bandwidth() / 2)
-      .attr('y', d => yScale(d.value) - 5)
       .attr('text-anchor', 'middle')
-      .style('font-size', '12px')
-      .style('font-weight', '500')
+      .attr('dy', '-0.5em')
+      .style('font-size', '24px')
+      .style('font-weight', '700')
       .style('fill', BRAND_COLORS.dark)
-      .style('opacity', 0)
-      .text(d => `${d.value.toFixed(1)}h`)
-      .transition()
-      .delay(750)
-      .duration(300)
-      .style('opacity', 1);
+      .text(totalBids.toString());
 
-    // X-axis
-    const xAxis = d3.axisBottom(xScale);
-    g.append('g')
-      .attr('class', 'x-axis')
-      .attr('transform', `translate(0,${chartHeight})`)
-      .call(xAxis)
-      .selectAll('text')
-      .style('text-anchor', 'end')
-      .attr('dx', '-.8em')
-      .attr('dy', '.15em')
-      .attr('transform', 'rotate(-45)')
-      .style('font-size', '12px')
-      .style('fill', BRAND_COLORS.gray[700]);
-
-    // Y-axis
-    const yAxis = d3.axisLeft(yScale);
-    g.append('g')
-      .attr('class', 'y-axis')
-      .call(yAxis)
-      .selectAll('text')
-      .style('font-size', '12px')
-      .style('fill', BRAND_COLORS.gray[700]);
-
-    // Y-axis label
-    g.append('text')
-      .attr('transform', 'rotate(-90)')
-      .attr('y', 0 - dimensions.margin.left)
-      .attr('x', 0 - (chartHeight / 2))
+    centerGroup
+      .append('text')
+      .attr('text-anchor', 'middle')
       .attr('dy', '1em')
-      .style('text-anchor', 'middle')
       .style('font-size', '14px')
       .style('font-weight', '500')
+      .style('fill', BRAND_COLORS.gray[600])
+      .text('Active Bids');
+
+    // Add legend
+    const legend = svg
+      .append('g')
+      .attr('class', 'legend')
+      .attr('transform', `translate(${dimensions.width - dimensions.margin.right + 20}, ${dimensions.margin.top})`);
+
+    const legendItems = legend.selectAll('.legend-item')
+      .data(chartData)
+      .enter()
+      .append('g')
+      .attr('class', 'legend-item')
+      .attr('transform', (_d, i) => `translate(0, ${i * 25})`);
+
+    // Legend rectangles
+    legendItems
+      .append('rect')
+      .attr('width', 12)
+      .attr('height', 12)
+      .attr('fill', d => d.color)
+      .attr('rx', 2);
+
+    // Legend text
+    legendItems
+      .append('text')
+      .attr('x', 18)
+      .attr('y', 6)
+      .attr('dy', '0.35em')
+      .style('font-size', '12px')
       .style('fill', BRAND_COLORS.gray[700])
-      .text('Average Hours');
+      .text(d => `${d.status} (${d.count})`);
 
     // Chart title
     if (title) {
@@ -193,27 +199,7 @@ const BidCompletionChart: React.FC<BidCompletionChartProps> = ({
         .text(title);
     }
 
-    // Add grid lines
-    g.append('g')
-      .attr('class', 'grid')
-      .attr('transform', `translate(0,${chartHeight})`)
-      .call(d3.axisBottom(xScale)
-        .tickSize(-chartHeight)
-        .tickFormat(() => '')
-      )
-      .style('stroke-dasharray', '3,3')
-      .style('opacity', 0.3);
-
-    g.append('g')
-      .attr('class', 'grid')
-      .call(d3.axisLeft(yScale)
-        .tickSize(-chartWidth)
-        .tickFormat(() => '')
-      )
-      .style('stroke-dasharray', '3,3')
-      .style('opacity', 0.3);
-
-  }, [data, dimensions, chartWidth, chartHeight, title]);
+  }, [data, dimensions, chartWidth, chartHeight, radius, title]);
 
   return (
     <div className="relative">
@@ -227,11 +213,10 @@ const BidCompletionChart: React.FC<BidCompletionChartProps> = ({
       {/* Tooltip */}
       {tooltip.visible && (
         <div
-          className="absolute pointer-events-none z-10 bg-gray-900 text-white text-sm rounded px-2 py-1 shadow-lg"
+          className="fixed pointer-events-none z-50 bg-gray-900 text-white text-sm rounded px-3 py-2 shadow-lg"
           style={{
-            left: tooltip.x + 10,
-            top: tooltip.y - 10,
-            transform: 'translate(-50%, -100%)'
+            left: tooltip.x + 15,
+            top: tooltip.y + 15,
           }}
           dangerouslySetInnerHTML={{ __html: tooltip.content }}
         />

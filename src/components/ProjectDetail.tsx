@@ -431,7 +431,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex min-h-screen">
+      <div className="flex h-screen">
         <Sidebar
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
@@ -466,7 +466,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             )}
 
             {/* Split Panel Layout */}
-            <div className="h-[calc(100vh-12rem)] flex flex-col gap-6">
+            <div className="flex flex-col gap-6">
               {/* Top Half - Project Overview Dashboard */}
               <div className="h-auto bg-white rounded-lg shadow-sm border p-6">
                 {/* Project Header */}
@@ -634,7 +634,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               </div>
 
               {/* Bottom Half - Tabbed Interface */}
-              <div className="flex-1 bg-white rounded-lg shadow-sm border overflow-hidden">
+              <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
                 {/* Tab Navigation */}
                 <div className="border-b border-gray-200">
                   <nav className="flex space-x-8 px-6">
@@ -667,7 +667,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 </div>
 
                 {/* Tab Content */}
-                <div className="h-[calc(100%-4rem)] overflow-y-auto">
+                <div className="min-h-96">
                   {activeTab === 'vendors' && (
                     <div className="p-6">
                       <VendorTable

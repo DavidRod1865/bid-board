@@ -1,37 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ChartBarIcon, 
-  ClockIcon, 
-  ArrowTrendingUpIcon, 
+import React, { useState, useEffect } from "react";
+import {
+  ChartBarIcon,
+  ClockIcon,
+  ArrowTrendingUpIcon,
   UserGroupIcon,
   CalendarIcon,
-  AdjustmentsHorizontalIcon
-} from '@heroicons/react/24/outline';
-import BidCompletionChart from './BidCompletionChart';
-import VendorResponseChart from './VendorResponseChart';
-import TimelineChart from './TimelineChart';
-import TrendChart from './TrendChart';
-import { analyticsService } from '../../services/analyticsService';
-import { 
-  transformDataForTimeSeries,
-  calculateCompletionTrends,
-  calculateVendorPerformanceScores
-} from '../../utils/analyticsCalculations';
-import type { 
-  BidCompletionAnalytics,
+  AdjustmentsHorizontalIcon,
+} from "@heroicons/react/24/outline";
+import BidCompletionChart from "./BidCompletionChart";
+import VendorResponseChart from "./VendorResponseChart";
+import TimelineChart from "./TimelineChart";
+import TrendChart from "./TrendChart";
+import { analyticsService } from "../../services/analyticsService";
+import { calculateVendorPerformanceScores } from "../../utils/analyticsCalculations";
+import type {
   VendorResponseAnalytics,
   BidTimelineData,
-  AnalyticsFilters
-} from '../../types';
-import { useToast } from '../../hooks/useToast';
-import { BRAND_COLORS } from '../../utils/constants';
-import { subMonths, startOfMonth, endOfMonth } from 'date-fns';
+  AnalyticsFilters,
+} from "../../types";
+import { useToast } from "../../hooks/useToast";
+import { BRAND_COLORS } from "../../utils/constants";
+import { subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 const AnalyticsDashboard: React.FC = () => {
   const { showError } = useToast();
-  
+
   // Data states
-  const [completionData, setCompletionData] = useState<BidCompletionAnalytics[]>([]);
+  const [activeBidsData, setActiveBidsData] = useState<
+    { status: string; count: number; percentage: number }[]
+  >([]);
   const [vendorData, setVendorData] = useState<VendorResponseAnalytics[]>([]);
   const [timelineData, setTimelineData] = useState<BidTimelineData[]>([]);
   const [summary, setSummary] = useState<{
@@ -44,44 +41,49 @@ const AnalyticsDashboard: React.FC = () => {
     totalVendorRequests?: number;
     completedBids?: number;
   } | null>(null);
-  const [trendingData, setTrendingData] = useState<{
-    date: Date;
-    avgCompletionTime: number;
-    avgResponseTime: number;
-    completedBids: number;
-    vendorResponses: number;
-    month: string;
-  }[]>([]);
-  
+  const [trendingData, setTrendingData] = useState<
+    {
+      date: Date;
+      avgCompletionTime: number;
+      avgResponseTime: number;
+      completedBids: number;
+      vendorResponses: number;
+      month: string;
+    }[]
+  >([]);
+
   // UI states
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'completion' | 'vendors' | 'timeline' | 'trends'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "completion" | "vendors" | "timeline" | "trends"
+  >("overview");
   const [filters] = useState<AnalyticsFilters>({
     dateRange: {
       startDate: startOfMonth(subMonths(new Date(), 3)),
-      endDate: endOfMonth(new Date())
+      endDate: endOfMonth(new Date()),
     },
     statuses: [],
     vendors: [],
-    completionStatus: []
+    completionStatus: [],
   });
 
   // Load analytics data
   const loadAnalyticsData = async () => {
     setIsLoading(true);
     try {
-      const [summaryData, trending] = await Promise.all([
+      const [summaryData, trending, activeBids] = await Promise.all([
         analyticsService.getAnalyticsSummary({
           startDate: filters.dateRange.startDate!,
-          endDate: filters.dateRange.endDate!
+          endDate: filters.dateRange.endDate!,
         }),
-        analyticsService.getTrendingData(6)
+        analyticsService.getTrendingData(6),
+        analyticsService.getActiveBidsStatusData(),
       ]);
 
       setSummary(summaryData.summary);
-      setCompletionData(summaryData.completionData);
       setVendorData(summaryData.vendorResponseData);
       setTrendingData(trending);
+      setActiveBidsData(activeBids);
 
       // Load timeline data for first few bids
       if (summaryData.completionData.length > 0) {
@@ -89,10 +91,9 @@ const AnalyticsDashboard: React.FC = () => {
         const timeline = await analyticsService.getBidTimelineData(bidId);
         setTimelineData(timeline);
       }
-
     } catch (error) {
-      console.error('Error loading analytics data:', error);
-      showError('Analytics Error', 'Failed to load analytics data');
+      console.error("Error loading analytics data:", error);
+      showError("Analytics Error", "Failed to load analytics data");
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +104,6 @@ const AnalyticsDashboard: React.FC = () => {
   }, [filters]);
 
   // Calculate derived data
-  const completionTrends = calculateCompletionTrends(completionData);
   const vendorScores = calculateVendorPerformanceScores(vendorData);
 
   // KPI Cards Component
@@ -114,7 +114,14 @@ const AnalyticsDashboard: React.FC = () => {
     icon: React.ComponentType<{ className?: string }>;
     trend?: number;
     color?: string;
-  }> = ({ title, value, subtitle, icon: Icon, trend, color = BRAND_COLORS.primary }) => (
+  }> = ({
+    title,
+    value,
+    subtitle,
+    icon: Icon,
+    trend,
+    color = BRAND_COLORS.primary,
+  }) => (
     <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
       <div className="flex items-center justify-between">
         <div>
@@ -127,8 +134,13 @@ const AnalyticsDashboard: React.FC = () => {
             <Icon className="h-8 w-8" />
           </div>
           {trend !== undefined && (
-            <div className={`text-sm font-medium ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+            <div
+              className={`text-sm font-medium ${
+                trend >= 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {trend > 0 ? "+" : ""}
+              {trend.toFixed(1)}%
             </div>
           )}
         </div>
@@ -138,11 +150,11 @@ const AnalyticsDashboard: React.FC = () => {
 
   // Tab Navigation
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: ChartBarIcon },
-    { id: 'completion', label: 'Completion Times', icon: ClockIcon },
-    { id: 'vendors', label: 'Vendor Performance', icon: UserGroupIcon },
-    { id: 'timeline', label: 'Timeline Analysis', icon: CalendarIcon },
-    { id: 'trends', label: 'Trends', icon: ArrowTrendingUpIcon }
+    { id: "overview", label: "Overview", icon: ChartBarIcon },
+    { id: "completion", label: "Completion Times", icon: ClockIcon },
+    { id: "vendors", label: "Vendor Performance", icon: UserGroupIcon },
+    { id: "timeline", label: "Timeline Analysis", icon: CalendarIcon },
+    { id: "trends", label: "Trends", icon: ArrowTrendingUpIcon },
   ] as const;
 
   if (isLoading) {
@@ -201,14 +213,14 @@ const AnalyticsDashboard: React.FC = () => {
       {/* Tab Navigation */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
                 activeTab === tab.id
-                  ? 'border-yellow-500 text-yellow-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? "border-yellow-500 text-yellow-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <tab.icon className="h-5 w-5" />
@@ -220,74 +232,112 @@ const AnalyticsDashboard: React.FC = () => {
 
       {/* Tab Content */}
       <div className="space-y-6">
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <BidCompletionChart 
-                data={completionData} 
-                width={500} 
-                height={300}
-                title="Completion Times by Status"
-              />
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <BidCompletionChart
+                  data={activeBidsData}
+                  width={500}
+                  height={300}
+                  title="Active Bids"
+                />
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <VendorResponseChart
+                  data={vendorData}
+                  width={500}
+                  height={300}
+                  title="Top Vendor Response Times"
+                  showResponseRate={true}
+                />
+              </div>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <VendorResponseChart 
-                data={vendorData} 
-                width={500} 
-                height={300}
-                title="Top Vendor Response Times"
-                showResponseRate={true}
-              />
-            </div>
-            
+
             {/* Performance Summary */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Summary</h3>
+            <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Performance Summary
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Top Performing Vendors</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    Top Performing Vendors
+                  </h4>
                   <div className="space-y-2">
                     {vendorScores.slice(0, 3).map((vendor) => (
-                      <div key={vendor.vendorId} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{vendor.companyName}</span>
-                        <span className={`text-sm font-medium px-2 py-1 rounded ${
-                          vendor.grade === 'A' ? 'bg-green-100 text-green-800' :
-                          vendor.grade === 'B' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
+                      <div
+                        key={vendor.vendorId}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="text-sm text-gray-600">
+                          {vendor.companyName}
+                        </span>
+                        <span
+                          className={`text-sm font-medium px-2 py-1 rounded ${
+                            vendor.grade === "A"
+                              ? "bg-green-100 text-green-800"
+                              : vendor.grade === "B"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
                           {vendor.grade}
                         </span>
                       </div>
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Recent Trends</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    Recent Trends
+                  </h4>
                   <div className="space-y-2">
                     {trendingData.slice(-3).map((trend, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{trend.month}</span>
-                        <span className="text-sm font-medium">{trend.completedBids} completed</span>
+                      <div
+                        key={index}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="text-sm text-gray-600">
+                          {trend.month}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {trend.completedBids} completed
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Quick Stats</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    Quick Stats
+                  </h4>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Overdue Bids</span>
-                      <span className="text-sm font-medium text-red-600">{summary?.overdueBids || 0}</span>
+                      <span className="text-sm text-gray-600">
+                        Overdue Bids
+                      </span>
+                      <span className="text-sm font-medium text-red-600">
+                        {summary?.overdueBids || 0}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Vendor Requests</span>
-                      <span className="text-sm font-medium">{summary?.totalVendorRequests || 0}</span>
+                      <span className="text-sm text-gray-600">
+                        Vendor Requests
+                      </span>
+                      <span className="text-sm font-medium">
+                        {summary?.totalVendorRequests || 0}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Completed This Month</span>
-                      <span className="text-sm font-medium">{summary?.completedBids || 0}</span>
+                      <span className="text-sm text-gray-600">
+                        Completed This Month
+                      </span>
+                      <span className="text-sm font-medium">
+                        {summary?.completedBids || 0}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -296,48 +346,37 @@ const AnalyticsDashboard: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'completion' && (
+        {activeTab === "completion" && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-sm">
-              <BidCompletionChart 
-                data={completionData} 
-                width={800} 
+              <BidCompletionChart
+                data={activeBidsData}
+                width={800}
                 height={400}
-                title="Detailed Completion Analysis"
+                title="Complete Bids"
               />
             </div>
-            
-            {completionTrends.length > 0 && (
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <TrendChart
-                  data={transformDataForTimeSeries(completionData, 'created_at', 'completion_hours', 'month')}
-                  width={800}
-                  height={300}
-                  title="Completion Time Trends"
-                  yAxisLabel="Hours"
-                  showForecast={true}
-                />
-              </div>
-            )}
           </div>
         )}
 
-        {activeTab === 'vendors' && (
+        {activeTab === "vendors" && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-sm">
-              <VendorResponseChart 
-                data={vendorData} 
-                width={800} 
+              <VendorResponseChart
+                data={vendorData}
+                width={800}
                 height={400}
                 title="Comprehensive Vendor Analysis"
                 showResponseRate={true}
               />
             </div>
-            
+
             {/* Vendor Performance Table */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Vendor Performance Scores</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Vendor Performance Scores
+                </h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -376,13 +415,19 @@ const AnalyticsDashboard: React.FC = () => {
                           {vendor.performanceScore}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            vendor.grade === 'A' ? 'bg-green-100 text-green-800' :
-                            vendor.grade === 'B' ? 'bg-blue-100 text-blue-800' :
-                            vendor.grade === 'C' ? 'bg-yellow-100 text-yellow-800' :
-                            vendor.grade === 'D' ? 'bg-orange-100 text-orange-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              vendor.grade === "A"
+                                ? "bg-green-100 text-green-800"
+                                : vendor.grade === "B"
+                                ? "bg-blue-100 text-blue-800"
+                                : vendor.grade === "C"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : vendor.grade === "D"
+                                ? "bg-orange-100 text-orange-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
                             {vendor.grade}
                           </span>
                         </td>
@@ -395,27 +440,27 @@ const AnalyticsDashboard: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'timeline' && timelineData.length > 0 && (
+        {activeTab === "timeline" && timelineData.length > 0 && (
           <div className="bg-white p-6 rounded-lg shadow-sm">
-            <TimelineChart 
-              data={timelineData} 
-              width={900} 
+            <TimelineChart
+              data={timelineData}
+              width={900}
               height={500}
               title="Bid Process Timeline Analysis"
             />
           </div>
         )}
 
-        {activeTab === 'trends' && (
+        {activeTab === "trends" && (
           <div className="space-y-6">
             {trendingData.length > 0 && (
               <>
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                   <TrendChart
-                    data={trendingData.map(d => ({
+                    data={trendingData.map((d) => ({
                       date: d.date,
                       value: d.avgCompletionTime,
-                      metadata: { count: d.completedBids }
+                      metadata: { count: d.completedBids },
                     }))}
                     width={800}
                     height={300}
@@ -424,13 +469,13 @@ const AnalyticsDashboard: React.FC = () => {
                     showForecast={true}
                   />
                 </div>
-                
+
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                   <TrendChart
-                    data={trendingData.map(d => ({
+                    data={trendingData.map((d) => ({
                       date: d.date,
                       value: d.avgResponseTime,
-                      metadata: { count: d.vendorResponses }
+                      metadata: { count: d.vendorResponses },
                     }))}
                     width={800}
                     height={300}

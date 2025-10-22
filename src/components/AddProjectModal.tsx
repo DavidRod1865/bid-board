@@ -100,6 +100,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       archived: false,
       archived_at: null,
       archived_by: null,
+      on_hold: false,
+      on_hold_at: null,
+      on_hold_by: null,
     };
 
     onAddProject(projectData);

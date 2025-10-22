@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backup": "node backup-supabase.mjs",
+    "backup:help": "echo 'Usage: npm run backup\\nMake sure to set environment variables:\\n- VITE_SUPABASE_URL\\n- VITE_SUPABASE_ANON_KEY'"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.5.0",

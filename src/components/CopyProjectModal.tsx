@@ -124,6 +124,9 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       archived: false,
       archived_at: null,
       archived_by: null,
+      on_hold: false,
+      on_hold_at: null,
+      on_hold_by: null,
     };
 
     onCopyProject(selectedProjectId!, projectData);

@@ -12,7 +12,8 @@ import type {
   StatusDurationAnalytics,
   ChartDataPoint,
   TimeSeriesDataPoint,
-  GanttChartData
+  GanttChartData,
+  ActiveBidStatusData
 } from '../types';
 import { STATUS_COLORS } from './constants';
 
@@ -403,4 +404,18 @@ export function generateForecast(trends: TimeSeriesDataPoint[], periods: number 
   }
 
   return forecast;
+}
+
+/**
+ * Transform active bids status data for pie chart
+ */
+export function transformActiveBidsForPieChart(
+  data: { status: string; count: number; percentage: number }[]
+): ActiveBidStatusData[] {
+  return data.map(item => ({
+    status: item.status,
+    count: item.count,
+    percentage: item.percentage,
+    color: STATUS_COLORS[item.status.toLowerCase() as keyof typeof STATUS_COLORS] || STATUS_COLORS.default
+  }));
 }

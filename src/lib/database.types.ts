@@ -88,9 +88,18 @@ export interface Database {
           priority: boolean
           estimated_value: number | null
           notes: string | null
-          created_by: string
+          created_by: string | null
           created_at: string
           updated_at: string
+          assign_to: string | null
+          file_location: string | null
+          archived: boolean
+          archived_at: string | null
+          archived_by: string | null
+          completed_at: string | null
+          on_hold: boolean
+          on_hold_at: string | null
+          on_hold_by: string | null
         }
         Insert: {
           id?: number
@@ -105,9 +114,18 @@ export interface Database {
           priority?: boolean
           estimated_value?: number | null
           notes?: string | null
-          created_by: string
+          created_by?: string | null
           created_at?: string
           updated_at?: string
+          assign_to?: string | null
+          file_location?: string | null
+          archived?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          completed_at?: string | null
+          on_hold?: boolean
+          on_hold_at?: string | null
+          on_hold_by?: string | null
         }
         Update: {
           id?: number
@@ -122,9 +140,18 @@ export interface Database {
           priority?: boolean
           estimated_value?: number | null
           notes?: string | null
-          created_by?: string
+          created_by?: string | null
           created_at?: string
           updated_at?: string
+          assign_to?: string | null
+          file_location?: string | null
+          archived?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          completed_at?: string | null
+          on_hold?: boolean
+          on_hold_at?: string | null
+          on_hold_by?: string | null
         }
       }
       bid_vendors: {

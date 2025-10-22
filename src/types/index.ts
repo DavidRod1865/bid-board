@@ -40,6 +40,9 @@ export interface Bid {
   archived: boolean;
   archived_at: string | null;
   archived_by: string | null;
+  on_hold: boolean;
+  on_hold_at: string | null;
+  on_hold_by: string | null;
 }
 
 export interface BidVendor {
@@ -156,6 +159,13 @@ export interface StatusDurationAnalytics {
   status_sequence: number;
   changed_by_name: string | null;
   bid_title: string | null;
+}
+
+export interface ActiveBidStatusData {
+  status: string;
+  count: number;
+  percentage: number;
+  color: string;
 }
 
 export interface CompletionTimeByStatus {

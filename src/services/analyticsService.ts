@@ -444,6 +444,40 @@ class AnalyticsService {
   }
 
   /**
+   * Get active bids status data for pie chart
+   */
+  async getActiveBidsStatusData(): Promise<{ status: string; count: number; percentage: number }[]> {
+    try {
+      // Fetch active bids with false archived status
+      const { data: bids, error } = await supabase
+        .from('bids')
+        .select('status')
+        .eq('archived', false);
+
+      if (error) throw error;
+
+      // Count bids by status
+      const statusCounts = new Map<string, number>();
+      const totalBids = bids?.length || 0;
+
+      (bids || []).forEach(bid => {
+        const status = bid.status;
+        statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
+      });
+
+      // Convert to array with percentages
+      return Array.from(statusCounts.entries()).map(([status, count]) => ({
+        status,
+        count,
+        percentage: totalBids > 0 ? Math.round((count / totalBids) * 100) : 0
+      }));
+    } catch (error) {
+      console.error('Error fetching active bids status data:', error);
+      return [];
+    }
+  }
+
+  /**
    * Utility function to calculate median
    */
   private calculateMedian(numbers: number[]): number {

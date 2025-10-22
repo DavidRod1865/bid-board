@@ -9,6 +9,8 @@ import CopyProjectModal from '../CopyProjectModal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import ToastContainer from '../ui/ToastContainer';
 import { useToast } from '../../hooks/useToast';
+import { useBulkSelection, useClearSelectionOnFilterChange } from '../../hooks/useBulkSelection';
+import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../hooks/useBulkActions';
 import { isDateInRange, getBidUrgency } from '../../utils/formatters';
 import { 
   getVendorCostsDueWithinWeek,
@@ -54,6 +56,27 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Sorting state
   const [sortField, setSortField] = useState<keyof Bid | null>("due_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  
+  // Bulk selection hooks
+  const {
+    selectedBids,
+    handleBidSelect,
+    handleSelectAll,
+    clearSelection
+  } = useBulkSelection();
+
+  // Bulk actions hooks  
+  const { confirmModal, executeBulkAction, showConfirmation, closeConfirmation } = useBulkActions({
+    onActionComplete: (_, result) => {
+      if (result.success) {
+        clearSelection();
+        // Note: Dashboard relies on real-time subscriptions to refresh data automatically
+      }
+    }
+  });
+
+  // Clear selection when filters change
+  useClearSelectionOnFilterChange(clearSelection, [searchTerm, statusFilter.length, dateRange, overdueFilter]);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -171,6 +194,29 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsCopyModalOpen(true);
   };
 
+
+  // Bulk action handlers using reusable hooks
+  const handleBulkArchive = () => {
+    const bidIds = Array.from(selectedBids);
+    showConfirmation('archive', bidIds.length, () => {
+      executeBulkAction('archive', bidIds);
+    });
+  };
+
+  const handleBulkOnHold = () => {
+    const bidIds = Array.from(selectedBids);
+    showConfirmation('onHold', bidIds.length, () => {
+      executeBulkAction('onHold', bidIds);
+    });
+  };
+
+  const handleBulkDelete = () => {
+    const bidIds = Array.from(selectedBids);
+    showConfirmation('delete', bidIds.length, () => {
+      executeBulkAction('delete', bidIds);
+    });
+  };
+
   const handleAddProject = async (projectData: Omit<Bid, 'id'>) => {
     if (!onAddProject) {
       return;
@@ -267,6 +313,10 @@ const Dashboard: React.FC<DashboardProps> = ({
           onCopyProject={handleCopyProject}
           onWeeklyCostsReport={handleWeeklyCostsReportClick}
           isEmailingReport={isEmailingReport}
+          selectedBidsCount={selectedBids.size}
+          onBulkArchive={handleBulkArchive}
+          onBulkOnHold={handleBulkOnHold}
+          onBulkDelete={handleBulkDelete}
         />
         
         <div className="flex-1 flex flex-col items-center justify-center">
@@ -288,6 +338,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         onCopyProject={handleCopyProject}
         onWeeklyCostsReport={handleWeeklyCostsReportClick}
         isEmailingReport={isEmailingReport}
+        selectedBidsCount={selectedBids.size}
+        onBulkArchive={handleBulkArchive}
+        onBulkOnHold={handleBulkOnHold}
+        onBulkDelete={handleBulkDelete}
       />
       
       <div className="flex-1 flex flex-col mx-auto w-full">
@@ -332,6 +386,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               sortField={sortField}
               sortDirection={sortDirection}
               onSort={handleSort}
+              selectedBids={selectedBids}
+              onBidSelect={handleBidSelect}
+              onSelectAll={(selected) => handleSelectAll(selected, paginatedBids)}
             />
           )}
         </div>
@@ -405,6 +462,18 @@ const Dashboard: React.FC<DashboardProps> = ({
         confirmText="Send Report"
         cancelText="Cancel"
         variant="info"
+      />
+
+      {/* Bulk Actions Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmation}
+        onConfirm={confirmModal.onConfirm}
+        title={getBulkActionConfirmationMessage(confirmModal.type, confirmModal.count)}
+        message={`This will ${confirmModal.type === 'onHold' ? 'move the selected projects to on-hold status' : 'perform the selected action on the selected projects'}.`}
+        confirmText={getBulkActionConfirmText(confirmModal.type)}
+        cancelText="Cancel"
+        variant={confirmModal.type === 'delete' ? 'danger' : 'warning'}
       />
 
       {/* Toast Container */}

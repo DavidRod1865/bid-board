@@ -5,6 +5,7 @@ export const BID_STATUSES = [
   "Gathering Costs",
   "Drafting Bid", 
   "Bid Sent",
+  "On Hold",
   "Won Bid",
   "Lost Bid"
 ] as const;
@@ -36,6 +37,7 @@ export const STATUS_COLORS = {
   "drafting bid": "#ffc107",
   "bidding": "#ffc107",
   "bid sent": "#17a2b8",
+  "on hold": "#fd7e14",
   "default": "#B6A6CA"
 } as const;
 

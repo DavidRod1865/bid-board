@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArchiveBoxIcon } from '@heroicons/react/24/outline';
+import { PauseIcon } from '@heroicons/react/24/outline';
 import type { Bid, ProjectNote } from '../types';
 import Sidebar from './ui/Sidebar';
 import SearchFilters from './Dashboard/SearchFilters';
@@ -13,14 +13,14 @@ import { dbOperations } from '../lib/supabase';
 import { formatDate, isDateInRange } from '../utils/formatters';
 import { getStatusColor } from '../utils/statusUtils';
 
-interface ArchivesProps {
+interface OnHoldProps {
   onAddVendor?: () => void;
   onBidRestored?: (bid: Bid) => void;
   projectNotes?: ProjectNote[];
 }
 
-const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) => {
-  const [archivedBids, setArchivedBids] = useState<Bid[]>([]);
+const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
+  const [onHoldBids, setOnHoldBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,7 +56,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
       if (result.success) {
         clearSelection();
         // Refresh data after successful bulk operation
-        loadArchivedBids();
+        loadOnHoldBids();
       }
     }
   });
@@ -66,32 +66,36 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
 
   const { showError } = useToast();
 
-  const loadArchivedBids = useCallback(async () => {
+  const loadOnHoldBids = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await dbOperations.getArchivedBids();
+      // Get all bids and filter for on-hold bids client-side
+      const data = await dbOperations.getBids();
+      
+      // Filter for on-hold bids (archived = false, on_hold = true)
+      const onHoldOnly = data.filter((bid: any) => !bid.archived && bid.on_hold);
       
       // Transform the data to match our Bid interface
-      const transformedBids = data.map((bid: Record<string, unknown>) => ({
+      const transformedBids = onHoldOnly.map((bid: Record<string, unknown>) => ({
         ...bid,
         created_by_user: bid.created_by_user,
         assigned_user: bid.assigned_user,
-        archived_by_user: bid.archived_by_user
+        on_hold_by_user: bid.on_hold_by_user
       }));
       
-      setArchivedBids(transformedBids as unknown as Bid[]);
+      setOnHoldBids(transformedBids as unknown as Bid[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load archived bids');
-      showError('Error', 'Failed to load archived bids');
+      setError(err instanceof Error ? err.message : 'Failed to load on-hold bids');
+      showError('Error', 'Failed to load on-hold bids');
     } finally {
       setLoading(false);
     }
   }, [showError]);
 
   useEffect(() => {
-    loadArchivedBids();
-  }, [loadArchivedBids]);
+    loadOnHoldBids();
+  }, [loadOnHoldBids]);
 
 
   // Bulk action handlers
@@ -102,10 +106,10 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
     });
   };
 
-  const handleBulkOnHold = () => {
+  const handleBulkArchive = () => {
     const bidIds = Array.from(selectedBids);
-    showConfirmation('onHold', bidIds.length, () => {
-      executeBulkAction('onHold', bidIds);
+    showConfirmation('archive', bidIds.length, () => {
+      executeBulkAction('archive', bidIds);
     });
   };
 
@@ -116,14 +120,13 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
     });
   };
 
-
   // Filter bids based on search term and filters
   const filteredBids = useMemo(() => {
-    if (!archivedBids || archivedBids.length === 0) {
+    if (!onHoldBids || onHoldBids.length === 0) {
       return [];
     }
 
-    let filtered = archivedBids;
+    let filtered = onHoldBids;
     
     // Filter by search term
     if (searchTerm) {
@@ -147,7 +150,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
     }
     
     return filtered;
-  }, [archivedBids, searchTerm, statusFilter, dateRange]);
+  }, [onHoldBids, searchTerm, statusFilter, dateRange]);
 
   // Sorting logic - applied to filtered bids before pagination
   const sortedBids = useMemo(() => {
@@ -163,7 +166,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
       if (bValue === null) return sortDirection === "asc" ? -1 : 1;
 
       // Special handling for date fields
-      if (sortField === 'due_date' || sortField === 'archived_at') {
+      if (sortField === 'due_date' || sortField === 'on_hold_at') {
         const aDate = new Date(aValue as string);
         const bDate = new Date(bValue as string);
         const comparison = aDate.getTime() - bDate.getTime();
@@ -274,15 +277,15 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
       )
     },
     {
-      key: 'archivedDate',
-      header: 'ARCHIVED ON',
+      key: 'onHoldSince',
+      header: 'ON HOLD SINCE',
       headerClassName: 'text-center',
       className: 'flex items-center justify-center text-gray-600 text-sm',
       sortable: true,
-      sortField: 'archived_at',
+      sortField: 'on_hold_at',
       render: (bid) => (
         <div className="text-center">
-          {bid.archived_at ? formatDate(bid.archived_at, 'short') : 'Unknown'}
+          {bid.on_hold_at ? formatDate(bid.on_hold_at, 'short') : 'Unknown'}
         </div>
       )
     },
@@ -294,7 +297,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
     }
   ];
 
-  // Dummy handlers for sidebar (archives page doesn't need these)
+  // Dummy handlers for sidebar (on-hold page doesn't need these)
   const handleStatusFilter = () => {};
   const handleNewProject = () => {};
   const handleCopyProject = () => {};
@@ -310,13 +313,13 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
           onAddVendor={onAddVendor || (() => {})}
           selectedBidsCount={selectedBids.size}
           onBulkMoveToActive={handleBulkMoveToActive}
-          onBulkOnHold={handleBulkOnHold}
+          onBulkArchive={handleBulkArchive}
           onBulkDelete={handleBulkDelete}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#d4af37] mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading archived bids...</p>
+            <p className="mt-4 text-gray-600">Loading on-hold bids...</p>
           </div>
         </div>
       </div>
@@ -334,16 +337,16 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
           onAddVendor={onAddVendor || (() => {})}
           selectedBidsCount={selectedBids.size}
           onBulkMoveToActive={handleBulkMoveToActive}
-          onBulkOnHold={handleBulkOnHold}
+          onBulkArchive={handleBulkArchive}
           onBulkDelete={handleBulkDelete}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md">
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Archives</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading On-Hold Bids</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <button 
-              onClick={loadArchivedBids}
+              onClick={loadOnHoldBids}
               className="px-4 py-2 bg-[#d4af37] text-white rounded-md hover:bg-[#b8941f] transition-colors"
             >
               Try Again
@@ -364,7 +367,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
         onAddVendor={onAddVendor || (() => {})}
         selectedBidsCount={selectedBids.size}
         onBulkMoveToActive={handleBulkMoveToActive}
-        onBulkOnHold={handleBulkOnHold}
+        onBulkArchive={handleBulkArchive}
         onBulkDelete={handleBulkDelete}
       />
 
@@ -377,7 +380,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
             setStatusFilter={setStatusFilter}
             dateRange={dateRange}
             setDateRange={setDateRange}
-            searchPlaceholder="Search archived bids..."
+            searchPlaceholder="Search on-hold bids..."
           />
         </div>
         
@@ -394,10 +397,10 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
             loading={loading}
             emptyMessage={
               searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
-                ? 'No matching archived bids'
-                : 'No archived bids'
+                ? 'No matching on-hold bids'
+                : 'No on-hold bids'
             }
-            emptyIcon={ArchiveBoxIcon}
+            emptyIcon={PauseIcon}
             gridCols="0.55fr 2.5fr 1.5fr 1fr 1.2fr 1fr 3fr"
             sortField={sortField}
             sortDirection={sortDirection}
@@ -406,11 +409,11 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
         </div>
         
         {/* Pagination Controls - Fixed at bottom of page */}
-        {!loading && sortedBids.length > 0 && (
+        {!loading && filteredBids.length > 0 && (
           <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
             <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
-              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, sortedBids.length)} of {sortedBids.length} results</span>
-              <span className="sm:hidden">{sortedBids.length} results</span>
+              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, filteredBids.length)} of {filteredBids.length} results</span>
+              <span className="sm:hidden">{filteredBids.length} results</span>
             </div>
             
             <div className="flex items-center gap-3 order-1 sm:order-2">
@@ -447,7 +450,7 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
         onClose={closeConfirmation}
         onConfirm={confirmModal.onConfirm}
         title={getBulkActionConfirmationMessage(confirmModal.type, confirmModal.count)}
-        message={`This will ${confirmModal.type === 'moveToActive' ? 'restore the selected projects to active status' : 'perform the selected action on the selected projects'}.`}
+        message={`This will ${confirmModal.type === 'moveToActive' ? 'move the selected projects back to active status' : 'perform the selected action on the selected projects'}.`}
         confirmText={getBulkActionConfirmText(confirmModal.type)}
         cancelText="Cancel"
         variant={confirmModal.type === 'delete' ? 'danger' : 'warning'}
@@ -456,4 +459,4 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
   );
 };
 
-export default Archives;
+export default OnHold;

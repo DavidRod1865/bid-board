@@ -23,6 +23,9 @@ type RawBidData = {
   archived?: boolean;
   archived_at?: string;
   archived_by?: string;
+  on_hold?: boolean;
+  on_hold_at?: string;
+  on_hold_by?: string;
   bid_vendors?: Array<BidVendor & { vendors?: { company_name: string; specialty?: string } }>;
   created_by_user?: { name: string; email: string };
   assigned_user?: { name: string; email: string };
@@ -42,6 +45,7 @@ import VendorPage from './components/Vendor/VendorPage';
 import VendorDetail from './components/Vendor/VendorDetail';
 import Calendar from './components/Calendar';
 import Archives from './components/Archives';
+import OnHold from './components/OnHold';
 
 interface ProjectDetailWrapperProps {
   bids: Bid[];
@@ -210,7 +214,10 @@ const AppContent: React.FC = () => {
                 file_location: rawBid.file_location || null,
                 archived: rawBid.archived || false,
                 archived_at: rawBid.archived_at || null,
-                archived_by: rawBid.archived_by || null
+                archived_by: rawBid.archived_by || null,
+                on_hold: rawBid.on_hold || false,
+                on_hold_at: rawBid.on_hold_at || null,
+                on_hold_by: rawBid.on_hold_by || null
               };
               
               // Check if bid already exists to prevent duplicates
@@ -432,7 +439,10 @@ const AppContent: React.FC = () => {
         file_location: newBid.file_location,
         archived: newBid.archived || false,
         archived_at: newBid.archived_at || null,
-        archived_by: newBid.archived_by || null
+        archived_by: newBid.archived_by || null,
+        on_hold: newBid.on_hold || false,
+        on_hold_at: newBid.on_hold_at || null,
+        on_hold_by: newBid.on_hold_by || null
       };
       
       setBids(prev => {
@@ -467,7 +477,10 @@ const AppContent: React.FC = () => {
         file_location: newBid.file_location,
         archived: newBid.archived || false,
         archived_at: newBid.archived_at || null,
-        archived_by: newBid.archived_by || null
+        archived_by: newBid.archived_by || null,
+        on_hold: newBid.on_hold || false,
+        on_hold_at: newBid.on_hold_at || null,
+        on_hold_by: newBid.on_hold_by || null
       };
       
       setBids(prev => {
@@ -583,8 +596,20 @@ const AppContent: React.FC = () => {
   };
 
   const handleBidRestored = (restoredBid: Bid) => {
-    // Add the restored bid back to the main bids list
-    setBids(prevBids => [restoredBid, ...prevBids]);
+    // Add the restored bid back to the main bids list, avoiding duplicates
+    setBids(prevBids => {
+      // Check if bid already exists in the array
+      const existingIndex = prevBids.findIndex(bid => bid.id === restoredBid.id);
+      if (existingIndex !== -1) {
+        // Update existing bid
+        return prevBids.map(bid => 
+          bid.id === restoredBid.id ? restoredBid : bid
+        );
+      } else {
+        // Add new bid to the beginning
+        return [restoredBid, ...prevBids];
+      }
+    });
   };
 
 
@@ -627,7 +652,7 @@ const AppContent: React.FC = () => {
           path="/" 
           element={
             <Dashboard 
-              bids={bids}
+              bids={bids.filter(bid => !bid.archived && !bid.on_hold)}
               bidVendors={bidVendors}
               vendors={vendors}
               projectNotes={projectNotes}
@@ -686,7 +711,11 @@ const AppContent: React.FC = () => {
         />
         <Route 
           path="/archives" 
-          element={<Archives onBidRestored={handleBidRestored} />} 
+          element={<Archives onBidRestored={handleBidRestored} projectNotes={projectNotes} />} 
+        />
+        <Route 
+          path="/on-hold" 
+          element={<OnHold onBidRestored={handleBidRestored} projectNotes={projectNotes} />} 
         />
         <Route 
           path="/analytics" 

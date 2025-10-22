@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FolderIcon,
   ArchiveBoxIcon,
+  PauseIcon,
   UsersIcon,
   CalendarIcon,
   ChartBarIcon,
@@ -17,7 +18,8 @@ import {
   CheckIcon,
   XMarkIcon,
   TrashIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  PlayIcon
 } from '@heroicons/react/24/outline';
 import { useAuth0 } from '../../auth';
 import { useUserProfile } from '../../contexts/UserContext';
@@ -51,6 +53,12 @@ interface SidebarProps {
   onAddProjectVendor?: () => void;
   onRemoveProjectVendors?: () => void;
   selectedVendorsCount?: number;
+  // Generic bulk actions (works across all pages)
+  selectedBidsCount?: number;
+  onBulkMoveToActive?: () => void;
+  onBulkArchive?: () => void;
+  onBulkOnHold?: () => void;
+  onBulkDelete?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -75,7 +83,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   isSavingVendor,
   onAddProjectVendor,
   onRemoveProjectVendors,
-  selectedVendorsCount = 0
+  selectedVendorsCount = 0,
+  selectedBidsCount = 0,
+  onBulkMoveToActive,
+  onBulkArchive,
+  onBulkOnHold,
+  onBulkDelete
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,6 +117,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       ),
       path: '/',
       onClick: () => navigate('/'),
+      disabled: false
+    },
+    {
+      id: 'on-hold',
+      label: 'On Hold',
+      icon: (
+        <PauseIcon className="w-5 h-5" />
+      ),
+      path: '/on-hold',
+      onClick: () => navigate('/on-hold'),
       disabled: false
     },
     {
@@ -179,7 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation Items */}
-      <div className="flex-1 py-4">
+      <div className="flex-1 py-4 overflow-y-auto">
         <nav className="space-y-1 px-3">
           {navigationItems.map((item) => {
             const active = isActive(item.path);
@@ -259,6 +282,69 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
                 )}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Generic Bulk Actions - works across all pages when bids are selected */}
+        {selectedBidsCount > 0 && (
+          <div className="px-3 mt-6 pt-6 border-t border-gray-200">
+            <div className="space-y-1">
+              {/* Move to Active - show on archives and on-hold pages */}
+              {(location.pathname === '/archives' || location.pathname === '/on-hold') && onBulkMoveToActive && (
+                <button
+                  onClick={onBulkMoveToActive}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-green-600 hover:bg-green-50 hover:text-green-700
+                    ${isCollapsed ? 'justify-center' : 'justify-start'}
+                  `}
+                >
+                  <PlayIcon className="w-5 h-5 flex-shrink-0" />
+                  {!isCollapsed && <span className="font-medium text-sm">Move to Active ({selectedBidsCount})</span>}
+                </button>
+              )}
+
+              {/* Move to On Hold - show on dashboard and archives pages */}
+              {(location.pathname === '/' || location.pathname === '/archives') && onBulkOnHold && (
+                <button
+                  onClick={onBulkOnHold}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700
+                    ${isCollapsed ? 'justify-center' : 'justify-start'}
+                  `}
+                >
+                  <PauseIcon className="w-5 h-5 flex-shrink-0" />
+                  {!isCollapsed && <span className="font-medium text-sm">Move to On Hold ({selectedBidsCount})</span>}
+                </button>
+              )}
+
+              {/* Archive - show on dashboard and on-hold pages */}
+              {(location.pathname === '/' || location.pathname === '/on-hold') && onBulkArchive && (
+                <button
+                  onClick={onBulkArchive}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700
+                    ${isCollapsed ? 'justify-center' : 'justify-start'}
+                  `}
+                >
+                  <ArchiveBoxIcon className="w-5 h-5 flex-shrink-0" />
+                  {!isCollapsed && <span className="font-medium text-sm">Archive Selected ({selectedBidsCount})</span>}
+                </button>
+              )}
+
+              {/* Delete - show on all pages */}
+              {onBulkDelete && (
+                <button
+                  onClick={onBulkDelete}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-red-600 hover:bg-red-50 hover:text-red-700
+                    ${isCollapsed ? 'justify-center' : 'justify-start'}
+                  `}
+                >
+                  <TrashIcon className="w-5 h-5 flex-shrink-0" />
+                  {!isCollapsed && <span className="font-medium text-sm">Delete Selected ({selectedBidsCount})</span>}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -497,7 +583,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               <>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                 </div>
                 <ChevronDownIcon className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${showUserMenu ? 'transform rotate-180' : ''}`} />
               </>

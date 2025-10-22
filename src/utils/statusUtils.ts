@@ -34,7 +34,7 @@ export const isLostStatus = (status: string): boolean => {
  * Check if a status represents an active/in-progress bid
  */
 export const isActiveStatus = (status: string): boolean => {
-  const active = ['new', 'gathering costs', 'drafting bid', 'bid sent'];
+  const active = ['new', 'gathering costs', 'drafting bid', 'bid sent', 'on hold'];
   return active.includes(status.toLowerCase());
 };
 
@@ -47,6 +47,7 @@ export const getStatusDescription = (status: string): string => {
     'gathering costs': 'Collecting vendor quotes and material costs',
     'drafting bid': 'Preparing bid documentation and proposal',
     'bid sent': 'Proposal submitted, awaiting client response',
+    'on hold': 'Project temporarily paused or waiting on GC response',
     'won bid': 'Project awarded - proceed with contract',
     'lost bid': 'Proposal not selected by client'
   };

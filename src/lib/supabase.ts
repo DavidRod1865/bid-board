@@ -250,7 +250,7 @@ export const dbOperations = {
     return data
   },
 
-  async archiveBid(bidId: number, userId: string) {
+  async archiveBid(bidId: number, userId: string | null) {
     const { data, error } = await supabase
       .from('bids')
       .update({
