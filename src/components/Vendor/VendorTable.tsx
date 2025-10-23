@@ -5,7 +5,7 @@ import {
 } from "../../utils/statusUtils";
 import { formatDate, formatCurrency, getBidUrgency } from "../../utils/formatters";
 import Button from "../ui/Button";
-import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../ui/card";
+import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../../components/ui/card";
 import { Checkbox } from "../ui/checkbox";
 
 interface VendorTableProps {
