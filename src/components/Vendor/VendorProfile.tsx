@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Vendor } from '../../types';
-import Card from '../ui/Card';
+import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Input, Textarea } from '../ui/FormField';
 
 interface VendorProfileProps {
@@ -24,8 +24,12 @@ const VendorProfile: React.FC<VendorProfileProps> = ({
   };
 
   return (
-    <Card title="Vendor Information" className="h-fit">
-      <div className="space-y-6">
+    <Card className="h-fit">
+      <CardHeader>
+        <CardTitle>Vendor Information</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
         {/* Company Information */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -178,7 +182,8 @@ const VendorProfile: React.FC<VendorProfileProps> = ({
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </CardContent>
     </Card>
   );
 };

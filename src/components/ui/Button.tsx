@@ -1,5 +1,33 @@
 import React from 'react';
-import { BRAND_COLORS } from '../../utils/constants';
+import { Button as ShadcnButton } from './button-shadcn';
+import { cn } from '@/lib/utils';
+import { cva } from 'class-variance-authority';
+
+// Custom button variants that extend Shadcn's buttonVariants
+const customButtonVariants = cva(
+  // Base classes from Shadcn, keeping accessibility and interaction states
+  "",
+  {
+    variants: {
+      variant: {
+        primary: "bg-[#d4af37] text-white hover:bg-[#b8941f] focus-visible:ring-[#d4af37]/50",
+        secondary: "bg-gray-600 text-white hover:bg-gray-700 focus-visible:ring-gray-500/50",
+        danger: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500/50",
+        success: "bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-500/50",
+        outline: "border-2 border-[#d4af37] text-[#d4af37] bg-transparent hover:bg-[#d4af37] hover:text-white focus-visible:ring-[#d4af37]/50",
+      },
+      size: {
+        sm: "h-8 px-3 text-xs",
+        md: "h-9 px-4 text-sm", 
+        lg: "h-10 px-6 text-base",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
+  }
+);
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -22,30 +50,15 @@ const Button: React.FC<ButtonProps> = ({
   onClick,
   type = 'button'
 }) => {
-  const baseClasses = "font-medium rounded cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
-  
-  const sizeClasses = {
-    sm: 'px-3 py-1 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base'
-  };
-  
-  const variantClasses = {
-    primary: `bg-[${BRAND_COLORS.primary}] text-white hover:bg-yellow-600 focus:ring-yellow-500`,
-    secondary: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-    success: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500',
-    outline: `border-2 border-[${BRAND_COLORS.primary}] text-[${BRAND_COLORS.primary}] hover:bg-[${BRAND_COLORS.primary}] hover:text-white focus:ring-yellow-500`
-  };
-  
-  const classes = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`;
-  
   return (
-    <button
+    <ShadcnButton
       type={type}
-      className={classes}
       onClick={onClick}
       disabled={disabled || loading}
+      className={cn(
+        customButtonVariants({ variant, size }),
+        className
+      )}
     >
       {loading ? (
         <div className="flex items-center gap-2">
@@ -55,8 +68,9 @@ const Button: React.FC<ButtonProps> = ({
       ) : (
         children
       )}
-    </button>
+    </ShadcnButton>
   );
 };
 
 export default Button;
+export type { ButtonProps };

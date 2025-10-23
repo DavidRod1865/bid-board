@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import Sidebar from "../ui/Sidebar";
-import ToastContainer from "../ui/ToastContainer";
+import { Toaster } from "../ui/sonner";
 import { useToast } from "../../hooks/useToast";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 
 const AnalyticsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const { toasts, removeToast } = useToast();
+  const {} = useToast();
 
   const handleNewProject = () => {
     // Not applicable for analytics page
@@ -35,7 +35,7 @@ const AnalyticsPage: React.FC = () => {
       </div>
 
       {/* Toast notifications */}
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+      <Toaster />
     </div>
   );
 };

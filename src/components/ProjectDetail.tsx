@@ -2,14 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Bid, User, ProjectNote, Vendor, BidVendor } from "../types";
 import Sidebar from "./ui/Sidebar";
-import ConfirmationModal from "./ui/ConfirmationModal";
+import AlertDialog from "./ui/AlertDialog";
+import StatusBadge from "./ui/StatusBadge";
 import VendorTable from "./Vendor/VendorTable";
 import ProjectNotes from "./ProjectNotes";
 import AddVendorToProjectModal from "./Vendor/AddVendorToProjectModal";
 import AddNoteModal from "./AddNoteModal";
 import { dbOperations, realtimeManager } from "../lib/supabase";
 import supabase from "../lib/supabase";
-import { getStatusColor } from "../utils/statusUtils";
 import { formatDate } from "../utils/formatters";
 import { BID_STATUSES } from "../utils/constants";
 
@@ -483,25 +483,30 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       <h1 className="text-2xl font-bold text-gray-900">{bid.title}</h1>
                     )}
                     {isEditing ? (
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        className="text-white border-none px-3 py-2 rounded text-xs font-medium cursor-pointer w-32 text-center appearance-none"
-                        style={{ backgroundColor: getStatusColor(formData.status) }}
-                      >
-                        {BID_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        >
+                          {BID_STATUSES.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                        <StatusBadge 
+                          status={formData.status} 
+                          variant="badge"
+                          className="w-32 cursor-pointer"
+                        />
+                      </div>
                     ) : (
-                      <span 
-                        className="text-white border-none px-3 py-2 rounded text-xs font-medium w-32 text-center inline-block"
-                        style={{ backgroundColor: getStatusColor(bid.status) }}
-                      >
-                        {bid.status}
-                      </span>
+                      <StatusBadge 
+                        status={bid.status} 
+                        variant="badge"
+                        className="w-32"
+                      />
                     )}
                   </div>
                 </div>
@@ -728,7 +733,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         </div>
 
         {/* Archive Confirmation Modal */}
-        <ConfirmationModal
+        <AlertDialog
           isOpen={showArchiveModal}
           onClose={() => setShowArchiveModal(false)}
           onConfirm={confirmArchiveProject}
@@ -740,7 +745,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         />
 
         {/* Delete Confirmation Modal */}
-        <ConfirmationModal
+        <AlertDialog
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={confirmDeleteProject}
@@ -752,7 +757,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         />
 
         {/* Remove Vendors Confirmation Modal */}
-        <ConfirmationModal
+        <AlertDialog
           isOpen={showRemoveVendorsModal}
           onClose={() => {
             setShowRemoveVendorsModal(false);

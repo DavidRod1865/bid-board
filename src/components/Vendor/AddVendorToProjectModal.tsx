@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import type { Vendor, BidVendor } from '../../types';
-import Modal from '../ui/Modal';
+import DialogModal from '../ui/DialogModal';
 import { Input, Select } from '../ui/FormField';
-import Button from '../ui/Button';
+import Button from "../ui/Button";
+import { Checkbox } from '../ui/checkbox';
 
 interface AddVendorToProjectModalProps {
   isOpen: boolean;
@@ -126,9 +127,35 @@ const AddVendorToProjectModal: React.FC<AddVendorToProjectModalProps> = ({
 
   const selectedVendor = formData.vendor_id ? getVendorById(formData.vendor_id) : null;
 
+  const footerButtons = (
+    <div className="flex gap-3">
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={handleClose}
+        disabled={isLoading}
+      >
+        Cancel
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        disabled={isLoading}
+        onClick={() => document.getElementById('vendor-to-project-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}
+      >
+        {isLoading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Update Vendor' : 'Add Vendor')}
+      </Button>
+    </div>
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={isEditMode ? "Edit Project Vendor" : "Add Vendor to Project"}>
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <DialogModal 
+      isOpen={isOpen} 
+      onClose={handleClose} 
+      title={isEditMode ? "Edit Project Vendor" : "Add Vendor to Project"}
+      footer={footerButtons}
+    >
+      <form id="vendor-to-project-form" onSubmit={handleSubmit} className="space-y-6">
         {/* Vendor Selection */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -196,11 +223,10 @@ const AddVendorToProjectModal: React.FC<AddVendorToProjectModalProps> = ({
         {/* Priority Checkbox */}
         <div>
           <label className="flex items-center">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={formData.is_priority}
-              onChange={(e) => handleInputChange('is_priority', e.target.checked)}
-              className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300 rounded"
+              onCheckedChange={(checked) => handleInputChange('is_priority', checked as boolean)}
+              className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
               disabled={isLoading}
             />
             <span className="ml-2 block text-sm text-gray-700">
@@ -242,26 +268,8 @@ const AddVendorToProjectModal: React.FC<AddVendorToProjectModalProps> = ({
           </Select>
         </div>
 
-        {/* Form Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isLoading}
-          >
-            {isLoading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Update Vendor' : 'Add Vendor')}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </DialogModal>
   );
 };
 

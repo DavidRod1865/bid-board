@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FolderIcon,
   ArchiveBoxIcon,
-  PauseIcon,
+  PauseCircleIcon,
   UsersIcon,
   CalendarIcon,
   ChartBarIcon,
@@ -25,7 +25,7 @@ import { useAuth0 } from '../../auth';
 import { useUserProfile } from '../../contexts/UserContext';
 import UserProfileModal from '../UserProfileModal';
 import withPrideLogo from '../../assets/With Pride Logo.png';
-import { Pencil } from 'lucide-react';
+import { PencilIcon } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   statusFilter: string[];
@@ -111,9 +111,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navigationItems = [
     {
       id: 'projects',
-      label: 'Projects',
+      label: 'Active Bids',
       icon: (
-        <FolderIcon className="w-5 h-5" />
+        <FolderIcon className="w-6 h-6" />
       ),
       path: '/',
       onClick: () => navigate('/'),
@@ -121,9 +121,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'on-hold',
-      label: 'On Hold',
+      label: 'Bids On Hold',
       icon: (
-        <PauseIcon className="w-5 h-5" />
+        <PauseCircleIcon className="w-6 h-6" />
       ),
       path: '/on-hold',
       onClick: () => navigate('/on-hold'),
@@ -131,9 +131,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'archives',
-      label: 'Archives',
+      label: 'Archived Bids',
       icon: (
-        <ArchiveBoxIcon className="w-5 h-5" />
+        <ArchiveBoxIcon className="w-6 h-6" />
       ),
       path: '/archives',
       onClick: () => navigate('/archives'),
@@ -141,9 +141,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'vendors',
-      label: 'Vendors', 
+      label: 'Vendors / Subs', 
       icon: (
-        <UsersIcon className="w-5 h-5" />
+        <UsersIcon className="w-6 h-6" />
       ),
       path: '/vendors',
       onClick: () => navigate('/vendors'),
@@ -153,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: 'calendar',
       label: 'Calendar',
       icon: (
-        <CalendarIcon className="w-5 h-5" />
+        <CalendarIcon className="w-6 h-6" />
       ),
       path: '/calendar',
       onClick: () => navigate('/calendar'),
@@ -163,7 +163,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: 'analytics',
       label: 'Analytics',
       icon: (
-        <ChartBarIcon className="w-5 h-5" />
+        <ChartBarIcon className="w-6 h-6" />
       ),
       path: '/analytics',
       onClick: () => navigate('/analytics'),
@@ -194,9 +194,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           {isCollapsed ? (
-            <ChevronRightIcon className="w-5 h-5 text-gray-600 transition-transform duration-200" />
+            <ChevronRightIcon className="w-6 h-6 text-gray-600 transition-transform duration-200" />
           ) : (
-            <ChevronLeftIcon className="w-5 h-5 text-gray-600 transition-transform duration-200" />
+            <ChevronLeftIcon className="w-6 h-6 text-gray-600 transition-transform duration-200" />
           )}
         </button>
       </div>
@@ -249,8 +249,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <PlusIcon className="w-5 h-5 flex-shrink-0" />
-                {!isCollapsed && <span className="font-medium text-sm">Create</span>}
+                <PlusIcon className="w-6 h-6 flex-shrink-0" />
+                {!isCollapsed && <span className="font-medium text-sm">Create New Bid</span>}
               </button>
 
               <button
@@ -260,7 +260,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <DocumentDuplicateIcon className="w-5 h-5 flex-shrink-0" />
+                <DocumentDuplicateIcon className="w-6 h-6 flex-shrink-0" />
                 {!isCollapsed && <span className="font-medium text-sm">Copy Project</span>}
               </button>
 
@@ -272,7 +272,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <EnvelopeIcon className="w-5 h-5 flex-shrink-0" />
+                <EnvelopeIcon className="w-6 h-6 flex-shrink-0" />
                 {!isCollapsed && (
                   <span className="font-medium text-sm">
                     {isEmailingReport ? 'Sending Report...' : 'Email Report'}
@@ -299,7 +299,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     ${isCollapsed ? 'justify-center' : 'justify-start'}
                   `}
                 >
-                  <PlayIcon className="w-5 h-5 flex-shrink-0" />
+                  <PlayIcon className="w-6 h-6 flex-shrink-0" />
                   {!isCollapsed && <span className="font-medium text-sm">Move to Active ({selectedBidsCount})</span>}
                 </button>
               )}
@@ -313,7 +313,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     ${isCollapsed ? 'justify-center' : 'justify-start'}
                   `}
                 >
-                  <PauseIcon className="w-5 h-5 flex-shrink-0" />
+                  <PauseCircleIcon className="w-6 h-6 flex-shrink-0" />
                   {!isCollapsed && <span className="font-medium text-sm">Move to On Hold ({selectedBidsCount})</span>}
                 </button>
               )}
@@ -327,8 +327,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                     ${isCollapsed ? 'justify-center' : 'justify-start'}
                   `}
                 >
-                  <ArchiveBoxIcon className="w-5 h-5 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium text-sm">Archive Selected ({selectedBidsCount})</span>}
+                  <ArchiveBoxIcon className="w-6 h-6 flex-shrink-0" />
+                  {!isCollapsed && <span className="font-medium text-sm">Move to Archive ({selectedBidsCount})</span>}
                 </button>
               )}
 
@@ -341,7 +341,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     ${isCollapsed ? 'justify-center' : 'justify-start'}
                   `}
                 >
-                  <TrashIcon className="w-5 h-5 flex-shrink-0" />
+                  <TrashIcon className="w-6 h-6 flex-shrink-0" />
                   {!isCollapsed && <span className="font-medium text-sm">Delete Selected ({selectedBidsCount})</span>}
                 </button>
               )}
@@ -359,7 +359,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 ${isCollapsed ? 'justify-center' : 'justify-start'}
               `}
             >
-              <PlusIcon className="w-5 h-5 flex-shrink-0" />
+              <PlusIcon className="w-6 h-6 flex-shrink-0" />
               {!isCollapsed && <span className="font-medium text-sm">Add Vendor</span>}
             </button>
           </div>
@@ -376,7 +376,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <ArrowLeftIcon className="w-5 h-5 flex-shrink-0" />
+                <ArrowLeftIcon className="w-6 h-6 flex-shrink-0" />
                 {!isCollapsed && <span className="font-medium text-sm">Back to Projects</span>}
               </button>
 
@@ -389,7 +389,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <PencilSquareIcon className="w-5 h-5 flex-shrink-0" />
+                    <PencilSquareIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Edit Project</span>}
                   </button>
 
@@ -400,7 +400,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <Pencil className="w-5 h-5 flex-shrink-0" />
+                    <PencilIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Add Note</span>}
                   </button>
 
@@ -411,7 +411,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <UserPlusIcon className="w-5 h-5 flex-shrink-0" />
+                    <UserPlusIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Add Vendor</span>}
                   </button>
 
@@ -426,7 +426,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <CheckIcon className="w-5 h-5 flex-shrink-0" />
+                    <CheckIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">{isSavingProject ? 'Saving...' : 'Save Changes'}</span>}
                   </button>
 
@@ -438,7 +438,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <XMarkIcon className="w-5 h-5 flex-shrink-0" />
+                    <XMarkIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Cancel</span>}
                   </button>
                 </>
@@ -456,7 +456,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <TrashIcon className="w-5 h-5 flex-shrink-0" />
+                    <TrashIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Remove Selected ({selectedVendorsCount})</span>}
                   </button>
                 ) : (
@@ -469,7 +469,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                           ${isCollapsed ? 'justify-center' : 'justify-start'}
                         `}
                       >
-                        <ArchiveBoxIcon className="w-5 h-5 flex-shrink-0" />
+                        <ArchiveBoxIcon className="w-6 h-6 flex-shrink-0" />
                         {!isCollapsed && <span className="font-medium text-sm">Archive Project</span>}
                       </button>
                     )}
@@ -480,7 +480,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         ${isCollapsed ? 'justify-center' : 'justify-start'}
                       `}
                     >
-                      <TrashIcon className="w-5 h-5 flex-shrink-0" />
+                      <TrashIcon className="w-6 h-6 flex-shrink-0" />
                       {!isCollapsed && <span className="font-medium text-sm">Delete Project</span>}
                     </button>
                   </div>
@@ -501,7 +501,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
               >
-                <ArrowLeftIcon className="w-5 h-5 flex-shrink-0" />
+                <ArrowLeftIcon className="w-6 h-6 flex-shrink-0" />
                 {!isCollapsed && <span className="font-medium text-sm">Back to Vendors</span>}
               </button>
 
@@ -514,7 +514,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <PencilSquareIcon className="w-5 h-5 flex-shrink-0" />
+                    <PencilSquareIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Edit Vendor</span>}
                   </button>
                 </>
@@ -528,7 +528,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <CheckIcon className="w-5 h-5 flex-shrink-0" />
+                    <CheckIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">{isSavingVendor ? 'Saving...' : 'Save Changes'}</span>}
                   </button>
 
@@ -540,7 +540,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       ${isCollapsed ? 'justify-center' : 'justify-start'}
                     `}
                   >
-                    <XMarkIcon className="w-5 h-5 flex-shrink-0" />
+                    <XMarkIcon className="w-6 h-6 flex-shrink-0" />
                     {!isCollapsed && <span className="font-medium text-sm">Cancel</span>}
                   </button>
                 </>
@@ -557,7 +557,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     ${isCollapsed ? 'justify-center' : 'justify-start'}
                   `}
                 >
-                  <TrashIcon className="w-5 h-5 flex-shrink-0" />
+                  <TrashIcon className="w-6 h-6 flex-shrink-0" />
                   {!isCollapsed && <span className="font-medium text-sm">Delete Vendor</span>}
                 </button>
               </div>
@@ -584,7 +584,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex-1 text-left">
                   <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
                 </div>
-                <ChevronDownIcon className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${showUserMenu ? 'transform rotate-180' : ''}`} />
+                <ChevronDownIcon className={`w-6 h-6 text-gray-600 transition-transform duration-200 ${showUserMenu ? 'transform rotate-180' : ''}`} />
               </>
             )}
           </button>

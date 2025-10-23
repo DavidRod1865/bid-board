@@ -6,8 +6,8 @@ import SearchFilters from './SearchFilters';
 import Sidebar from '../ui/Sidebar';
 import AddProjectModal from '../AddProjectModal';
 import CopyProjectModal from '../CopyProjectModal';
-import ConfirmationModal from '../ui/ConfirmationModal';
-import ToastContainer from '../ui/ToastContainer';
+import AlertDialog from '../ui/AlertDialog';
+import { Toaster } from '../ui/sonner';
 import { useToast } from '../../hooks/useToast';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../hooks/useBulkActions';
@@ -53,15 +53,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   });
   const [overdueFilter, setOverdueFilter] = useState(false);
   
-  // Sorting state
-  const [sortField, setSortField] = useState<keyof Bid | null>("due_date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
   // Bulk selection hooks
   const {
     selectedBids,
     handleBidSelect,
-    handleSelectAll,
     clearSelection
   } = useBulkSelection();
 
@@ -86,7 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEmailingReport, setIsEmailingReport] = useState(false);
   const [showEmailConfirmModal, setShowEmailConfirmModal] = useState(false);
-  const { toasts, removeToast, showSuccess, showError } = useToast();
+  const { showSuccess, showError } = useToast();
 
   // Calculate overdue count for all bids
   const overdueCount = useMemo(() => {
@@ -130,61 +126,31 @@ const Dashboard: React.FC<DashboardProps> = ({
         return urgency.level === 'overdue';
       });
     }
+
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.due_date).getTime();
+      const dateB = new Date(b.due_date).getTime();
+      return dateA - dateB;
+    });
     
     return filtered;
   }, [bids, searchTerm, statusFilter, dateRange, overdueFilter]);
 
-  // Sorting logic - applied to filtered bids before pagination
-  const sortedBids = useMemo(() => {
-    if (!sortField) return filteredBids;
-
-    return [...filteredBids].sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      // Handle null values
-      if (aValue === null && bValue === null) return 0;
-      if (aValue === null) return sortDirection === "asc" ? 1 : -1;
-      if (bValue === null) return sortDirection === "asc" ? -1 : 1;
-
-      // Special handling for date fields
-      if (sortField === 'due_date' || sortField === 'archived_at') {
-        const aDate = new Date(aValue as string);
-        const bDate = new Date(bValue as string);
-        const comparison = aDate.getTime() - bDate.getTime();
-        return sortDirection === "asc" ? comparison : -comparison;
-      }
-
-      // Handle other data types
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [filteredBids, sortField, sortDirection]);
-
-  // Pagination calculations - applied to sorted bids
-  const totalPages = Math.ceil(sortedBids.length / itemsPerPage);
+  // Pagination calculations - applied to filtered bids
+  const totalPages = Math.ceil(filteredBids.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedBids = sortedBids.slice(startIndex, endIndex);
+  const paginatedBids = filteredBids.slice(startIndex, endIndex);
 
-  // Reset to first page when filters or sorting change
+  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter.length, dateRange, overdueFilter, sortField, sortDirection]);
+  }, [searchTerm, statusFilter.length, dateRange, overdueFilter]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  const handleSort = (field: keyof Bid) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
 
   const handleNewProject = () => {
     setIsAddModalOpen(true);
@@ -383,22 +349,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               projectNotes={projectNotes}
               onStatusChange={handleStatusChange}
               isLoading={isLoading}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onSort={handleSort}
               selectedBids={selectedBids}
               onBidSelect={handleBidSelect}
-              onSelectAll={(selected) => handleSelectAll(selected, paginatedBids)}
             />
           )}
         </div>
         
         {/* Pagination Controls - Fixed at bottom of page */}
-        {!isLoading && sortedBids.length > 0 && (
+        {!isLoading && filteredBids.length > 0 && (
           <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
             <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
-              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, sortedBids.length)} of {sortedBids.length} results</span>
-              <span className="sm:hidden">{sortedBids.length} results</span>
+              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, filteredBids.length)} of {filteredBids.length} results</span>
+              <span className="sm:hidden">{filteredBids.length} results</span>
             </div>
             
             <div className="flex items-center gap-3 order-1 sm:order-2">
@@ -453,7 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* Email Report Confirmation Modal */}
-      <ConfirmationModal
+      <AlertDialog
         isOpen={showEmailConfirmModal}
         onClose={() => setShowEmailConfirmModal(false)}
         onConfirm={handleConfirmEmailReport}
@@ -465,7 +427,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       />
 
       {/* Bulk Actions Confirmation Modal */}
-      <ConfirmationModal
+      <AlertDialog
         isOpen={confirmModal.isOpen}
         onClose={closeConfirmation}
         onConfirm={confirmModal.onConfirm}
@@ -477,7 +439,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       />
 
       {/* Toast Container */}
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+      <Toaster />
     </div>
   );
 };

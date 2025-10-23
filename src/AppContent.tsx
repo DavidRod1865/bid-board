@@ -1,9 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
-import type { User, Bid, Vendor, BidVendor, ProjectNote } from './types';
-import AnalyticsPage from './components/Analytics/AnalyticsPage';
 
-// Type for raw bid data from Supabase (with nested relations)
+// Importing types
+import type { User, Bid, Vendor, BidVendor, ProjectNote } from './types';
+
+// Importing Supabase operations and realtime manager
+import { dbOperations, realtimeManager, supabase } from './lib/supabase';
+
+// Importing components
+import AnalyticsPage from './components/Analytics/AnalyticsPage';
+import Dashboard from './components/Dashboard/Dashboard';
+import ProjectDetail from './components/ProjectDetail';
+import VendorPage from './components/Vendor/VendorPage';
+import VendorDetail from './components/Vendor/VendorDetail';
+import Calendar from './components/Calendar';
+import Archives from './components/Archives';
+import OnHold from './components/OnHold';
+
+// Raw bid data type as received from Supabase
 type RawBidData = {
   id: number;
   title?: string;
@@ -31,22 +45,15 @@ type RawBidData = {
   assigned_user?: { name: string; email: string };
 };
 
-// Type for realtime payload from Supabase
+// Realtime payload type for Supabase subscriptions
 type RealtimePayload = {
   eventType?: string;
   event?: string;
   new?: Record<string, unknown>;
   old?: Record<string, unknown>;
 };
-import { dbOperations, realtimeManager, supabase } from './lib/supabase';
-import Dashboard from './components/Dashboard/Dashboard';
-import ProjectDetail from './components/ProjectDetail';
-import VendorPage from './components/Vendor/VendorPage';
-import VendorDetail from './components/Vendor/VendorDetail';
-import Calendar from './components/Calendar';
-import Archives from './components/Archives';
-import OnHold from './components/OnHold';
 
+// ProjectDetailWrapper component to handle individual project fetching
 interface ProjectDetailWrapperProps {
   bids: Bid[];
   users: User[];
@@ -59,22 +66,27 @@ interface ProjectDetailWrapperProps {
   onRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
 }
 
+// ProjectDetailWrapper component definition
 const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [individualBid, setIndividualBid] = useState<Bid | null>(null);
   const [loadingIndividual, setLoadingIndividual] = useState(false);
   const [notFound, setNotFound] = useState(false);
   
+  // Get project ID from URL params & parse to integer
+  const { id } = useParams<{ id: string }>();
   const bidId = parseInt(id || '0', 10);
+
+  // Find the bid in the bids array that matches the project ID
   const bid = props.bids.find(b => b.id === bidId);
   
-  // If not found in main bids array, try to fetch individually (including archived)
+  // If bid is not found in bids array, try to fetch individually
   useEffect(() => {
     if (!bid && id && !loadingIndividual && !individualBid && !notFound) {
       const fetchIndividualBid = async () => {
         setLoadingIndividual(true);
         try {
+          // fetch individual bid from Supabase by ID
           const fetchedBid = await dbOperations.getBidById(bidId);
           setIndividualBid(fetchedBid);
         } catch (error) {
@@ -89,8 +101,10 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
     }
   }, [bid, id, bidId, loadingIndividual, individualBid, notFound]);
   
+  // Determine which project to show: from props or fetched individually
   const projectToShow = bid || individualBid;
   
+  // Handle loading and not found states
   if (loadingIndividual) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -102,6 +116,7 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
     );
   }
   
+  // If no project found, show not found message
   if (!projectToShow || notFound) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -119,6 +134,7 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
   }
   
   return (
+    // Render ProjectDetail component with the determined project
     <ProjectDetail 
       bid={projectToShow}
       onUpdateBid={props.onUpdateBid}
@@ -127,6 +143,7 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
   );
 };
 
+// AppContent component definition
 const AppContent: React.FC = () => {
   const [bids, setBids] = useState<Bid[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -143,6 +160,7 @@ const AppContent: React.FC = () => {
         setLoading(true);
         setError(null);
         
+        // Fetch bids, vendors, users, and project notes in parallel
         const [bidsData, vendorsData, usersData, projectNotesData] = await Promise.all([
           dbOperations.getBids(),
           dbOperations.getVendors(),
@@ -151,11 +169,14 @@ const AppContent: React.FC = () => {
         ]);
 
         // Transform bids data to extract bid_vendors
+        // Create a flat array of bid vendors
         const extractedBidVendors: BidVendor[] = [];
+        // Take bidData and extract bid_vendors into extractedBidVendors array
         const transformedBids = bidsData.map((bid: RawBidData) => {
-          // Extract bid_vendors from the nested structure
           if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
+            // push bid_vendors into extractedBidVendors with bid_id reference
             extractedBidVendors.push(...bid.bid_vendors.map((bv) => ({
+              // Spread existing bid_vendor properties + add bid_id
               ...bv,
               bid_id: bid.id
             })));
@@ -166,13 +187,11 @@ const AppContent: React.FC = () => {
           return bidWithoutVendors as Bid;
         });
 
-        setBids(transformedBids);
-        setVendors(vendorsData || []);
-        setBidVendors(extractedBidVendors);
-        setUsers(usersData || []);
-        setProjectNotes(projectNotesData || []);
-        
-        // Users are now loaded directly from the database
+        setBids(transformedBids); // Set transformed bids without nested bid_vendors (see above)
+        setVendors(vendorsData || []); // Set vendors
+        setBidVendors(extractedBidVendors); // Set extracted bid vendors (see above)
+        setUsers(usersData || []); // Set users
+        setProjectNotes(projectNotesData || []); // Set project notes
         
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -382,9 +401,12 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
+  // Handler functions to update status
   const handleStatusChange = async (bidId: number, newStatus: string) => {
     try {
+      // Update bid status in the database
       await dbOperations.updateBid(bidId, { status: newStatus });
+      // Update bid status in local state
       setBids(prevBids => 
         prevBids.map(bid => 
           bid.id === bidId ? { ...bid, status: newStatus } : bid
@@ -395,6 +417,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for update bid
   const handleUpdateBid = async (bidId: number, updatedBid: Partial<Bid>) => {
     try {
       await dbOperations.updateBid(bidId, updatedBid);
@@ -415,6 +438,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for adding a new bid
   const handleAddBid = async (bidData: Omit<Bid, 'id'>) => {
     try {
       const newBid = await dbOperations.createBid(bidData);
@@ -454,6 +478,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for copying a bid
   const handleCopyProject = async (_originalProjectId: number, newProjectData: Omit<Bid, 'id'>) => {
     try {
       const newBid = await dbOperations.createBid(newProjectData);
@@ -492,6 +517,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for deleting a bid
   const handleDeleteBid = async (bidId: number) => {
     try {
       await dbOperations.deleteBid(bidId);
@@ -501,6 +527,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for vendor management
   const handleAddVendor = async (vendorData: Omit<Vendor, 'id'>) => {
     try {
       const newVendor = await dbOperations.createVendor(vendorData);
@@ -512,6 +539,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler function for updating a vendor
   const handleUpdateVendor = async (vendorId: number, updatedVendor: Partial<Vendor>) => {
     try {
       await dbOperations.updateVendor(vendorId, updatedVendor);
@@ -521,6 +549,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler function for deleting a vendor
   const handleDeleteVendor = async (vendorId: number) => {
     try {
       await dbOperations.deleteVendor(vendorId);
@@ -530,6 +559,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for adding vendor to a bid
   const handleAddBidVendor = async (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => {
     try {
       const newBidVendor = await dbOperations.addVendorToBid(bidId, {
@@ -567,6 +597,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for updating a bid vendor
   const handleUpdateBidVendor = async (bidVendorId: number, vendorData: Partial<BidVendor>) => {
     try {
       await dbOperations.updateBidVendor(bidVendorId, vendorData);
@@ -580,6 +611,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler functions for removing bid vendors
   const handleRemoveBidVendors = async (bidVendorIds: number[]) => {
     try {
       // Remove each bid vendor individually
@@ -595,6 +627,7 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Handler function for restoring a bid from Archives or On-Hold
   const handleBidRestored = (restoredBid: Bid) => {
     // Add the restored bid back to the main bids list, avoiding duplicates
     setBids(prevBids => {
@@ -611,7 +644,6 @@ const AppContent: React.FC = () => {
       }
     });
   };
-
 
   // Show loading state
   if (loading) {

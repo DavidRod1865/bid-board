@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DateRangePicker } from 'react-date-range';
 import { Input } from '../ui/FormField';
-import Button from '../ui/Button';
+import Button from "../ui/Button";
+import StatusBadge from '../ui/StatusBadge';
 import { BID_STATUSES } from '../../utils/constants';
-import { getStatusColor } from '../../utils/statusUtils';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
@@ -145,41 +145,36 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         </div>
       </div>
 
-      {/* Status Filter Buttons */}
+      {/* Status Filter Badges */}
       {showStatusFilter && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-gray-700 mr-2">Filter by status:</span>
-          
-          <button
+        <div className="flex items-center gap-2 m-2 flex-wrap">
+          <div
             onClick={handleClearAllStatuses}
             className={`
-              px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 border
+              px-3 py-1 w-30 rounded-full text-center text-xs font-medium transition-all duration-200 border cursor-pointer
               ${statusFilter.length === 0 
-                ? 'bg-[#d4af37] text-white border-[#d4af37]' 
-                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                ? 'bg-[#d4af37] text-white border-2 border-black' 
+                : 'bg-[#d4af37] text-gray-700 border-gray-300 opacity-55 hover:opacity-70'
               }
             `}
           >
             All
-          </button>
+          </div>
 
           {BID_STATUSES.map((status) => (
-            <button
+            <StatusBadge
               key={status}
+              status={status}
+              variant="badge"
               onClick={() => handleStatusFilter(status)}
               className={`
-                px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 border
-                ${statusFilter.includes(status) 
-                  ? 'text-white border-transparent' 
-                  : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                cursor-pointer transition-all duration-200 border w-30
+                ${statusFilter.includes(status)
+                  ? ' opacity-100 border-black border-2'
+                  : 'bg-gray-100 !text-gray-700 border-gray-300 hover:bg-gray-200 opacity-55 hover:opacity-70'
                 }
               `}
-              style={{
-                backgroundColor: statusFilter.includes(status) ? getStatusColor(status) : undefined
-              }}
-            >
-              {status}
-            </button>
+            />
           ))}
         </div>
       )}

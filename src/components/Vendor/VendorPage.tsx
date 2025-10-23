@@ -3,8 +3,8 @@ import type { Vendor } from "../../types";
 import Sidebar from "../ui/Sidebar";
 import VendorList from "./VendorList";
 import AddVendorModal from "./AddVendorModal";
-import ConfirmationModal from "../ui/ConfirmationModal";
-import ToastContainer from "../ui/ToastContainer";
+import AlertDialog from "../ui/AlertDialog";
+import { Toaster } from "../ui/sonner";
 import { useToast } from "../../hooks/useToast";
 
 interface VendorPageProps {
@@ -24,7 +24,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
   onEditVendor,
   onDeleteVendor,
 }) => {
-  const { toasts, removeToast, showSuccess, showError } = useToast();
+  const { showSuccess, showError } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isOperationLoading, setIsOperationLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -196,7 +196,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
       />
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <AlertDialog
         isOpen={showDeleteModal}
         onClose={() => {
           setShowDeleteModal(false);
@@ -211,7 +211,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
       />
 
       {/* Toast Container */}
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+      <Toaster />
     </>
   );
 };

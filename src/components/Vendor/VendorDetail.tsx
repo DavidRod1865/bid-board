@@ -4,7 +4,7 @@ import type { Vendor } from "../../types";
 import { dbOperations } from "../../lib/supabase";
 import Sidebar from "../ui/Sidebar";
 import Button from "../ui/Button";
-import ConfirmationModal from "../ui/ConfirmationModal";
+import AlertDialog from "../ui/AlertDialog";
 import VendorProfile from "./VendorProfile";
 
 interface VendorDetailProps {
@@ -231,7 +231,7 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
         </div>
       
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <AlertDialog
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDeleteVendor}

@@ -4,13 +4,14 @@ import { PauseIcon } from '@heroicons/react/24/outline';
 import type { Bid, ProjectNote } from '../types';
 import Sidebar from './ui/Sidebar';
 import SearchFilters from './Dashboard/SearchFilters';
-import ConfirmationModal from './ui/ConfirmationModal';
-import SelectableTable, { type TableColumn } from './ui/SelectableTable';
+import AlertDialog from './ui/AlertDialog';
+import { DataTable } from './ui/data-table';
+import { createOnHoldColumns } from '../lib/table-columns/archive-columns';
 import { useToast } from '../hooks/useToast';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../hooks/useBulkActions';
 import { dbOperations } from '../lib/supabase';
-import { formatDate, isDateInRange } from '../utils/formatters';
+import { isDateInRange } from '../utils/formatters';
 import { getStatusColor } from '../utils/statusUtils';
 
 interface OnHoldProps {
@@ -30,9 +31,6 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
     endDate: null
   });
   
-  // Sorting state
-  const [sortField, setSortField] = useState<keyof Bid | null>("due_date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,10 +42,7 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
   const {
     selectedBids,
     handleBidSelect,
-    handleSelectAll,
-    clearSelection,
-    isAllSelected,
-    isSomeSelected
+    clearSelection
   } = useBulkSelection();
 
   // Bulk actions hooks
@@ -120,7 +115,7 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
     });
   };
 
-  // Filter bids based on search term and filters
+  // Filter and sort bids based on search term and filters
   const filteredBids = useMemo(() => {
     if (!onHoldBids || onHoldBids.length === 0) {
       return [];
@@ -149,60 +144,31 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
       filtered = filtered.filter(bid => isDateInRange(bid.due_date, dateRange.startDate, dateRange.endDate));
     }
     
+    // Sort by due_date ascending
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.due_date).getTime();
+      const dateB = new Date(b.due_date).getTime();
+      return dateA - dateB;
+    });
+    
     return filtered;
   }, [onHoldBids, searchTerm, statusFilter, dateRange]);
 
-  // Sorting logic - applied to filtered bids before pagination
-  const sortedBids = useMemo(() => {
-    if (!sortField) return filteredBids;
-
-    return [...filteredBids].sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      // Handle null values
-      if (aValue === null && bValue === null) return 0;
-      if (aValue === null) return sortDirection === "asc" ? 1 : -1;
-      if (bValue === null) return sortDirection === "asc" ? -1 : 1;
-
-      // Special handling for date fields
-      if (sortField === 'due_date' || sortField === 'on_hold_at') {
-        const aDate = new Date(aValue as string);
-        const bDate = new Date(bValue as string);
-        const comparison = aDate.getTime() - bDate.getTime();
-        return sortDirection === "asc" ? comparison : -comparison;
-      }
-
-      // Handle other data types
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [filteredBids, sortField, sortDirection]);
-
-  // Pagination calculations - applied to sorted bids
-  const totalPages = Math.ceil(sortedBids.length / itemsPerPage);
+  // Pagination calculations - applied to filtered bids
+  const totalPages = Math.ceil(filteredBids.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedBids = sortedBids.slice(startIndex, endIndex);
+  const paginatedBids = filteredBids.slice(startIndex, endIndex);
 
-  // Reset to first page when filters or sorting change
+  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter.length, dateRange, sortField, sortDirection]);
+  }, [searchTerm, statusFilter.length, dateRange]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  const handleSort = (field: keyof Bid) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
 
   // Helper function to get most recent note for a bid
   const getMostRecentNote = (bidId: number) => {
@@ -217,85 +183,35 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
     return sortedNotes[0].content;
   };
 
-  // Table columns definition matching Dashboard layout
-  const columns: TableColumn<Bid>[] = [
-    {
-      key: 'project',
-      header: 'PROJECT NAME',
-      render: (bid) => (
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1"
-            style={{ backgroundColor: getStatusColor(bid.status) }}
-          ></div>
-          <span className="font-medium text-gray-900 whitespace-nowrap overflow-clip text-ellipsis min-w-0 text-sm">
-            <div className="font-medium text-gray-900 text-sm">
-              {bid.project_name}
-            </div>
-            {bid.project_address && (
-              <div className="text-sm text-gray-500">
-                {bid.project_address}
-              </div>
-            )}
-          </span>
-        </div>
-      )
-    },
-    {
-      key: 'contractor',
-      header: 'GENERAL CONTRACTOR',
-      className: 'flex items-center text-gray-600 text-sm whitespace-nowrap overflow-hidden text-ellipsis',
-      render: (bid) => bid.general_contractor || 'Not specified'
-    },
-    {
-      key: 'status',
-      header: 'STATUS',
-      headerClassName: 'text-center',
-      className: 'flex flex-col items-center',
-      render: (bid) => (
-        <div className="flex items-center justify-center">
-          <span 
-            className="text-white border-none px-3 py-2 rounded text-xs font-medium w-32 text-center"
-            style={{ backgroundColor: getStatusColor(bid.status) }}
-          >
-            {bid.status}
-          </span>
-        </div>
-      )
-    },
-    {
-      key: 'bidDate',
-      header: 'BID DATE',
-      headerClassName: 'text-center',
-      className: 'flex items-center justify-center text-gray-600 text-sm',
-      sortable: true,
-      sortField: 'due_date',
-      render: (bid) => (
-        <div className="text-center">
-          <span>{formatDate(bid.due_date, 'short')}</span>
-        </div>
-      )
-    },
-    {
-      key: 'onHoldSince',
-      header: 'ON HOLD SINCE',
-      headerClassName: 'text-center',
-      className: 'flex items-center justify-center text-gray-600 text-sm',
-      sortable: true,
-      sortField: 'on_hold_at',
-      render: (bid) => (
-        <div className="text-center">
-          {bid.on_hold_at ? formatDate(bid.on_hold_at, 'short') : 'Unknown'}
-        </div>
-      )
-    },
-    {
-      key: 'notes',
-      header: 'NOTES',
-      className: 'flex items-center text-gray-600 text-sm whitespace-nowrap overflow-hidden text-ellipsis',
-      render: (bid) => getMostRecentNote(bid.id)
-    }
-  ];
+  // Create column definitions with context
+  const columns = useMemo(() => {
+    return createOnHoldColumns({
+      projectNotes,
+      getMostRecentNote
+    });
+  }, [projectNotes]);
+
+  // Row selection for DataTable
+  const rowSelection = useMemo(() => {
+    const selection: Record<string, boolean> = {};
+    paginatedBids.forEach((bid, index) => {
+      if (selectedBids.has(bid.id)) {
+        selection[index.toString()] = true;
+      }
+    });
+    return selection;
+  }, [selectedBids, paginatedBids]);
+
+  const getRowClassName = () => {
+    // OnHold projects don't have urgency styling - always show status accent
+    return 'hover:bg-gray-50 hover:-translate-y-px active:translate-y-0 border-l-4';
+  };
+
+  const getRowStyle = (bid: Bid) => {
+    // OnHold always show status color on left border
+    const statusColor = getStatusColor(bid.status);
+    return { borderLeftColor: statusColor };
+  };
 
   // Dummy handlers for sidebar (on-hold page doesn't need these)
   const handleStatusFilter = () => {};
@@ -385,26 +301,42 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
         </div>
         
         <div className="flex-1 overflow-auto p-6 pt-4">
-          <SelectableTable
-            bids={paginatedBids}
+          <DataTable
             columns={columns}
-            selectedBids={selectedBids}
-            onBidSelect={handleBidSelect}
-            onSelectAll={(selected) => handleSelectAll(selected, paginatedBids)}
+            data={paginatedBids}
+            enableRowSelection={true}
+            rowSelection={rowSelection}
+            onRowSelectionChange={(selection) => {
+              const newSelectedIds = new Set<number>();
+              Object.entries(selection).forEach(([index, isSelected]) => {
+                if (isSelected) {
+                  const bidIndex = parseInt(index);
+                  if (paginatedBids[bidIndex]) {
+                    newSelectedIds.add(paginatedBids[bidIndex].id);
+                  }
+                }
+              });
+
+              // Call handleBidSelect for each change
+              paginatedBids.forEach((bid) => {
+                const wasSelected = selectedBids.has(bid.id);
+                const isSelected = newSelectedIds.has(bid.id);
+                
+                if (wasSelected !== isSelected) {
+                  handleBidSelect(bid.id, isSelected);
+                }
+              });
+            }}
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
-            isAllSelected={isAllSelected(paginatedBids)}
-            isSomeSelected={isSomeSelected(paginatedBids)}
-            loading={loading}
+            isLoading={loading}
             emptyMessage={
               searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
                 ? 'No matching on-hold bids'
                 : 'No on-hold bids'
             }
             emptyIcon={PauseIcon}
-            gridCols="0.55fr 2.5fr 1.5fr 1fr 1.2fr 1fr 3fr"
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSort={handleSort}
+            getRowClassName={getRowClassName}
+            getRowStyle={getRowStyle}
           />
         </div>
         
@@ -445,7 +377,7 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
       </div>
 
       {/* Confirmation Modal */}
-      <ConfirmationModal
+      <AlertDialog
         isOpen={confirmModal.isOpen}
         onClose={closeConfirmation}
         onConfirm={confirmModal.onConfirm}

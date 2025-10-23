@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import type { Bid, User, ProjectNote } from '../types';
 import { formatRelativeDate } from '../utils/formatters';
-import ConfirmationModal from './ui/ConfirmationModal';
-import ToastContainer from './ui/ToastContainer';
+import AlertDialog from './ui/AlertDialog';
+import { Toaster } from './ui/sonner';
 import { useToast } from '../hooks/useToast';
-import Modal from './ui/Modal';
+import DialogModal from './ui/DialogModal';
 import { dbOperations } from '../lib/supabase';
 
 interface ProjectNotesProps {
@@ -20,7 +20,7 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
   projectNotes,
   setProjectNotes
 }) => {
-  const { toasts, removeToast, showSuccess, showError } = useToast();
+  const { showSuccess, showError } = useToast();
   const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
@@ -158,28 +158,12 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
       </div>
 
       {/* Edit Note Modal */}
-      <Modal
+      <DialogModal
         isOpen={showEditModal}
         onClose={handleCloseEditModal}
         title="Edit Note"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Note Content
-            </label>
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:border-transparent text-gray-900 bg-white resize-none"
-              rows={4}
-              disabled={updatingNote}
-              placeholder="Enter note content..."
-              autoFocus
-            />
-          </div>
-          
-          <div className="flex justify-between">
+        footer={
+          <div className="flex justify-between w-full">
             <button
               onClick={handleDeleteNoteFromModal}
               disabled={updatingNote}
@@ -205,11 +189,29 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
               </button>
             </div>
           </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Note Content
+            </label>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:border-transparent text-gray-900 bg-white resize-none"
+              rows={4}
+              disabled={updatingNote}
+              placeholder="Enter note content..."
+              autoFocus
+            />
+          </div>
+          
         </div>
-      </Modal>
+      </DialogModal>
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <AlertDialog
         isOpen={showDeleteModal}
         onClose={() => {
           setShowDeleteModal(false);
@@ -224,7 +226,7 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
       />
       
       {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+      <Toaster />
     </div>
   );
 };

@@ -5,7 +5,7 @@ import { formatDate } from '../utils/formatters';
 import FormField, { Input, Select, Textarea } from './ui/FormField';
 import UserAvatar from './ui/UserAvatar';
 import StatusBadge from './ui/StatusBadge';
-import Card from './ui/Card';
+import { Card, CardContent } from "./ui/card";
 
 interface ProjectFormData {
   title: string;
@@ -50,6 +50,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
   
   return (
     <Card>
+      <CardContent>
       {/* Project Header */}
       <div className="flex items-end mb-6 gap-4">
         <div className="flex-1">
@@ -181,6 +182,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
           )}
         </FormField>
       </div>
+      </CardContent>
     </Card>
   );
 };

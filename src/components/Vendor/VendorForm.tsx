@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Vendor } from '../../types';
 import { Input, Textarea } from '../ui/FormField';
-import Button from '../ui/Button';
+import Button from "../ui/Button";
 
 interface VendorFormProps {
   vendor?: Partial<Vendor>;

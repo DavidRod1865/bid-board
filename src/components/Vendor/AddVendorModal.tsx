@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Vendor } from '../../types';
-import Modal from '../ui/Modal';
+import DialogModal from '../ui/DialogModal';
 import VendorForm from './VendorForm';
 
 interface AddVendorModalProps {
@@ -21,7 +21,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({
   };
 
   return (
-    <Modal
+    <DialogModal
       isOpen={isOpen}
       onClose={onClose}
       title="Add New Vendor"
@@ -32,7 +32,7 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({
         onCancel={onClose}
         isLoading={isLoading}
       />
-    </Modal>
+    </DialogModal>
   );
 };
 

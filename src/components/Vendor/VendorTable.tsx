@@ -3,9 +3,10 @@ import type { Vendor, BidVendor } from "../../types";
 import {
   getVendorStatusColor,
 } from "../../utils/statusUtils";
-import { formatDate, formatCurrency } from "../../utils/formatters";
+import { formatDate, formatCurrency, getBidUrgency } from "../../utils/formatters";
 import Button from "../ui/Button";
-import Card from "../ui/Card";
+import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../ui/card";
+import { Checkbox } from "../ui/checkbox";
 
 interface VendorTableProps {
   projectVendors: BidVendor[];
@@ -84,11 +85,17 @@ const VendorTable: React.FC<VendorTableProps> = ({
       );
     }
     return (
-      <Card title="Project Vendors" actions={tableActions}>
-        <div className="text-center py-8 text-gray-500">
-          <p className="text-sm">No vendors assigned to this project yet.</p>
-          <p className="text-xs mt-1">Click "Add Vendor" to get started.</p>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Project Vendors</CardTitle>
+          <CardAction>{tableActions}</CardAction>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            <p className="text-sm">No vendors assigned to this project yet.</p>
+            <p className="text-xs mt-1">Click "Add Vendor" to get started.</p>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -101,11 +108,10 @@ const VendorTable: React.FC<VendorTableProps> = ({
           <thead>
             <tr className="border-b border-gray-200">
               <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide w-12">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={allSelected}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300 rounded"
+                  onCheckedChange={handleSelectAll}
+                  className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
                 />
               </th>
               <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -157,11 +163,10 @@ const VendorTable: React.FC<VendorTableProps> = ({
                   className={`transition-colors ${getRowStyling()}`}
                 >
                   <td className="py-4 px-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={isSelected}
-                      onChange={(e) => handleVendorSelect(bidVendor.vendor_id, e.target.checked)}
-                      className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300 rounded"
+                      onCheckedChange={(checked) => handleVendorSelect(bidVendor.vendor_id, checked as boolean)}
+                      className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
                     />
                   </td>
 
@@ -196,15 +201,29 @@ const VendorTable: React.FC<VendorTableProps> = ({
                   </td>
 
                   <td className="py-4 px-2 text-center">
-                    <span
-                      className={`text-sm ${
-                        isOverdue && !costsReceived
-                          ? "text-red-600 font-medium"
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {bidVendor.due_date ? formatDate(bidVendor.due_date, "short") : '-'}
-                    </span>
+                    {bidVendor.due_date ? (
+                      <div
+                        className={`inline-block rounded px-2 py-1 ${
+                          (() => {
+                            if (!costsReceived) {
+                              const urgency = getBidUrgency(bidVendor.due_date, 'Gathering Costs');
+                              if (urgency.level === "overdue") {
+                                return "border-4 border-red-500 text-red-600 font-medium";
+                              } else if (urgency.level === "dueToday") {
+                                return "border-4 border-orange-500 text-orange-600 font-medium";
+                              }
+                            }
+                            return "text-gray-600";
+                          })()
+                        }`}
+                      >
+                        <span className="text-sm">
+                          {formatDate(bidVendor.due_date, "short")}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-600">-</span>
+                    )}
                   </td>
 
                   <td className="py-4 px-2 text-center">
@@ -236,17 +255,21 @@ const VendorTable: React.FC<VendorTableProps> = ({
   }
 
   return (
-    <Card title="Project Vendors" actions={tableActions}>
+    <Card>
+      <CardHeader>
+        <CardTitle>Project Vendors</CardTitle>
+        <CardAction>{tableActions}</CardAction>
+      </CardHeader>
+      <CardContent>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200">
               <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide w-12">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={allSelected}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300 rounded"
+                  onCheckedChange={handleSelectAll}
+                  className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
                 />
               </th>
               <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -298,11 +321,10 @@ const VendorTable: React.FC<VendorTableProps> = ({
                   className={`transition-colors ${getRowStyling()}`}
                 >
                   <td className="py-4 px-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={isSelected}
-                      onChange={(e) => handleVendorSelect(bidVendor.vendor_id, e.target.checked)}
-                      className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300 rounded"
+                      onCheckedChange={(checked) => handleVendorSelect(bidVendor.vendor_id, checked as boolean)}
+                      className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
                     />
                   </td>
 
@@ -337,15 +359,29 @@ const VendorTable: React.FC<VendorTableProps> = ({
                   </td>
 
                   <td className="py-4 px-2 text-center">
-                    <span
-                      className={`text-sm ${
-                        isOverdue && !costsReceived
-                          ? "text-red-600 font-medium"
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {bidVendor.due_date ? formatDate(bidVendor.due_date, "short") : '-'}
-                    </span>
+                    {bidVendor.due_date ? (
+                      <div
+                        className={`inline-block rounded px-2 py-1 ${
+                          (() => {
+                            if (!costsReceived) {
+                              const urgency = getBidUrgency(bidVendor.due_date, 'Gathering Costs');
+                              if (urgency.level === "overdue") {
+                                return "border-4 border-red-500 text-red-600 font-medium";
+                              } else if (urgency.level === "dueToday") {
+                                return "border-4 border-orange-500 text-orange-600 font-medium";
+                              }
+                            }
+                            return "text-gray-600";
+                          })()
+                        }`}
+                      >
+                        <span className="text-sm">
+                          {formatDate(bidVendor.due_date, "short")}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-600">-</span>
+                    )}
                   </td>
 
                   <td className="py-4 px-2 text-center">
@@ -373,6 +409,7 @@ const VendorTable: React.FC<VendorTableProps> = ({
           </tbody>
         </table>
       </div>
+      </CardContent>
     </Card>
   );
 };

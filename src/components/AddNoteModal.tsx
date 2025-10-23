@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import Modal from './ui/Modal';
+import DialogModal from './ui/DialogModal';
 import { Textarea } from './ui/FormField';
 import Button from './ui/Button';
-import ToastContainer from './ui/ToastContainer';
+import { Toaster } from './ui/sonner';
 import { useToast } from '../hooks/useToast';
 
 interface AddNoteModalProps {
@@ -17,7 +17,7 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
   onClose,
   onAddNote
 }) => {
-  const { toasts, removeToast, showSuccess, showError } = useToast();
+  const { showSuccess, showError } = useToast();
   const [noteContent, setNoteContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -59,9 +59,35 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
     }
   };
 
+  const footerButtons = (
+    <div className="flex gap-3">
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={handleClose}
+        disabled={isSubmitting}
+      >
+        Cancel
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        disabled={!noteContent.trim() || isSubmitting}
+        onClick={() => document.getElementById('add-note-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}
+      >
+        {isSubmitting ? 'Adding...' : 'Add Note'}
+      </Button>
+    </div>
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Add Project Note">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <DialogModal 
+      isOpen={isOpen} 
+      onClose={handleClose} 
+      title="Add Project Note"
+      footer={footerButtons}
+    >
+      <form id="add-note-form" onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Note Content
@@ -81,28 +107,11 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({
           </p>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={!noteContent.trim() || isSubmitting}
-          >
-            {isSubmitting ? 'Adding...' : 'Add Note'}
-          </Button>
-        </div>
       </form>
       
       {/* Toast Container */}
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
-    </Modal>
+      <Toaster />
+    </DialogModal>
   );
 };
 

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import type { Vendor } from "../../types";
 import Button from "../ui/Button";
 import SearchFilters from "../Dashboard/SearchFilters";
+import { DataTable } from "../ui/data-table";
+import { createVendorColumns } from "../../lib/table-columns/vendor-columns";
 
 interface VendorListProps {
   vendors: Vendor[];
@@ -19,30 +21,25 @@ const VendorList: React.FC<VendorListProps> = ({
   isLoading = false,
   isOperationLoading = false,
 }) => {
-  const [sortField, setSortField] = useState<keyof Vendor | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]); // Dummy for SearchFilters compatibility
+  const [selectedVendors, setSelectedVendors] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
 
-  const handleSort = (field: keyof Vendor) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
+  const handleVendorClick = (vendor: Vendor) => {
+    navigate(`/vendor/${vendor.id}`);
   };
 
-  const handleVendorClick = (vendorId: number, event: React.MouseEvent) => {
-    const target = event.target as HTMLElement;
-    if (
-      target.tagName === "BUTTON" ||
-      target.closest("button")
-    ) {
-      return;
-    }
-    navigate(`/vendor/${vendorId}`);
+  const handleVendorSelect = (vendorId: number, selected: boolean) => {
+    setSelectedVendors(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(vendorId);
+      } else {
+        newSet.delete(vendorId);
+      }
+      return newSet;
+    });
   };
 
   // Filter vendors based on search term
@@ -78,37 +75,41 @@ const VendorList: React.FC<VendorListProps> = ({
     return filtered;
   }, [vendors, searchTerm]);
 
-  React.useMemo(() => {
-    if (!sortField) return filteredVendors;
+  // Create column definitions
+  const columns = useMemo(() => createVendorColumns(), []);
 
-    return [...filteredVendors].sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      if (aValue !== undefined && aValue !== null && bValue !== undefined && bValue !== null) {
-        if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-        if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+  // Convert Set to TanStack Table row selection format
+  const rowSelection = useMemo(() => {
+    const selection: Record<string, boolean> = {};
+    filteredVendors.forEach((vendor, index) => {
+      if (selectedVendors.has(vendor.id)) {
+        selection[index.toString()] = true;
       }
-      return 0;
     });
-  }, [filteredVendors, sortField, sortDirection]);
+    return selection;
+  }, [selectedVendors, filteredVendors]);
 
-  const SortableHeader: React.FC<{
-    field: keyof Vendor;
-    children: React.ReactNode;
-  }> = ({ field, children }) => (
-    <div
-      className="text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer flex items-center hover:text-gray-700 transition-colors"
-      onClick={() => handleSort(field)}
-    >
-      {children}
-      {sortField === field && (
-        <span className="ml-1 font-bold text-gray-700">
-          {sortDirection === "asc" ? " ↑" : " ↓"}
-        </span>
-      )}
-    </div>
-  );
+  const handleRowSelectionChange = (selection: Record<string, boolean>) => {
+    const newSelectedIds = new Set<number>();
+    Object.entries(selection).forEach(([index, isSelected]) => {
+      if (isSelected) {
+        const vendorIndex = parseInt(index);
+        if (filteredVendors[vendorIndex]) {
+          newSelectedIds.add(filteredVendors[vendorIndex].id);
+        }
+      }
+    });
+
+    // Call handleVendorSelect for each change
+    filteredVendors.forEach((vendor) => {
+      const wasSelected = selectedVendors.has(vendor.id);
+      const isSelected = newSelectedIds.has(vendor.id);
+      
+      if (wasSelected !== isSelected) {
+        handleVendorSelect(vendor.id, isSelected);
+      }
+    });
+  };
 
   return (
     <div className="flex-1 flex flex-col">
@@ -124,92 +125,39 @@ const VendorList: React.FC<VendorListProps> = ({
         />
       </div>
 
-      <div className={`bg-white rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col ${isOperationLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-        {/* Table Header */}
-        <div className="grid grid-cols-[1.8fr_2.5fr_1.5fr_1.2fr_2fr] bg-gray-50 border-b border-gray-200 px-4 py-3">
-          <SortableHeader field="company_name">Company Name</SortableHeader>
-          <SortableHeader field="address">Address</SortableHeader>
-          <SortableHeader field="contact_person">Contact Person</SortableHeader>
-          <SortableHeader field="phone">Phone</SortableHeader>
-          <SortableHeader field="email">Email</SortableHeader>
-        </div>
+      <div className={`flex-1 flex flex-col ${isOperationLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <DataTable
+          columns={columns}
+          data={filteredVendors}
+          enableRowSelection={true}
+          rowSelection={rowSelection}
+          onRowSelectionChange={handleRowSelectionChange}
+          onRowClick={handleVendorClick}
+          isLoading={isLoading}
+          emptyMessage={
+            searchTerm 
+              ? `No vendors match your search for "${searchTerm}"`
+              : vendors.length === 0 
+                ? 'No vendors found. Get started by adding your first vendor.'
+                : 'No vendors found'
+          }
+        />
 
-        {/* Loading State */}
-        {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="text-gray-500">Loading vendors...</div>
-          </div>
-        ) : (
-          /* Table Body */
-          <div className="flex-1 overflow-y-auto">
-            {filteredVendors.map((vendor) => (
-            <div
-              key={vendor.id}
-              className="grid grid-cols-[1.8fr_2.5fr_1.5fr_1.2fr_2fr] border-b border-gray-200 px-4 py-3 items-center transition-all hover:bg-gray-50 relative cursor-pointer"
-              onClick={(e) => handleVendorClick(vendor.id, e)}
-            >
-
-              {/* Company Name */}
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors">
-                  {vendor.company_name}
-                </span>
-              </div>
-
-              {/* Address */}
-              <div className="text-sm text-gray-600 truncate">
-                {vendor.address}
-              </div>
-
-              {/* Contact Person */}
-              <div className="text-sm text-gray-900">
-                {vendor.contact_person}
-              </div>
-
-              {/* Phone */}
-              <div className="text-sm text-gray-600">{vendor.phone}</div>
-
-              {/* Email */}
-              <div className="text-sm text-blue-600 hover:underline cursor-pointer">
-                {vendor.email}
-              </div>
-            </div>
-          ))}
-          </div>
-        )}
-      </div>
-
-      {/* Empty State */}
-      {!isLoading && vendors.length === 0 && (
-        <div className="text-center py-12">
-          {searchTerm ? (
-            <>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No vendors found
-              </h3>
-              <p className="text-gray-500 mb-4">
-                No vendors match your search for "{searchTerm}".
-              </p>
+        {/* Empty State Actions */}
+        {!isLoading && filteredVendors.length === 0 && (
+          <div className="text-center py-8">
+            {searchTerm ? (
               <Button variant="secondary" onClick={() => setSearchTerm("")}>
                 Clear Search
               </Button>
-            </>
-          ) : (
-            <>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No vendors found
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Get started by adding your first vendor.
-              </p>
+            ) : vendors.length === 0 && (
               <Button variant="primary" onClick={onAddVendor}>
                 Add Vendor
               </Button>
-            </>
-          )}
-        </div>
-      )}
-      
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

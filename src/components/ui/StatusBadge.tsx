@@ -1,4 +1,6 @@
 import React from 'react';
+import { Badge } from './badge';
+import { cn } from '@/lib/utils';
 import { getStatusColor } from '../../utils/statusUtils';
 
 interface StatusBadgeProps {
@@ -16,19 +18,24 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
 }) => {
   const backgroundColor = getStatusColor(status);
   
-  const baseClasses = "text-white font-medium text-center appearance-none";
+  // Base classes that preserve your current styling
+  const baseClasses = "text-white font-medium text-center border-transparent";
   
   const variantClasses = {
-    badge: "px-3 py-1 rounded-full text-xs",
-    dropdown: "px-3 py-2 rounded text-xs cursor-pointer min-w-24 border-none"
+    badge: "px-3 py-1 text-xs rounded-full", // Keep rounded-full for badge
+    dropdown: "px-3 py-2 text-xs cursor-pointer min-w-24 rounded" // Less rounded for dropdown
   };
   
-  const classes = `${baseClasses} ${variantClasses[variant]} ${className}`;
-  
+  // For dropdown variant, we'll use a div to preserve click behavior and styling
   if (variant === 'dropdown') {
     return (
       <div 
-        className={classes}
+        className={cn(
+          baseClasses,
+          variantClasses.dropdown,
+          "inline-flex items-center justify-center transition-all",
+          className
+        )}
         style={{ backgroundColor }}
         onClick={onClick}
       >
@@ -37,13 +44,21 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
     );
   }
   
+  // For badge variant, use Shadcn Badge with custom styling
   return (
-    <span 
-      className={classes}
+    <Badge
+      className={cn(
+        baseClasses,
+        variantClasses.badge,
+        "hover:opacity-90 transition-opacity",
+        onClick && "cursor-pointer",
+        className
+      )}
       style={{ backgroundColor }}
+      onClick={onClick}
     >
       {status}
-    </span>
+    </Badge>
   );
 };
 

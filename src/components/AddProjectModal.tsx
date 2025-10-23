@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import type { Bid, User } from '../types';
 import { useUserProfile } from '../contexts/UserContext';
-import Modal from './ui/Modal';
+import DialogModal from './ui/DialogModal';
 import { Input, Select, Textarea } from './ui/FormField';
-import Button from './ui/Button';
+import Button from "./ui/Button";
+import { Checkbox } from './ui/checkbox';
 import { BID_STATUSES } from '../utils/constants';
 
 interface AddProjectModalProps {
@@ -129,9 +130,35 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     }
   };
 
+  const footerButtons = (
+    <div className="flex gap-3">
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={handleClose}
+        disabled={isLoading}
+      >
+        Cancel
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        disabled={isLoading}
+        onClick={() => document.getElementById('add-project-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}
+      >
+        {isLoading ? 'Creating...' : 'Create Project'}
+      </Button>
+    </div>
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Add New Project">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <DialogModal 
+      isOpen={isOpen} 
+      onClose={handleClose} 
+      title="Add New Project"
+      footer={footerButtons}
+    >
+      <form id="add-project-form" onSubmit={handleSubmit} className="space-y-6">
         {/* Project Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -242,11 +269,10 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
         {/* Priority Checkbox */}
         <div>
           <label className="flex items-center">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={formData.priority}
-              onChange={(e) => handleInputChange('priority', e.target.checked)}
-              className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300 rounded"
+              onCheckedChange={(checked) => handleInputChange('priority', checked as boolean)}
+              className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
               disabled={isLoading}
             />
             <span className="ml-2 block text-sm text-gray-700">
@@ -289,26 +315,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
         </div>
 
 
-        {/* Form Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Creating...' : 'Create Project'}
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </DialogModal>
   );
 };
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import DialogModal from './ui/DialogModal';
+import Button from './ui/Button';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -32,14 +34,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [colorPreference, setColorPreference] = useState(currentColorPreference);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setName(currentName);
       setColorPreference(currentColorPreference);
       setError(null);
-      setIsAnimating(true);
     }
   }, [isOpen, currentName, currentColorPreference]);
 
@@ -54,10 +54,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     try {
       await onSave(name.trim(), colorPreference);
-      setIsAnimating(false);
-      setTimeout(() => {
-        onClose();
-      }, 200);
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
@@ -66,29 +63,39 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   const handleCancel = () => {
-    setIsAnimating(false);
-    setTimeout(() => {
-      setName(currentName);
-      setColorPreference(currentColorPreference);
-      setError(null);
-      onClose();
-    }, 200);
+    setName(currentName);
+    setColorPreference(currentColorPreference);
+    setError(null);
+    onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
-      <div className={`bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto transition-all duration-200 ease-out transform ${
-        isAnimating ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-      }`}>
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Edit Profile</h2>
+    <DialogModal
+      isOpen={isOpen}
+      onClose={handleCancel}
+      title="Edit Profile"
+      footer={
+        <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={handleCancel}
+            disabled={isLoading}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={isLoading || !name.trim()}
+            className="flex-1"
+          >
+            {isLoading ? "Saving..." : "Save Changes"}
+          </Button>
         </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
+      }
+    >
+      <div className="space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-3">
               <p className="text-sm text-red-700">{error}</p>
@@ -162,26 +169,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-200">
-          <button
-            onClick={handleCancel}
-            className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            disabled={isLoading}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#d4af37] rounded-md hover:bg-[#b8941f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading || !name.trim()}
-          >
-            {isLoading ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </DialogModal>
   );
 };
 
