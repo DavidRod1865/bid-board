@@ -5,7 +5,7 @@ import { formatDate } from '../utils/formatters';
 import FormField, { Input, Select, Textarea } from './ui/FormField';
 import UserAvatar from './ui/UserAvatar';
 import StatusBadge from './ui/StatusBadge';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from './ui/CardComponent';
 
 interface ProjectFormData {
   title: string;

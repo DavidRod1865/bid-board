@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Vendor } from '../../types';
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../ui/CardComponent";
 import { Input, Textarea } from '../ui/FormField';
 
 interface VendorProfileProps {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import type { Vendor, BidVendor } from "../../types";
 import Button from "../ui/Button";
-import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../ui/card";
+import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../ui/CardComponent";
 import { DataTable } from "../ui/data-table";
 import { createBidVendorColumns } from "../../lib/table-columns/bid-vendor-columns";
 
