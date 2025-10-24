@@ -6,7 +6,7 @@ import {
   CardFooter, 
   CardAction, 
   CardDescription 
-} from './card';
+} from '@/components/ui/card';
 
 // Re-export all card components following the established wrapper pattern
 // This follows the same pattern as DialogModal.tsx and Button.tsx
