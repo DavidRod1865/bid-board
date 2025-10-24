@@ -30,9 +30,6 @@ const VendorPage: React.FC<VendorPageProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
 
   const handleEditVendor = async (vendorId: number) => {
     if (!onEditVendor) {
@@ -102,16 +99,6 @@ const VendorPage: React.FC<VendorPageProps> = ({
     }
   };
 
-  // Pagination calculations
-  const totalPages = Math.ceil(vendors.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedVendors = vendors.slice(startIndex, endIndex);
-
-  // Reset to first page when vendors change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [vendors]);
 
   // Show error toast when error prop changes
   useEffect(() => {
@@ -120,9 +107,6 @@ const VendorPage: React.FC<VendorPageProps> = ({
     }
   }, [error, showError]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
 
   // Dummy handlers for sidebar (vendors page doesn't need project filtering)
   const handleStatusFilter = () => {};
@@ -145,7 +129,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
           
           <div className="flex-1 overflow-auto p-6 pt-4 mx-auto w-full">
             <VendorList
-              vendors={paginatedVendors}
+              vendors={vendors}
               onEditVendor={handleEditVendor}
               onDeleteVendor={handleDeleteVendor}
               onAddVendor={handleAddVendorClick}
@@ -153,38 +137,6 @@ const VendorPage: React.FC<VendorPageProps> = ({
               isOperationLoading={isOperationLoading}
             />
           </div>
-          
-          {/* Pagination Controls - Fixed at bottom of page */}
-          {!globalLoading && vendors.length > 0 && (
-            <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
-              <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
-                <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, vendors.length)} of {vendors.length} results</span>
-                <span className="sm:hidden">{vendors.length} results</span>
-              </div>
-              
-              <div className="flex items-center gap-2 order-1 sm:order-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Prev
-                </button>
-                
-                <span className="text-sm text-gray-700 whitespace-nowrap">
-                  Page {currentPage} of {totalPages}
-                </span>
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

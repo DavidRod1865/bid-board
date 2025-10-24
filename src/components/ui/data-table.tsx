@@ -33,6 +33,10 @@ interface DataTableProps<TData, TValue> {
   getRowStyle?: (row: TData) => React.CSSProperties
   // Initial sorting
   initialSorting?: SortingState
+  // Disable sorting
+  enableSorting?: boolean
+  // Page size for pagination
+  pageSize?: number
 }
 
 export function DataTable<TData, TValue>({
@@ -48,6 +52,8 @@ export function DataTable<TData, TValue>({
   getRowClassName,
   getRowStyle,
   initialSorting = [],
+  enableSorting = true,
+  pageSize = 10,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -90,12 +96,18 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns: tableColumns,
-    onSortingChange: setSorting,
+    onSortingChange: enableSorting ? setSorting : undefined,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
     getFilteredRowModel: getFilteredRowModel(),
+    enableSorting,
+    initialState: {
+      pagination: {
+        pageSize,
+      },
+    },
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: onRowSelectionChange ? (updater) => {
       if (typeof updater === 'function') {
@@ -213,6 +225,44 @@ export function DataTable<TData, TValue>({
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Controls */}
+      {table.getPageCount() > 1 && (
+        <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
+            <span className="hidden sm:inline">
+              Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+              {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)} of{' '}
+              {table.getFilteredRowModel().rows.length} results
+            </span>
+            <span className="sm:hidden">{table.getFilteredRowModel().rows.length} results</span>
+          </div>
+          
+          <div className="flex items-center gap-3 order-1 sm:order-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+              
+              <span className="text-sm text-gray-700 whitespace-nowrap">
+                Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              </span>
+              
+              <button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

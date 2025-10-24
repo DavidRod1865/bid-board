@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import type { Vendor, BidVendor } from "../../types";
-import {
-  getVendorStatusColor,
-} from "../../utils/statusUtils";
-import { formatDate, formatCurrency, getBidUrgency } from "../../utils/formatters";
 import Button from "../ui/Button";
 import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../ui/card";
-import { Checkbox } from "../ui/checkbox";
+import { DataTable } from "../ui/data-table";
+import { createBidVendorColumns } from "../../lib/table-columns/bid-vendor-columns";
+
+interface BidVendorWithVendor extends BidVendor {
+  vendor?: Vendor;
+}
 
 interface VendorTableProps {
   projectVendors: BidVendor[];
@@ -30,23 +31,30 @@ const VendorTable: React.FC<VendorTableProps> = ({
 }) => {
   const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
 
-  const handleVendorSelect = (vendorId: number, checked: boolean) => {
-    const newSelected = checked 
-      ? [...selectedVendors, vendorId]
-      : selectedVendors.filter(id => id !== vendorId);
-    
-    setSelectedVendors(newSelected);
-    onSelectionChange?.(newSelected);
-  };
+  // Transform data to include vendor information
+  const vendorsWithData = useMemo(() => {
+    return projectVendors
+      .map((bidVendor) => ({
+        ...bidVendor,
+        vendor: getVendorById(bidVendor.vendor_id),
+      }))
+      .sort((a, b) => {
+        // Priority vendors first, then non-priority
+        if (a.is_priority && !b.is_priority) return -1;
+        if (!a.is_priority && b.is_priority) return 1;
+        
+        // Within each group, sort by due date (earliest first)
+        // Handle null/undefined due dates by putting them at the end
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      });
+  }, [projectVendors, getVendorById]);
 
-  const handleSelectAll = (checked: boolean) => {
-    const newSelected = checked 
-      ? projectVendors.map(bv => bv.vendor_id)
-      : [];
-    
-    setSelectedVendors(newSelected);
-    onSelectionChange?.(newSelected);
-  };
+  // Create column definitions
+  const columns = useMemo(() => createBidVendorColumns(onEdit), [onEdit]);
 
   const handleRemoveSelected = () => {
     if (selectedVendors.length > 0 && onRemoveVendors) {
@@ -55,15 +63,56 @@ const VendorTable: React.FC<VendorTableProps> = ({
     }
   };
 
-  const allSelected = selectedVendors.length === projectVendors.length && projectVendors.length > 0;
-  const someSelected = selectedVendors.length > 0;
+  // Convert selectedVendors array to TanStack Table row selection format
+  const rowSelection = useMemo(() => {
+    const selection: Record<string, boolean> = {};
+    vendorsWithData.forEach((vendor, index) => {
+      if (selectedVendors.includes(vendor.vendor_id)) {
+        selection[index.toString()] = true;
+      }
+    });
+    return selection;
+  }, [selectedVendors, vendorsWithData]);
+
+  const handleRowSelectionChange = (selection: Record<string, boolean>) => {
+    const newSelectedIds: number[] = [];
+    Object.entries(selection).forEach(([index, isSelected]) => {
+      if (isSelected) {
+        const vendorIndex = parseInt(index);
+        if (vendorsWithData[vendorIndex]) {
+          newSelectedIds.push(vendorsWithData[vendorIndex].vendor_id);
+        }
+      }
+    });
+
+    setSelectedVendors(newSelectedIds);
+    onSelectionChange?.(newSelectedIds);
+  };
+
+  // Custom row styling for priority, overdue, and selection
+  const getRowClassName = (vendor: BidVendorWithVendor) => {
+    const isSelected = selectedVendors.includes(vendor.vendor_id);
+    const isOverdue = vendor.due_date && !vendor.response_received_date ? new Date() > new Date(vendor.due_date) : false;
+    const costsReceived = vendor.response_received_date !== null;
+
+    if (isSelected) {
+      return 'bg-blue-50 hover:bg-blue-100 border-l-4 border-l-blue-500';
+    }
+    if (vendor.is_priority) {
+      return 'bg-yellow-50 hover:bg-yellow-100 border-l-4 border-l-yellow-500';
+    }
+    if (isOverdue && !costsReceived) {
+      return 'hover:bg-gray-50 border-l-4 border-l-red-500';
+    }
+    return 'hover:bg-gray-50';
+  };
 
   const tableActions = !hideActions ? (
     <div className="flex gap-2 items-center">
       <Button variant="primary" size="sm" onClick={onAddVendor}>
         + Add Vendor
       </Button>
-      {someSelected && (
+      {selectedVendors.length > 0 && (
         <Button 
           variant="danger" 
           size="sm" 
@@ -103,154 +152,17 @@ const VendorTable: React.FC<VendorTableProps> = ({
   if (hideActions) {
     // Return table without Card wrapper for project detail
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide w-12">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
-                />
-              </th>
-              <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Vendor
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Cost Amount
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Response Date
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Due Date
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Status
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {projectVendors.map((bidVendor) => {
-              const vendor = getVendorById(bidVendor.vendor_id);
-              if (!vendor) return null;
-
-              const isOverdue = bidVendor.due_date && !bidVendor.response_received_date ? new Date() > new Date(bidVendor.due_date) : false;
-              const costsReceived = bidVendor.response_received_date !== null;
-              const isSelected = selectedVendors.includes(bidVendor.vendor_id);
-
-              // Determine row styling based on priority, overdue status, and selection
-              const getRowStyling = () => {
-                if (isSelected) {
-                  return 'bg-blue-50 hover:bg-blue-100 border-l-4 border-l-blue-500';
-                }
-                if (isOverdue && !costsReceived) {
-                  return 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500';
-                }
-                if (bidVendor.is_priority) {
-                  return 'bg-yellow-50 hover:bg-yellow-100 border-l-4 border-l-yellow-500';
-                }
-                return 'hover:bg-gray-50';
-              };
-
-              return (
-                <tr
-                  key={bidVendor.id}
-                  className={`transition-colors ${getRowStyling()}`}
-                >
-                  <td className="py-4 px-2">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={(checked) => handleVendorSelect(bidVendor.vendor_id, checked as boolean)}
-                      className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
-                    />
-                  </td>
-
-                  <td className="py-4 px-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 text-sm">
-                        {vendor.company_name}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    <div className="flex items-center justify-center">
-                      {bidVendor.cost_amount !== null && bidVendor.cost_amount !== undefined ? (
-                        <span className="text-gray-900 font-medium text-sm">
-                          {formatCurrency(bidVendor.cost_amount)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    {bidVendor.response_received_date ? (
-                      <span className="text-sm text-gray-600">
-                        {formatDate(bidVendor.response_received_date, "short")}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-400">-</span>
-                    )}
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    {bidVendor.due_date ? (
-                      <div
-                        className={`inline-block rounded px-2 py-1 ${
-                          (() => {
-                            if (!costsReceived) {
-                              const urgency = getBidUrgency(bidVendor.due_date, 'Gathering Costs');
-                              if (urgency.level === "overdue") {
-                                return "border-4 border-red-500 text-red-600 font-medium";
-                              } else if (urgency.level === "dueToday") {
-                                return "border-4 border-orange-500 text-orange-600 font-medium";
-                              }
-                            }
-                            return "text-gray-600";
-                          })()
-                        }`}
-                      >
-                        <span className="text-sm">
-                          {formatDate(bidVendor.due_date, "short")}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-600">-</span>
-                    )}
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    <span
-                      className={`text-xs font-medium px-2 py-1 rounded-full ${getVendorStatusColor(
-                        bidVendor.status
-                      )}`}
-                    >
-                      {bidVendor.status.toUpperCase()}
-                    </span>
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onEdit?.(vendor.id)}
-                    >
-                      Edit
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={vendorsWithData}
+        enableRowSelection={true}
+        rowSelection={rowSelection}
+        onRowSelectionChange={handleRowSelectionChange}
+        getRowClassName={getRowClassName}
+        pageSize={15}
+        initialSorting={[{ id: "due_date", desc: false }]}
+        emptyMessage="No vendors assigned to this project yet."
+      />
     );
   }
 
@@ -261,154 +173,17 @@ const VendorTable: React.FC<VendorTableProps> = ({
         <CardAction>{tableActions}</CardAction>
       </CardHeader>
       <CardContent>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide w-12">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
-                />
-              </th>
-              <th className="text-left py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Vendor
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Cost Amount
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Response Date
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Due Date
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Status
-              </th>
-              <th className="text-center py-3 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {projectVendors.map((bidVendor) => {
-              const vendor = getVendorById(bidVendor.vendor_id);
-              if (!vendor) return null;
-
-              const isOverdue = bidVendor.due_date && !bidVendor.response_received_date ? new Date() > new Date(bidVendor.due_date) : false;
-              const costsReceived = bidVendor.response_received_date !== null;
-              const isSelected = selectedVendors.includes(bidVendor.vendor_id);
-
-              // Determine row styling based on priority, overdue status, and selection
-              const getRowStyling = () => {
-                if (isSelected) {
-                  return 'bg-blue-50 hover:bg-blue-100 border-l-4 border-l-blue-500';
-                }
-                if (isOverdue && !costsReceived) {
-                  return 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500';
-                }
-                if (bidVendor.is_priority) {
-                  return 'bg-yellow-50 hover:bg-yellow-100 border-l-4 border-l-yellow-500';
-                }
-                return 'hover:bg-gray-50';
-              };
-
-              return (
-                <tr
-                  key={bidVendor.id}
-                  className={`transition-colors ${getRowStyling()}`}
-                >
-                  <td className="py-4 px-2">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={(checked) => handleVendorSelect(bidVendor.vendor_id, checked as boolean)}
-                      className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
-                    />
-                  </td>
-
-                  <td className="py-4 px-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 text-sm">
-                        {vendor.company_name}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    <div className="flex items-center justify-center">
-                      {bidVendor.cost_amount !== null && bidVendor.cost_amount !== undefined ? (
-                        <span className="text-gray-900 font-medium text-sm">
-                          {formatCurrency(bidVendor.cost_amount)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    {bidVendor.response_received_date ? (
-                      <span className="text-sm text-gray-600">
-                        {formatDate(bidVendor.response_received_date, "short")}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-400">-</span>
-                    )}
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    {bidVendor.due_date ? (
-                      <div
-                        className={`inline-block rounded px-2 py-1 ${
-                          (() => {
-                            if (!costsReceived) {
-                              const urgency = getBidUrgency(bidVendor.due_date, 'Gathering Costs');
-                              if (urgency.level === "overdue") {
-                                return "border-4 border-red-500 text-red-600 font-medium";
-                              } else if (urgency.level === "dueToday") {
-                                return "border-4 border-orange-500 text-orange-600 font-medium";
-                              }
-                            }
-                            return "text-gray-600";
-                          })()
-                        }`}
-                      >
-                        <span className="text-sm">
-                          {formatDate(bidVendor.due_date, "short")}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-600">-</span>
-                    )}
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    <span
-                      className={`text-xs font-medium px-2 py-1 rounded-full ${getVendorStatusColor(
-                        bidVendor.status
-                      )}`}
-                    >
-                      {bidVendor.status.toUpperCase()}
-                    </span>
-                  </td>
-
-                  <td className="py-4 px-2 text-center">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onEdit?.(vendor.id)}
-                    >
-                      Edit
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+        <DataTable
+          columns={columns}
+          data={vendorsWithData}
+          enableRowSelection={true}
+          rowSelection={rowSelection}
+          onRowSelectionChange={handleRowSelectionChange}
+          getRowClassName={getRowClassName}
+          pageSize={15}
+          initialSorting={[{ id: "due_date", desc: false }]}
+          emptyMessage="No vendors assigned to this project yet."
+        />
       </CardContent>
     </Card>
   );

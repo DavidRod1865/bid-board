@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DocumentIcon } from '@heroicons/react/24/outline';
 import type { User, Bid, BidVendor, Vendor, ProjectNote } from '../../types';
 import BidTable from './BidTable';
@@ -74,9 +74,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Clear selection when filters change
   useClearSelectionOnFilterChange(clearSelection, [searchTerm, statusFilter.length, dateRange, overdueFilter]);
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,30 +123,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         return urgency.level === 'overdue';
       });
     }
-
-    filtered.sort((a, b) => {
-      const dateA = new Date(a.due_date).getTime();
-      const dateB = new Date(b.due_date).getTime();
-      return dateA - dateB;
-    });
     
     return filtered;
   }, [bids, searchTerm, statusFilter, dateRange, overdueFilter]);
-
-  // Pagination calculations - applied to filtered bids
-  const totalPages = Math.ceil(filteredBids.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedBids = filteredBids.slice(startIndex, endIndex);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter.length, dateRange, overdueFilter]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
 
 
   const handleNewProject = () => {
@@ -344,7 +320,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           ) : (
             <BidTable 
-              bids={paginatedBids} 
+              bids={filteredBids} 
               bidVendors={bidVendors}
               projectNotes={projectNotes}
               onStatusChange={handleStatusChange}
@@ -354,41 +330,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             />
           )}
         </div>
-        
-        {/* Pagination Controls - Fixed at bottom of page */}
-        {!isLoading && filteredBids.length > 0 && (
-          <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
-            <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
-              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, filteredBids.length)} of {filteredBids.length} results</span>
-              <span className="sm:hidden">{filteredBids.length} results</span>
-            </div>
-            
-            <div className="flex items-center gap-3 order-1 sm:order-2">
-              {/* Page navigation */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Prev
-                </button>
-                
-                <span className="text-sm text-gray-700 whitespace-nowrap">
-                  Page {currentPage} of {totalPages}
-                </span>
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Add Project Modal */}

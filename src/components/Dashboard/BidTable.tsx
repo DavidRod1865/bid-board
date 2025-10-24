@@ -148,6 +148,8 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       columns={columns}
       data={bids}
       enableRowSelection={!!onBidSelect}
+      enableSorting={true}
+      initialSorting={[{ id: "due_date", desc: false }]}
       rowSelection={rowSelection}
       onRowSelectionChange={handleRowSelectionChange}
       onRowClick={(bid) => navigate(`/project/${bid.id}`)}

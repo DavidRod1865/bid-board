@@ -32,9 +32,6 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
   });
   
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
   
   const navigate = useNavigate();
 
@@ -115,7 +112,7 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
     });
   };
 
-  // Filter and sort bids based on search term and filters
+  // Filter bids based on search term and filters
   const filteredBids = useMemo(() => {
     if (!onHoldBids || onHoldBids.length === 0) {
       return [];
@@ -144,30 +141,8 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
       filtered = filtered.filter(bid => isDateInRange(bid.due_date, dateRange.startDate, dateRange.endDate));
     }
     
-    // Sort by due_date ascending
-    filtered.sort((a, b) => {
-      const dateA = new Date(a.due_date).getTime();
-      const dateB = new Date(b.due_date).getTime();
-      return dateA - dateB;
-    });
-    
     return filtered;
   }, [onHoldBids, searchTerm, statusFilter, dateRange]);
-
-  // Pagination calculations - applied to filtered bids
-  const totalPages = Math.ceil(filteredBids.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedBids = filteredBids.slice(startIndex, endIndex);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter.length, dateRange]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
 
 
   // Helper function to get most recent note for a bid
@@ -194,13 +169,13 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
   // Row selection for DataTable
   const rowSelection = useMemo(() => {
     const selection: Record<string, boolean> = {};
-    paginatedBids.forEach((bid, index) => {
+    filteredBids.forEach((bid, index) => {
       if (selectedBids.has(bid.id)) {
         selection[index.toString()] = true;
       }
     });
     return selection;
-  }, [selectedBids, paginatedBids]);
+  }, [selectedBids, filteredBids]);
 
   const getRowClassName = () => {
     // OnHold projects don't have urgency styling - always show status accent
@@ -303,22 +278,24 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
         <div className="flex-1 overflow-auto p-6 pt-4">
           <DataTable
             columns={columns}
-            data={paginatedBids}
+            data={filteredBids}
             enableRowSelection={true}
+            enableSorting={true}
+            initialSorting={[{ id: "due_date", desc: false }]}
             rowSelection={rowSelection}
             onRowSelectionChange={(selection) => {
               const newSelectedIds = new Set<number>();
               Object.entries(selection).forEach(([index, isSelected]) => {
                 if (isSelected) {
                   const bidIndex = parseInt(index);
-                  if (paginatedBids[bidIndex]) {
-                    newSelectedIds.add(paginatedBids[bidIndex].id);
+                  if (filteredBids[bidIndex]) {
+                    newSelectedIds.add(filteredBids[bidIndex].id);
                   }
                 }
               });
 
               // Call handleBidSelect for each change
-              paginatedBids.forEach((bid) => {
+              filteredBids.forEach((bid) => {
                 const wasSelected = selectedBids.has(bid.id);
                 const isSelected = newSelectedIds.has(bid.id);
                 
@@ -339,41 +316,6 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
             getRowStyle={getRowStyle}
           />
         </div>
-        
-        {/* Pagination Controls - Fixed at bottom of page */}
-        {!loading && filteredBids.length > 0 && (
-          <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
-            <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
-              <span className="hidden sm:inline">Showing {startIndex + 1} to {Math.min(endIndex, filteredBids.length)} of {filteredBids.length} results</span>
-              <span className="sm:hidden">{filteredBids.length} results</span>
-            </div>
-            
-            <div className="flex items-center gap-3 order-1 sm:order-2">
-              {/* Page navigation */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Prev
-                </button>
-                
-                <span className="text-sm text-gray-700 whitespace-nowrap">
-                  Page {currentPage} of {totalPages}
-                </span>
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-2 sm:px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Confirmation Modal */}

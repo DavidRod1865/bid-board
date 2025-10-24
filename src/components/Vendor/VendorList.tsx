@@ -134,6 +134,7 @@ const VendorList: React.FC<VendorListProps> = ({
           onRowSelectionChange={handleRowSelectionChange}
           onRowClick={handleVendorClick}
           isLoading={isLoading}
+          pageSize={15}
           emptyMessage={
             searchTerm 
               ? `No vendors match your search for "${searchTerm}"`
