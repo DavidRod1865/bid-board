@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PauseIcon } from '@heroicons/react/24/outline';
 import type { Bid, ProjectNote } from '../types';
 import Sidebar from './ui/Sidebar';
-import SearchFilters from './Dashboard/SearchFilters';
+import PageHeader from './ui/PageHeader';
 import AlertDialog from './ui/AlertDialog';
 import { DataTable } from './ui/data-table';
 import { createOnHoldColumns } from '../lib/table-columns/archive-columns';
@@ -66,7 +66,7 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
       const data = await dbOperations.getBids();
       
       // Filter for on-hold bids (archived = false, on_hold = true)
-      const onHoldOnly = data.filter((bid: any) => !bid.archived && bid.on_hold);
+      const onHoldOnly = data.filter((bid: Bid) => !bid.archived && bid.on_hold);
       
       // Transform the data to match our Bid interface
       const transformedBids = onHoldOnly.map((bid: Record<string, unknown>) => ({
@@ -199,13 +199,6 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
-          onNewProject={handleNewProject}
-          onCopyProject={handleCopyProject}
-          onAddVendor={onAddVendor || (() => {})}
-          selectedBidsCount={selectedBids.size}
-          onBulkMoveToActive={handleBulkMoveToActive}
-          onBulkArchive={handleBulkArchive}
-          onBulkDelete={handleBulkDelete}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -223,13 +216,6 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
-          onNewProject={handleNewProject}
-          onCopyProject={handleCopyProject}
-          onAddVendor={onAddVendor || (() => {})}
-          selectedBidsCount={selectedBids.size}
-          onBulkMoveToActive={handleBulkMoveToActive}
-          onBulkArchive={handleBulkArchive}
-          onBulkDelete={handleBulkDelete}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md">
@@ -253,29 +239,33 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
-        onNewProject={handleNewProject}
-        onCopyProject={handleCopyProject}
-        onAddVendor={onAddVendor || (() => {})}
-        selectedBidsCount={selectedBids.size}
-        onBulkMoveToActive={handleBulkMoveToActive}
-        onBulkArchive={handleBulkArchive}
-        onBulkDelete={handleBulkDelete}
       />
 
       <div className="flex-1 flex flex-col mx-auto w-full">
-        <div className="p-6 pb-0">
-          <SearchFilters
+        <div className="flex-shrink-0">
+          <PageHeader
+            title="Bids On Hold"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            searchPlaceholder="Search on-hold bids..."
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             dateRange={dateRange}
             setDateRange={setDateRange}
-            searchPlaceholder="Search on-hold bids..."
+            showStatusFilter={true}
+            showDateFilter={true}
+            bulkActions={{
+              selectedCount: selectedBids.size,
+              actions: [
+                { label: "Move to Active", onClick: handleBulkMoveToActive, color: "blue" },
+                { label: "Move to Archive", onClick: handleBulkArchive, color: "orange" }
+              ],
+              onDelete: handleBulkDelete
+            }}
           />
         </div>
         
-        <div className="flex-1 overflow-auto p-6 pt-4">
+        <div className="flex-1 overflow-auto p-6 pt-0">
           <DataTable
             columns={columns}
             data={filteredBids}

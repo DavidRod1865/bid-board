@@ -254,9 +254,6 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
-        onNewProject={handleNewProject}
-        onCopyProject={handleCopyProject}
-        onAddVendor={handleAddVendor}
       />
       
       {/* Main Calendar */}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import type { Bid, ProjectNote } from '../types';
 import Sidebar from './ui/Sidebar';
-import SearchFilters from './Dashboard/SearchFilters';
+import PageHeader from './ui/PageHeader';
 import AlertDialog from './ui/AlertDialog';
 import { DataTable } from './ui/data-table';
 import { createArchiveColumns } from '../lib/table-columns/archive-columns';
@@ -20,7 +20,7 @@ interface ArchivesProps {
   projectNotes?: ProjectNote[];
 }
 
-const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) => {
+const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
   const [archivedBids, setArchivedBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -187,8 +187,6 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
 
   // Dummy handlers for sidebar (archives page doesn't need these)
   const handleStatusFilter = () => {};
-  const handleNewProject = () => {};
-  const handleCopyProject = () => {};
 
   if (loading) {
     return (
@@ -196,13 +194,6 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
-          onNewProject={handleNewProject}
-          onCopyProject={handleCopyProject}
-          onAddVendor={onAddVendor || (() => {})}
-          selectedBidsCount={selectedBids.size}
-          onBulkMoveToActive={handleBulkMoveToActive}
-          onBulkOnHold={handleBulkOnHold}
-          onBulkDelete={handleBulkDelete}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -220,13 +211,6 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
-          onNewProject={handleNewProject}
-          onCopyProject={handleCopyProject}
-          onAddVendor={onAddVendor || (() => {})}
-          selectedBidsCount={selectedBids.size}
-          onBulkMoveToActive={handleBulkMoveToActive}
-          onBulkOnHold={handleBulkOnHold}
-          onBulkDelete={handleBulkDelete}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md">
@@ -250,29 +234,33 @@ const Archives: React.FC<ArchivesProps> = ({ onAddVendor, projectNotes = [] }) =
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
-        onNewProject={handleNewProject}
-        onCopyProject={handleCopyProject}
-        onAddVendor={onAddVendor || (() => {})}
-        selectedBidsCount={selectedBids.size}
-        onBulkMoveToActive={handleBulkMoveToActive}
-        onBulkOnHold={handleBulkOnHold}
-        onBulkDelete={handleBulkDelete}
       />
 
       <div className="flex-1 flex flex-col mx-auto w-full">
-        <div className="p-6 pb-0">
-          <SearchFilters
+        <div className="flex-shrink-0">
+          <PageHeader
+            title="Archived Bids"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            searchPlaceholder="Search archived bids..."
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             dateRange={dateRange}
             setDateRange={setDateRange}
-            searchPlaceholder="Search archived bids..."
+            showStatusFilter={true}
+            showDateFilter={true}
+            bulkActions={{
+              selectedCount: selectedBids.size,
+              actions: [
+                { label: "Move to Active", onClick: handleBulkMoveToActive, color: "blue" },
+                { label: "Move to On-Hold", onClick: handleBulkOnHold, color: "yellow" }
+              ],
+              onDelete: handleBulkDelete
+            }}
           />
         </div>
         
-        <div className="flex-1 overflow-auto p-6 pt-4">
+        <div className="flex-1 overflow-auto p-6 pt-0">
           <DataTable
             columns={columns}
             data={filteredBids}

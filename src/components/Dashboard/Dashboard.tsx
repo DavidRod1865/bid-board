@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { DocumentIcon } from '@heroicons/react/24/outline';
 import type { User, Bid, BidVendor, Vendor, ProjectNote } from '../../types';
 import BidTable from './BidTable';
-import SearchFilters from './SearchFilters';
+import PageHeader from '../ui/PageHeader';
 import Sidebar from '../ui/Sidebar';
 import AddProjectModal from '../AddProjectModal';
 import CopyProjectModal from '../CopyProjectModal';
@@ -251,14 +251,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         <Sidebar
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
-          onNewProject={handleNewProject}
-          onCopyProject={handleCopyProject}
-          onWeeklyCostsReport={handleWeeklyCostsReportClick}
-          isEmailingReport={isEmailingReport}
-          selectedBidsCount={selectedBids.size}
-          onBulkArchive={handleBulkArchive}
-          onBulkOnHold={handleBulkOnHold}
-          onBulkDelete={handleBulkDelete}
         />
         
         <div className="flex-1 flex flex-col items-center justify-center">
@@ -276,34 +268,52 @@ const Dashboard: React.FC<DashboardProps> = ({
       <Sidebar
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
-        onNewProject={handleNewProject}
-        onCopyProject={handleCopyProject}
-        onWeeklyCostsReport={handleWeeklyCostsReportClick}
-        isEmailingReport={isEmailingReport}
-        selectedBidsCount={selectedBids.size}
-        onBulkArchive={handleBulkArchive}
-        onBulkOnHold={handleBulkOnHold}
-        onBulkDelete={handleBulkDelete}
       />
       
       <div className="flex-1 flex flex-col mx-auto w-full">
-        <div className="p-6 pb-0 flex-shrink-0">
-          <SearchFilters
+        <div className="flex-shrink-0">
+          <PageHeader
+            title="Active Bids"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            searchPlaceholder="Search projects..."
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             dateRange={dateRange}
             setDateRange={setDateRange}
-            onNewProject={handleNewProject}
-            searchPlaceholder="Search projects..."
             overdueFilter={overdueFilter}
             setOverdueFilter={setOverdueFilter}
             overdueCount={overdueCount}
+            showStatusFilter={true}
+            showDateFilter={true}
+            actionButton={{
+              label: "Create New Bid",
+              onClick: handleNewProject,
+              color: "green"
+            }}
+            secondaryActionButton={{
+              label: "Copy Project",
+              onClick: handleCopyProject,
+              color: "blue"
+            }}
+            tertiaryActionButton={{
+              label: isEmailingReport ? "Sending..." : "Email Report",
+              onClick: handleWeeklyCostsReportClick,
+              color: "yellow",
+              disabled: isEmailingReport
+            }}
+            bulkActions={{
+              selectedCount: selectedBids.size,
+              actions: [
+                { label: "Move to On-Hold", onClick: handleBulkOnHold, color: "yellow" },
+                { label: "Move to Archive", onClick: handleBulkArchive, color: "orange" }
+              ],
+              onDelete: handleBulkDelete
+            }}
           />
         </div>
         
-        <div className="flex-1 overflow-auto p-6 pt-4">
+        <div className="flex-1 overflow-auto p-6 pt-0">
           {!isLoading && bids.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">

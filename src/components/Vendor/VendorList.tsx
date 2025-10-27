@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Vendor } from "../../types";
 import Button from "../ui/Button";
-import SearchFilters from "../Dashboard/SearchFilters";
+import PageHeader from "../ui/PageHeader";
 import { DataTable } from "../ui/data-table";
 import { createVendorColumns } from "../../lib/table-columns/vendor-columns";
 
@@ -13,6 +13,9 @@ interface VendorListProps {
   onAddVendor?: () => void;
   isLoading?: boolean;
   isOperationLoading?: boolean;
+  selectedVendors?: Set<number>;
+  onVendorSelect?: (vendorId: number, selected: boolean) => void;
+  onBulkDelete?: () => void;
 }
 
 const VendorList: React.FC<VendorListProps> = ({
@@ -20,10 +23,12 @@ const VendorList: React.FC<VendorListProps> = ({
   onAddVendor,
   isLoading = false,
   isOperationLoading = false,
+  selectedVendors = new Set(),
+  onVendorSelect,
+  onBulkDelete,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string[]>([]); // Dummy for SearchFilters compatibility
-  const [selectedVendors, setSelectedVendors] = useState<Set<number>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string[]>([]); // Dummy for compatibility
   const navigate = useNavigate();
 
   const handleVendorClick = (vendor: Vendor) => {
@@ -31,15 +36,7 @@ const VendorList: React.FC<VendorListProps> = ({
   };
 
   const handleVendorSelect = (vendorId: number, selected: boolean) => {
-    setSelectedVendors(prev => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(vendorId);
-      } else {
-        newSet.delete(vendorId);
-      }
-      return newSet;
-    });
+    onVendorSelect?.(vendorId, selected);
   };
 
   // Filter vendors based on search term
@@ -113,19 +110,30 @@ const VendorList: React.FC<VendorListProps> = ({
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="mx-auto w-full">
-        <SearchFilters
+      <div className="flex-shrink-0">
+        <PageHeader
+          title="Vendors"
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
+          searchPlaceholder="Search vendors..."
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
-          searchPlaceholder="Search vendors..."
           showStatusFilter={false}
           showDateFilter={false}
+          actionButton={{
+            label: "Add Vendor",
+            onClick: onAddVendor || (() => {}),
+            color: "green"
+          }}
+          bulkActions={selectedVendors.size > 0 ? {
+            selectedCount: selectedVendors.size,
+            actions: [],
+            onDelete: onBulkDelete
+          } : undefined}
         />
       </div>
 
-      <div className={`flex-1 flex flex-col ${isOperationLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className={`flex-1 overflow-auto p-6 pt-0 ${isOperationLoading ? 'opacity-50 pointer-events-none' : ''}`}>
         <DataTable
           columns={columns}
           data={filteredVendors}

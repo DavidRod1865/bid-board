@@ -25,10 +25,6 @@ const AnalyticsPage: React.FC = () => {
       <Sidebar
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
-        onNewProject={handleNewProject}
-        onCopyProject={handleCopyProject}
-        onWeeklyCostsReport={handleWeeklyCostsReport}
-        isEmailingReport={false}
       />
       <div className="flex-1 flex flex-col mx-auto w-full p-6 pt-4 overflow-y-auto">
         <AnalyticsDashboard/>

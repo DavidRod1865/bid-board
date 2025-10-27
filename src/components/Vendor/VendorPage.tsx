@@ -6,6 +6,7 @@ import AddVendorModal from "./AddVendorModal";
 import AlertDialog from "../ui/AlertDialog";
 import { Toaster } from "../ui/sonner";
 import { useToast } from "../../hooks/useToast";
+import { useBulkSelection } from "../../hooks/useBulkSelection";
 
 interface VendorPageProps {
   vendors: Vendor[];
@@ -29,6 +30,14 @@ const VendorPage: React.FC<VendorPageProps> = ({
   const [isOperationLoading, setIsOperationLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  
+  // Bulk selection hooks for vendors
+  const {
+    selectedBids: selectedVendors,
+    handleBidSelect: handleVendorSelect,
+    clearSelection
+  } = useBulkSelection();
   
 
   const handleEditVendor = async (vendorId: number) => {
@@ -99,6 +108,36 @@ const VendorPage: React.FC<VendorPageProps> = ({
     }
   };
 
+  const handleBulkDelete = () => {
+    if (selectedVendors.size > 0) {
+      setShowBulkDeleteModal(true);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (!onDeleteVendor || selectedVendors.size === 0) {
+      return;
+    }
+
+    setIsOperationLoading(true);
+    try {
+      // Delete all selected vendors
+      const deletePromises = Array.from(selectedVendors).map(vendorId => 
+        onDeleteVendor(vendorId)
+      );
+      
+      await Promise.all(deletePromises);
+      
+      setShowBulkDeleteModal(false);
+      clearSelection();
+      showSuccess('Vendors Deleted', `Successfully deleted ${selectedVendors.size} vendor(s)`);
+    } catch {
+      showError('Delete Failed', 'Failed to delete vendors. Please try again.');
+    } finally {
+      setIsOperationLoading(false);
+    }
+  };
+
 
   // Show error toast when error prop changes
   useEffect(() => {
@@ -118,16 +157,10 @@ const VendorPage: React.FC<VendorPageProps> = ({
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
-          onNewProject={handleNewProject}
-          onAddVendor={handleAddVendorClick}
         />
 
         <div className="flex-1 bg-gray-50 flex flex-col">
-          <div className="p-6 pb-0 mx-auto w-full flex-shrink-0">
-            {/* Error handling via toast notifications only */}
-          </div>
-          
-          <div className="flex-1 overflow-auto p-6 pt-4 mx-auto w-full">
+          <div className="flex-1 overflow-auto mx-auto w-full">
             <VendorList
               vendors={vendors}
               onEditVendor={handleEditVendor}
@@ -135,6 +168,9 @@ const VendorPage: React.FC<VendorPageProps> = ({
               onAddVendor={handleAddVendorClick}
               isLoading={globalLoading}
               isOperationLoading={isOperationLoading}
+              selectedVendors={selectedVendors}
+              onVendorSelect={handleVendorSelect}
+              onBulkDelete={handleBulkDelete}
             />
           </div>
         </div>
@@ -158,6 +194,18 @@ const VendorPage: React.FC<VendorPageProps> = ({
         title="Delete Vendor"
         message={`Are you sure you want to delete "${vendorToDelete?.company_name}"? This action cannot be undone.`}
         confirmText="Delete Vendor"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <AlertDialog
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={confirmBulkDelete}
+        title={`Delete ${selectedVendors.size} Vendor(s)`}
+        message={`Are you sure you want to delete ${selectedVendors.size} selected vendor(s)? This action cannot be undone.`}
+        confirmText={`Delete ${selectedVendors.size} Vendor(s)`}
         cancelText="Cancel"
         variant="danger"
       />

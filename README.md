@@ -5,45 +5,52 @@ A modern React TypeScript application for managing construction project bids, ve
 ## Features
 
 ### 📊 Project Management
-- **Project Dashboard** - Overview of all construction projects with advanced filtering
-- **Project Details** - Comprehensive project information with split-panel layout
+- **Project Dashboard** - Overview of all construction projects with advanced filtering and sorting
+- **Project Details** - Comprehensive project information with tabbed interface
 - **Real-time Updates** - Live data synchronization using Supabase real-time subscriptions
-- **Status Tracking** - Visual status indicators and progress tracking
-- **Notes System** - Project notes with user attribution and real-time updates
+- **Status Tracking** - Visual status indicators with color-coded urgency levels
+- **Notes System** - Project notes with user attribution and timestamps
+- **Bulk Operations** - Select and perform actions on multiple projects
 
 ### 👥 Vendor Management
 - **Vendor Directory** - Complete vendor database with contact information
-- **Vendor-Project Association** - Link vendors to specific projects
-- **Response Tracking** - Monitor vendor bid responses and follow-ups
+- **Vendor-Project Association** - Link vendors to specific projects with cost tracking
+- **Response Tracking** - Monitor vendor bid responses and due dates
+- **Priority Vendors** - Mark vendors as priority with visual highlighting
 - **Vendor Performance** - Track response rates and project history
 
 ### 🔍 Advanced Filtering & Search
-- **Multi-status Filtering** - Filter projects by multiple statuses simultaneously with toggle buttons
-- **Search Functionality** - Search across project names, clients, and descriptions
-- **Date Filtering** - Filter by due dates and urgency levels (today, this week, specific date)
+- **Multi-status Filtering** - Filter projects by multiple statuses simultaneously
+- **Date Range Filtering** - Filter by due dates and date ranges
+- **Search Functionality** - Search across project names, addresses, and descriptions
 - **Vendor Search** - Search vendors by company name, contact person, or specialty
+- **Sortable Tables** - Click column headers to sort data
 - **Reset Filters** - One-click reset for all active filters
 
-### 📄 Pagination & Navigation
-- **Paginated Tables** - 10 items per page for optimal performance
-- **Bottom-page Controls** - Pagination controls positioned at page bottom
-- **Responsive Design** - Works across desktop and mobile devices
+### 📄 Data Management
+- **Sortable Tables** - Click any column header to sort data (projects, vendors, costs, dates)
+- **Pagination** - Configurable items per page (10-15 items) for optimal performance
+- **Priority Sorting** - Priority vendors automatically sorted to top
+- **Urgency Indicators** - Visual indicators for overdue and due-today items
 
 ### 🎨 Modern UI/UX
 - **Professional Design** - Clean, business-focused interface
-- **Brand Colors** - Consistent gold (#d4af37) and dark theme
+- **Brand Colors** - Consistent gold (#d4af37) accent with professional styling
 - **Tailwind CSS 4.x** - Latest utility-first CSS framework
-- **Component Library** - Reusable UI components
+- **Responsive Design** - Works across desktop and mobile devices
+- **Visual Status Indicators** - Color-coded borders and highlighting for urgency and priority
 
 ## Technology Stack
 
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS 4.x
-- **Backend**: Supabase (PostgreSQL + Real-time)
-- **Authentication**: Auth0 (prepared)
+- **Frontend**: React 19 + TypeScript
+- **Build Tool**: Vite 7.x
+- **Styling**: Tailwind CSS 4.x (no config file - uses Vite plugin)
+- **Backend**: Supabase (PostgreSQL + Real-time subscriptions)
+- **Authentication**: Auth0 (configured but optional)
 - **Routing**: React Router v7
 - **State Management**: React Hooks (useState/useEffect)
+- **Table Library**: TanStack Table (@tanstack/react-table)
+- **Deployment**: Netlify SPA with proper routing
 
 ## Project Structure
 
@@ -57,31 +64,42 @@ src/
 │   ├── Vendor/            # Vendor management components
 │   │   ├── VendorPage.tsx
 │   │   ├── VendorList.tsx
-│   │   └── VendorTable.tsx
+│   │   ├── VendorTable.tsx
+│   │   └── VendorDetail.tsx
 │   ├── ui/                # Reusable UI components
-│   └── ...
+│   │   ├── Button.tsx
+│   │   ├── CardComponent.tsx
+│   │   ├── data-table.tsx
+│   │   └── ...
+│   ├── Analytics/         # Analytics and reporting
+│   ├── Archives.tsx       # Archived projects
+│   └── OnHold.tsx        # Projects on hold
+├── lib/
+│   ├── table-columns/     # Table column definitions
+│   ├── supabase.ts       # Database client
+│   └── utils.ts          # Utility functions
 ├── types/                 # TypeScript interfaces
-├── utils/                 # Utility functions
-├── lib/                   # Database and external services
-└── data/                  # Mock data for development
+├── utils/                 # Utility functions and formatters
+└── hooks/                # Custom React hooks
 ```
 
 ## Key Components
 
-### Dashboard
-- **BidTable**: Sortable table with status management and pagination
-- **SearchFilters**: Multi-status filtering with search capabilities
-- **ProjectDetail**: Split-panel layout with project overview and tabbed interface
+### Dashboard & Project Management
+- **BidTable**: Sortable table with status management, priority highlighting, and bulk actions
+- **SearchFilters**: Multi-status filtering with date ranges and search capabilities
+- **ProjectDetail**: Tabbed interface with project overview, vendors, notes, and timeline
+- **Archives/OnHold**: Dedicated views for archived and on-hold projects
 
 ### Vendor Management
-- **VendorPage**: Complete vendor management with pagination
-- **VendorTable**: Vendor selection and management within projects
-- **VendorList**: Searchable and sortable vendor directory
+- **VendorPage**: Complete vendor management with sortable table and pagination
+- **VendorTable**: Project-specific vendor table with priority sorting and cost tracking
+- **VendorDetail**: Individual vendor management and project associations
 
-### UI Components
-- **Sidebar**: Navigation and action buttons
-- **Modal**: Reusable modal components for forms
-- **Cards**: Professional project information cards
+### Data Tables
+- **DataTable**: Reusable table component with sorting, pagination, and selection
+- **Column Definitions**: Configurable column headers with custom sorting functions
+- **Row Styling**: Priority highlighting, urgency indicators, and selection states
 
 ## Development
 
@@ -104,16 +122,16 @@ cp .env.example .env.local
 
 ### Development Commands
 ```bash
-# Start development server (Vite)
+# Start development server (Vite + React)
 npm run dev
 
-# Build for production
+# Build for production (TypeScript compilation + Vite build)
 npm run build
 
-# Preview production build
+# Preview production build locally
 npm run preview
 
-# Run ESLint
+# Run ESLint for code quality
 npm run lint
 ```
 
@@ -121,16 +139,16 @@ npm run lint
 Required environment variables (see `.env.example` for template):
 
 ```bash
-# Auth0 Configuration
+# Supabase Configuration (Required)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Auth0 Configuration (Optional - app works without)
 VITE_AUTH0_DOMAIN=your-domain.us.auth0.com
 VITE_AUTH0_CLIENT_ID=your-client-id
 VITE_AUTH0_REDIRECT_URI=http://localhost:5173
 
-# Supabase Configuration
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-
-# Email Service (SMTP2GO)
+# Email Service (Optional - for PDF reports)
 VITE_SMTP2GO_API_KEY=your-smtp2go-api-key
 VITE_SMTP2GO_SENDER_EMAIL=your-sender@domain.com
 ```
@@ -139,43 +157,54 @@ VITE_SMTP2GO_SENDER_EMAIL=your-sender@domain.com
 
 The application uses Supabase with the following main tables:
 
-- **bids** - Project information and status
-- **vendors** - Vendor/contractor directory
-- **bid_vendors** - Project-vendor associations
-- **project_notes** - Project notes with user attribution
-- **users** - User management
+- **bids** - Project information, status, dates, and assignments
+- **vendors** - Contractor directory with contact information
+- **bid_vendors** - Many-to-many project-vendor associations with cost tracking and priority flags
+- **project_notes** - User-attributed notes with timestamps
+- **users** - User management with Auth0 integration
 
-### 🚧 Features in Development
-- **Timeline View** - Project timeline and activity tracking
-- **Document Management** - File upload and document tracking
-- **Advanced Reporting** - PDF generation and email reporting (partially implemented)
-- **Mobile App** - React Native mobile application
-- **Advanced Analytics** - Project performance metrics
+### Real-time Subscriptions
+- `bids_changes` - Project updates
+- `vendors_changes` - Vendor updates  
+- `bid_vendors_changes` - Project-vendor associations
+- `project_notes_changes` - Note updates
+
+## Deployment
+
+### Netlify Configuration
+The app deploys as a Single Page Application (SPA) on Netlify:
+
+- **Build Command**: `npm run build`
+- **Publish Directory**: `dist`
+- **Routing**: `public/_redirects` handles client-side routing
 
 ## Architecture Patterns
 
 ### State Management
-- **Local React State** - useState/useEffect hooks
-- **Props Drilling** - Data flows through component hierarchy
-- **Lifting State Up** - Main state managed in parent components
+- **Global State**: AppContent.tsx manages all application data
+- **Local State**: Component-level useState for UI state
+- **Props Drilling**: Data flows through component hierarchy
+- **Real-time Subscriptions**: Managed via realtimeManager
 
 ### Data Flow
-1. **App.tsx** - Global state management
-2. **Dashboard.tsx** - Project filtering and pagination
-3. **BidTable.tsx** - Project display and status updates
-4. **ProjectDetail.tsx** - Individual project management
+1. **AppContent.tsx** - Global state container for all data
+2. **Real-time Manager** - Handles Supabase subscriptions and updates
+3. **Component State** - Local UI state and user interactions
+4. **Optimistic Updates** - Immediate UI updates with real-time sync
 
-### Real-time Updates
-- Supabase real-time subscriptions for live data updates
-- Automatic UI updates when data changes
-- Optimistic updates for better user experience
+### Table Sorting & Pagination
+- **TanStack Table** - Professional table management with sorting and pagination
+- **Column Definitions** - Reusable column configurations with custom sorting
+- **Priority Sorting** - Automatic priority vendor sorting with due date secondary sort
+- **Data Transformation** - Client-side data processing for optimal performance
 
 ## Performance Optimizations
 
-- **useMemo** for expensive calculations
-- **Pagination** to limit data rendering
+- **useMemo** for expensive calculations and data transformations
+- **Pagination** via DataTable component (10-15 items per page)
 - **Efficient Re-renders** with proper dependency arrays
-- **Code Splitting** with React Router
+- **Real-time Deduplication** to prevent duplicate entries
+- **Component-level Optimization** with selective re-rendering
 
 ## Contributing
 

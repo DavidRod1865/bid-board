@@ -9,9 +9,6 @@ import {
   ChartBarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  PlusIcon,
-  DocumentDuplicateIcon,
-  EnvelopeIcon,
   ArrowLeftIcon,
   PencilSquareIcon,
   UserPlusIcon,
@@ -19,7 +16,6 @@ import {
   XMarkIcon,
   TrashIcon,
   ChevronDownIcon,
-  PlayIcon
 } from '@heroicons/react/24/outline';
 import { useAuth0 } from '../../auth';
 import { useUserProfile } from '../../contexts/UserContext';
@@ -30,11 +26,6 @@ import { PencilIcon } from '@heroicons/react/24/outline';
 interface SidebarProps {
   statusFilter: string[];
   setStatusFilter: (statuses: string[]) => void;
-  onNewProject?: () => void;
-  onCopyProject?: () => void;
-  onWeeklyCostsReport?: () => void;
-  isEmailingReport?: boolean;
-  onAddVendor?: () => void;
   onEditProject?: () => void;
   onDeleteProject?: () => void;
   onArchiveProject?: () => void;
@@ -53,20 +44,9 @@ interface SidebarProps {
   onAddProjectVendor?: () => void;
   onRemoveProjectVendors?: () => void;
   selectedVendorsCount?: number;
-  // Generic bulk actions (works across all pages)
-  selectedBidsCount?: number;
-  onBulkMoveToActive?: () => void;
-  onBulkArchive?: () => void;
-  onBulkOnHold?: () => void;
-  onBulkDelete?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  onNewProject,
-  onCopyProject,
-  onWeeklyCostsReport,
-  isEmailingReport,
-  onAddVendor,
   onEditProject,
   onDeleteProject,
   onArchiveProject,
@@ -83,12 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   isSavingVendor,
   onAddProjectVendor,
   onRemoveProjectVendors,
-  selectedVendorsCount = 0,
-  selectedBidsCount = 0,
-  onBulkMoveToActive,
-  onBulkArchive,
-  onBulkOnHold,
-  onBulkDelete
+  selectedVendorsCount = 0
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -177,7 +152,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300`}>
+    <div className={`${isCollapsed ? 'w-16' : 'min-w-64 w-64'} bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300`}>
       {/* Header with logo and toggle button */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         {!isCollapsed && (
@@ -238,132 +213,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Action Buttons - visible on projects page */}
-        {location.pathname === '/' && (
-          <div className="px-3 mt-6 pt-6 border-t border-gray-200">
-            <div className="space-y-1">
-              <button
-                onClick={onNewProject}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-[#d4af37]
-                  ${isCollapsed ? 'justify-center' : 'justify-start'}
-                `}
-              >
-                <PlusIcon className="w-6 h-6 flex-shrink-0" />
-                {!isCollapsed && <span className="font-medium text-sm">Create New Bid</span>}
-              </button>
 
-              <button
-                onClick={onCopyProject}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-[#d4af37]
-                  ${isCollapsed ? 'justify-center' : 'justify-start'}
-                `}
-              >
-                <DocumentDuplicateIcon className="w-6 h-6 flex-shrink-0" />
-                {!isCollapsed && <span className="font-medium text-sm">Copy Project</span>}
-              </button>
 
-              <button
-                onClick={onWeeklyCostsReport}
-                disabled={isEmailingReport}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-[#d4af37] ${isEmailingReport ? 'opacity-50 cursor-not-allowed' : ''}
-                  ${isCollapsed ? 'justify-center' : 'justify-start'}
-                `}
-              >
-                <EnvelopeIcon className="w-6 h-6 flex-shrink-0" />
-                {!isCollapsed && (
-                  <span className="font-medium text-sm">
-                    {isEmailingReport ? 'Sending Report...' : 'Email Report'}
-                  </span>
-                )}
-                {isEmailingReport && (
-                  <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Generic Bulk Actions - works across all pages when bids are selected */}
-        {selectedBidsCount > 0 && (
-          <div className="px-3 mt-6 pt-6 border-t border-gray-200">
-            <div className="space-y-1">
-              {/* Move to Active - show on archives and on-hold pages */}
-              {(location.pathname === '/archives' || location.pathname === '/on-hold') && onBulkMoveToActive && (
-                <button
-                  onClick={onBulkMoveToActive}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-green-600 hover:bg-green-50 hover:text-green-700
-                    ${isCollapsed ? 'justify-center' : 'justify-start'}
-                  `}
-                >
-                  <PlayIcon className="w-6 h-6 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium text-sm">Move to Active ({selectedBidsCount})</span>}
-                </button>
-              )}
-
-              {/* Move to On Hold - show on dashboard and archives pages */}
-              {(location.pathname === '/' || location.pathname === '/archives') && onBulkOnHold && (
-                <button
-                  onClick={onBulkOnHold}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700
-                    ${isCollapsed ? 'justify-center' : 'justify-start'}
-                  `}
-                >
-                  <PauseCircleIcon className="w-6 h-6 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium text-sm">Move to On Hold ({selectedBidsCount})</span>}
-                </button>
-              )}
-
-              {/* Archive - show on dashboard and on-hold pages */}
-              {(location.pathname === '/' || location.pathname === '/on-hold') && onBulkArchive && (
-                <button
-                  onClick={onBulkArchive}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700
-                    ${isCollapsed ? 'justify-center' : 'justify-start'}
-                  `}
-                >
-                  <ArchiveBoxIcon className="w-6 h-6 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium text-sm">Move to Archive ({selectedBidsCount})</span>}
-                </button>
-              )}
-
-              {/* Delete - show on all pages */}
-              {onBulkDelete && (
-                <button
-                  onClick={onBulkDelete}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-red-600 hover:bg-red-50 hover:text-red-700
-                    ${isCollapsed ? 'justify-center' : 'justify-start'}
-                  `}
-                >
-                  <TrashIcon className="w-6 h-6 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium text-sm">Delete Selected ({selectedBidsCount})</span>}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Add Vendor Button - visible on vendors page */}
-        {location.pathname === '/vendors' && (
-          <div className="px-3 mt-6 pt-6 border-t border-gray-200">
-            <button
-              onClick={onAddVendor}
-              className={`
-                w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-[#d4af37]
-                ${isCollapsed ? 'justify-center' : 'justify-start'}
-              `}
-            >
-              <PlusIcon className="w-6 h-6 flex-shrink-0" />
-              {!isCollapsed && <span className="font-medium text-sm">Add Vendor</span>}
-            </button>
-          </div>
-        )}
 
         {/* Project Detail Actions */}
         {location.pathname.startsWith('/project/') && (

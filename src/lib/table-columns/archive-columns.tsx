@@ -115,7 +115,7 @@ export function createArchiveColumns(context: ArchiveColumnsContext = {}): Colum
       sortingFn: (rowA, rowB) => {
         const a = new Date(rowA.original.due_date).getTime()
         const b = new Date(rowB.original.due_date).getTime()
-        return a - b
+        return b - a
       },
     },
     {
@@ -140,7 +140,7 @@ export function createArchiveColumns(context: ArchiveColumnsContext = {}): Colum
       sortingFn: (rowA, rowB) => {
         const a = rowA.original.archived_at ? new Date(rowA.original.archived_at).getTime() : 0
         const b = rowB.original.archived_at ? new Date(rowB.original.archived_at).getTime() : 0
-        return a - b
+        return b - a
       },
     },
     {
