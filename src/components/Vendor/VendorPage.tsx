@@ -149,7 +149,6 @@ const VendorPage: React.FC<VendorPageProps> = ({
 
   // Dummy handlers for sidebar (vendors page doesn't need project filtering)
   const handleStatusFilter = () => {};
-  const handleNewProject = () => {};
 
   return (
     <>

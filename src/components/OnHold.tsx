@@ -20,7 +20,7 @@ interface OnHoldProps {
   projectNotes?: ProjectNote[];
 }
 
-const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
+const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
   const [onHoldBids, setOnHoldBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -190,8 +190,6 @@ const OnHold: React.FC<OnHoldProps> = ({ onAddVendor, projectNotes = [] }) => {
 
   // Dummy handlers for sidebar (on-hold page doesn't need these)
   const handleStatusFilter = () => {};
-  const handleNewProject = () => {};
-  const handleCopyProject = () => {};
 
   if (loading) {
     return (

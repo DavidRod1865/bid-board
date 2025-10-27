@@ -8,17 +8,6 @@ const AnalyticsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const {} = useToast();
 
-  const handleNewProject = () => {
-    // Not applicable for analytics page
-  };
-
-  const handleCopyProject = () => {
-    // Not applicable for analytics page
-  };
-
-  const handleWeeklyCostsReport = () => {
-    // Not applicable for analytics page
-  };
 
   return (
     <div className="flex h-screen">

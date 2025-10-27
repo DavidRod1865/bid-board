@@ -245,9 +245,6 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors }) => {
 
   // Dummy handlers for sidebar (calendar page doesn't need these)
   const handleStatusFilter = () => {};
-  const handleNewProject = () => {};
-  const handleCopyProject = () => {};
-  const handleAddVendor = () => {};
 
   return (
     <div className="flex h-screen bg-gray-50">
