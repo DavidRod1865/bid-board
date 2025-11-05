@@ -2,7 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Auth0Provider } from './auth';
 import { UserProvider } from './contexts/UserContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './shared/components/ProtectedRoute';
+import { ViewRouter } from './shared/components/ViewRouter';
 import AppContent from './AppContent';
 
 const App: React.FC = () => {
@@ -11,7 +12,9 @@ const App: React.FC = () => {
       <UserProvider>
         <Router>
           <ProtectedRoute>
-            <AppContent />
+            <ViewRouter>
+              <AppContent />
+            </ViewRouter>
           </ProtectedRoute>
         </Router>
       </UserProvider>

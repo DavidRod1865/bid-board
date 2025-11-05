@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth0 } from '../auth';
-import { dbOperations } from '../lib/supabase';
+import { dbOperations } from '../shared/services/supabase';
 
 interface UserProfile {
   id: string;
@@ -9,14 +9,20 @@ interface UserProfile {
   color_preference: string;
   created_at: string;
   updated_at: string;
+  role: 'Admin' | 'Estimating' | 'APM' | null;
 }
+
+type TeamView = 'estimating' | 'apm';
 
 interface UserContextType {
   userProfile: UserProfile | null;
   isLoading: boolean;
   error: string | null;
+  currentView: TeamView;
   updateProfile: (name: string, colorPreference: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  switchView: (view: TeamView) => void;
+  getDefaultView: () => TeamView;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -30,6 +36,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<TeamView>('estimating');
 
   const fetchUserProfile = async () => {
     if (!user?.sub || !isAuthenticated) {
@@ -85,7 +92,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         name: user.name || user.email?.split('@')[0] || 'User',
         color_preference: '#d4af37',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        role: null
       };
       setUserProfile(initialProfile);
       localStorage.setItem(`user_profile_${user.sub}`, JSON.stringify(initialProfile));
@@ -142,6 +150,42 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     await fetchUserProfile();
   };
 
+  const getDefaultView = (): TeamView => {
+    if (!userProfile?.role) return 'estimating';
+    
+    switch (userProfile.role) {
+      case 'Estimating':
+        return 'estimating';
+      case 'APM':
+        return 'apm';
+      case 'Admin':
+      default:
+        return 'estimating'; // Admin defaults to estimating, can switch freely
+    }
+  };
+
+  const switchView = (view: TeamView) => {
+    setCurrentView(view);
+    // Store view preference in localStorage
+    if (user?.sub) {
+      localStorage.setItem(`user_view_${user.sub}`, view);
+    }
+  };
+
+  // Set initial view based on role when user profile loads
+  useEffect(() => {
+    if (userProfile && user?.sub) {
+      // Check if user has a saved view preference
+      const savedView = localStorage.getItem(`user_view_${user.sub}`);
+      if (savedView && (savedView === 'estimating' || savedView === 'apm')) {
+        setCurrentView(savedView);
+      } else {
+        // Use role-based default
+        setCurrentView(getDefaultView());
+      }
+    }
+  }, [userProfile, user?.sub, getDefaultView]);
+
   useEffect(() => {
     if (!authLoading) {
       // Test database connection on first load
@@ -153,14 +197,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       fetchUserProfile();
     }
-  }, [user?.sub, isAuthenticated, authLoading]);
+  }, [user?.sub, isAuthenticated, authLoading, fetchUserProfile]);
 
   const contextValue: UserContextType = {
     userProfile,
     isLoading: isLoading || authLoading,
     error,
+    currentView,
     updateProfile,
-    refreshProfile
+    refreshProfile,
+    switchView,
+    getDefaultView
   };
 
   return (
@@ -178,4 +225,4 @@ export const useUserProfile = () => {
   return context;
 };
 
-export type { UserProfile };
+export type { UserProfile, TeamView };

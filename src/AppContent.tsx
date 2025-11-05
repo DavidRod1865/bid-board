@@ -1,21 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
 
 // Importing types
-import type { User, Bid, Vendor, BidVendor, ProjectNote } from './types';
+import type { User, Bid, Vendor, BidVendor, ProjectNote } from './shared/types';
 
 // Importing Supabase operations and realtime manager
-import { dbOperations, realtimeManager, supabase } from './lib/supabase';
+import { dbOperations, realtimeManager, supabase } from './shared/services/supabase';
+import { getDefaultAPMFields } from './shared/utils/bidVendorDefaults';
 
-// Importing components
-import AnalyticsPage from './components/Analytics/AnalyticsPage';
-import Dashboard from './components/Dashboard/Dashboard';
-import ProjectDetail from './components/ProjectDetail';
-import VendorPage from './components/Vendor/VendorPage';
-import VendorDetail from './components/Vendor/VendorDetail';
-import Calendar from './components/Calendar';
-import Archives from './components/Archives';
-import OnHold from './components/OnHold';
+// Import the new routing structure
+import AppRoutes from './routes';
 
 // Raw bid data type as received from Supabase
 type RawBidData = {
@@ -40,6 +33,13 @@ type RawBidData = {
   on_hold?: boolean;
   on_hold_at?: string;
   on_hold_by?: string;
+  department?: string;
+  sent_to_apm?: boolean;
+  sent_to_apm_at?: string;
+  apm_on_hold?: boolean;
+  apm_on_hold_at?: string;
+  apm_archived?: boolean;
+  apm_archived_at?: string;
   bid_vendors?: Array<BidVendor & { vendors?: { company_name: string; specialty?: string } }>;
   created_by_user?: { name: string; email: string };
   assigned_user?: { name: string; email: string };
@@ -53,95 +53,6 @@ type RealtimePayload = {
   old?: Record<string, unknown>;
 };
 
-// ProjectDetailWrapper component to handle individual project fetching
-interface ProjectDetailWrapperProps {
-  bids: Bid[];
-  users: User[];
-  vendors: Vendor[];
-  bidVendors: BidVendor[];
-  onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
-  onDeleteBid: (bidId: number) => Promise<void>;
-  onAddBidVendor: (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => Promise<void>;
-  onUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
-  onRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
-}
-
-// ProjectDetailWrapper component definition
-const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
-  const navigate = useNavigate();
-  const [individualBid, setIndividualBid] = useState<Bid | null>(null);
-  const [loadingIndividual, setLoadingIndividual] = useState(false);
-  const [notFound, setNotFound] = useState(false);
-  
-  // Get project ID from URL params & parse to integer
-  const { id } = useParams<{ id: string }>();
-  const bidId = parseInt(id || '0', 10);
-
-  // Find the bid in the bids array that matches the project ID
-  const bid = props.bids.find(b => b.id === bidId);
-  
-  // If bid is not found in bids array, try to fetch individually
-  useEffect(() => {
-    if (!bid && id && !loadingIndividual && !individualBid && !notFound) {
-      const fetchIndividualBid = async () => {
-        setLoadingIndividual(true);
-        try {
-          // fetch individual bid from Supabase by ID
-          const fetchedBid = await dbOperations.getBidById(bidId);
-          setIndividualBid(fetchedBid);
-        } catch (error) {
-          console.error('Failed to fetch individual project:', error);
-          setNotFound(true);
-        } finally {
-          setLoadingIndividual(false);
-        }
-      };
-      
-      fetchIndividualBid();
-    }
-  }, [bid, id, bidId, loadingIndividual, individualBid, notFound]);
-  
-  // Determine which project to show: from props or fetched individually
-  const projectToShow = bid || individualBid;
-  
-  // Handle loading and not found states
-  if (loadingIndividual) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#d4af37] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading project...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // If no project found, show not found message
-  if (!projectToShow || notFound) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Project not found</h2>
-          <button 
-            onClick={() => navigate('/')}
-            className="px-4 py-2 bg-[#d4af37] text-white rounded-md hover:bg-[#b8941f]"
-          >
-            Back to Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    // Render ProjectDetail component with the determined project
-    <ProjectDetail 
-      bid={projectToShow}
-      onUpdateBid={props.onUpdateBid}
-      onDeleteBid={props.onDeleteBid}
-    />
-  );
-};
 
 // AppContent component definition
 const AppContent: React.FC = () => {
@@ -236,7 +147,14 @@ const AppContent: React.FC = () => {
                 archived_by: rawBid.archived_by || null,
                 on_hold: rawBid.on_hold || false,
                 on_hold_at: rawBid.on_hold_at || null,
-                on_hold_by: rawBid.on_hold_by || null
+                on_hold_by: rawBid.on_hold_by || null,
+                department: rawBid.department,
+                sent_to_apm: rawBid.sent_to_apm || false,
+                sent_to_apm_at: rawBid.sent_to_apm_at || null,
+                apm_on_hold: rawBid.apm_on_hold || false,
+                apm_on_hold_at: rawBid.apm_on_hold_at || null,
+                apm_archived: rawBid.apm_archived || false,
+                apm_archived_at: rawBid.apm_archived_at || null
               };
               
               // Check if bid already exists to prevent duplicates
@@ -466,7 +384,14 @@ const AppContent: React.FC = () => {
         archived_by: newBid.archived_by || null,
         on_hold: newBid.on_hold || false,
         on_hold_at: newBid.on_hold_at || null,
-        on_hold_by: newBid.on_hold_by || null
+        on_hold_by: newBid.on_hold_by || null,
+        department: newBid.department || null,
+        sent_to_apm: newBid.sent_to_apm || false,
+        sent_to_apm_at: newBid.sent_to_apm_at || null,
+        apm_on_hold: newBid.apm_on_hold || false,
+        apm_on_hold_at: newBid.apm_on_hold_at || null,
+        apm_archived: newBid.apm_archived || false,
+        apm_archived_at: newBid.apm_archived_at || null
       };
       
       setBids(prev => {
@@ -505,7 +430,14 @@ const AppContent: React.FC = () => {
         archived_by: newBid.archived_by || null,
         on_hold: newBid.on_hold || false,
         on_hold_at: newBid.on_hold_at || null,
-        on_hold_by: newBid.on_hold_by || null
+        on_hold_by: newBid.on_hold_by || null,
+        department: newBid.department || null,
+        sent_to_apm: newBid.sent_to_apm || false,
+        sent_to_apm_at: newBid.sent_to_apm_at || null,
+        apm_on_hold: newBid.apm_on_hold || false,
+        apm_on_hold_at: newBid.apm_on_hold_at || null,
+        apm_archived: newBid.apm_archived || false,
+        apm_archived_at: newBid.apm_archived_at || null
       };
       
       setBids(prev => {
@@ -514,6 +446,74 @@ const AppContent: React.FC = () => {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to copy project');
+    }
+  };
+
+  // Handler function for adding a bid with vendors
+  const handleAddProjectWithVendors = async (bidData: Omit<Bid, 'id'>, vendorIds: number[]) => {
+    try {
+      const result = await dbOperations.createProjectWithVendors(bidData, vendorIds);
+      
+      // Transform and add the project to state
+      const transformedBid: Bid = {
+        id: result.project.id,
+        title: result.project.title || result.project.project_name,
+        project_name: result.project.project_name,
+        project_email: result.project.project_email,
+        project_address: result.project.project_address,
+        general_contractor: result.project.general_contractor,
+        project_description: result.project.project_description,
+        due_date: result.project.due_date,
+        status: result.project.status,
+        priority: result.project.priority,
+        estimated_value: result.project.estimated_value,
+        notes: result.project.notes,
+        created_by: result.project.created_by,
+        assign_to: result.project.assign_to,
+        file_location: result.project.file_location,
+        archived: result.project.archived || false,
+        archived_at: result.project.archived_at || null,
+        archived_by: result.project.archived_by || null,
+        on_hold: result.project.on_hold || false,
+        on_hold_at: result.project.on_hold_at || null,
+        on_hold_by: result.project.on_hold_by || null,
+        department: result.project.department || null,
+        sent_to_apm: result.project.sent_to_apm || false,
+        sent_to_apm_at: result.project.sent_to_apm_at || null,
+        apm_on_hold: result.project.apm_on_hold || false,
+        apm_on_hold_at: result.project.apm_on_hold_at || null,
+        apm_archived: result.project.apm_archived || false,
+        apm_archived_at: result.project.apm_archived_at || null
+      };
+      
+      setBids(prev => {
+        const exists = prev.some(bid => bid.id === transformedBid.id);
+        return exists ? prev : [transformedBid, ...prev];
+      });
+
+      // Add vendor relationships to state
+      if (result.vendorRelationships && result.vendorRelationships.length > 0) {
+        const transformedBidVendors = result.vendorRelationships.map((bv: any) => ({
+          id: bv.id,
+          bid_id: bv.bid_id,
+          vendor_id: bv.vendor_id,
+          due_date: bv.due_date,
+          response_received_date: bv.response_received_date,
+          status: bv.status,
+          follow_up_count: bv.follow_up_count,
+          last_follow_up_date: bv.last_follow_up_date,
+          response_notes: bv.response_notes,
+          responded_by: bv.responded_by,
+          is_priority: bv.is_priority,
+          cost_amount: bv.cost_amount,
+          ...getDefaultAPMFields()
+        }));
+
+        setBidVendors(prev => [...prev, ...transformedBidVendors]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add project with vendors');
+      throw err; // Re-throw so the modal can handle the error
     }
   };
 
@@ -588,7 +588,8 @@ const AppContent: React.FC = () => {
         response_notes: bidVendorResponse.response_notes,
         responded_by: bidVendorResponse.responded_by,
         is_priority: bidVendorResponse.is_priority || false,
-        cost_amount: bidVendorResponse.cost_amount
+        cost_amount: bidVendorResponse.cost_amount,
+        ...getDefaultAPMFields()
       };
       
       setBidVendors(prevBidVendors => [...prevBidVendors, transformedBidVendor]);
@@ -678,82 +679,26 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="h-screen bg-gray-50 font-sans overflow-hidden">
-
-      <Routes>
-        <Route 
-          path="/" 
-          element={
-            <Dashboard 
-              bids={bids.filter(bid => !bid.archived && !bid.on_hold)}
-              bidVendors={bidVendors}
-              vendors={vendors}
-              projectNotes={projectNotes}
-              handleStatusChange={handleStatusChange}
-              users={users}
-              onAddProject={handleAddBid}
-              onCopyProject={handleCopyProject}
-            />
-          } 
-        />
-        <Route 
-          path="/project/:id" 
-          element={
-            <ProjectDetailWrapper 
-              bids={bids}
-              users={users}
-              vendors={vendors}
-              bidVendors={bidVendors}
-              onUpdateBid={handleUpdateBid}
-              onDeleteBid={handleDeleteBid}
-              onAddBidVendor={handleAddBidVendor}
-              onUpdateBidVendor={handleUpdateBidVendor}
-              onRemoveBidVendors={handleRemoveBidVendors}
-            />
-          } 
-        />
-        <Route 
-          path="/vendors" 
-          element={
-            <VendorPage 
-              vendors={vendors}
-              onAddVendor={handleAddVendor}
-              onEditVendor={handleUpdateVendor}
-              onDeleteVendor={handleDeleteVendor}
-            />
-          } 
-        />
-        <Route 
-          path="/vendor/:id" 
-          element={
-            <VendorDetail 
-              onDeleteVendor={handleDeleteVendor}
-              onUpdateVendor={handleUpdateVendor}
-            />
-          } 
-        />
-        <Route 
-          path="/calendar" 
-          element={
-            <Calendar 
-              bids={bids}
-              bidVendors={bidVendors}
-              vendors={vendors}
-            />
-          } 
-        />
-        <Route 
-          path="/archives" 
-          element={<Archives onBidRestored={handleBidRestored} projectNotes={projectNotes} />} 
-        />
-        <Route 
-          path="/on-hold" 
-          element={<OnHold onBidRestored={handleBidRestored} projectNotes={projectNotes} />} 
-        />
-        <Route 
-          path="/analytics" 
-          element={<AnalyticsPage />} 
-        />
-      </Routes>
+      <AppRoutes 
+        bids={bids}
+        vendors={vendors}
+        bidVendors={bidVendors}
+        users={users}
+        projectNotes={projectNotes}
+        handleStatusChange={handleStatusChange}
+        handleUpdateBid={handleUpdateBid}
+        handleDeleteBid={handleDeleteBid}
+        handleAddBid={handleAddBid}
+        handleAddProjectWithVendors={handleAddProjectWithVendors}
+        handleCopyProject={handleCopyProject}
+        handleAddVendor={handleAddVendor}
+        handleUpdateVendor={handleUpdateVendor}
+        handleDeleteVendor={handleDeleteVendor}
+        handleAddBidVendor={handleAddBidVendor}
+        handleUpdateBidVendor={handleUpdateBidVendor}
+        handleRemoveBidVendors={handleRemoveBidVendors}
+        handleBidRestored={handleBidRestored}
+      />
     </div>
   );
 };
