@@ -37,6 +37,7 @@ import {
   CheckIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { Checkbox } from "../../../../shared/components/ui/checkbox";
 
 interface APMProjectDetailProps {
   bid: Bid;
@@ -107,6 +108,8 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
     created_by: bid.created_by || "",
     assign_to: bid.assign_to || "",
     file_location: bid.file_location || "",
+    gc_system: bid.gc_system,
+    added_to_procore: bid.added_to_procore,
   });
 
   // Load initial data
@@ -232,19 +235,26 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
       created_by: bid.created_by || "",
       assign_to: bid.assign_to || "",
       file_location: bid.file_location || "",
+      gc_system: bid.gc_system,
+      added_to_procore: bid.added_to_procore,
     });
   }, [bid]);
 
   const handleSave = async () => {
     try {
-      // Convert empty created_by to null for database
+      // Convert empty strings to null for UUID fields and other fields that require null
       const dataToSave = {
         ...formData,
         created_by: formData.created_by || null,
+        assign_to: formData.assign_to || null,
+        // Ensure proper formatting for new fields
+        gc_system: formData.gc_system || null,
+        added_to_procore: Boolean(formData.added_to_procore),
       };
       await onUpdateBid(bid.id, dataToSave);
       setIsEditing(false);
     } catch (error) {
+      console.error("Save error:", error);
       setError(
         error instanceof Error ? error.message : "Failed to update project"
       );
@@ -265,6 +275,8 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
       created_by: bid.created_by || "",
       assign_to: bid.assign_to || "",
       file_location: bid.file_location || "",
+      gc_system: bid.gc_system,
+      added_to_procore: bid.added_to_procore,
     });
     setIsEditing(false);
   };
@@ -574,21 +586,9 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     </BreadcrumbItem>
                     <BreadcrumbSeparator className="[&>svg]:size-6" />
                     <BreadcrumbItem>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={formData.title}
-                          onChange={(e) =>
-                            setFormData({ ...formData, title: e.target.value })
-                          }
-                          className="text-2xl font-bold text-gray-900 border border-gray-300 rounded-md px-2 py-1 bg-white"
-                          placeholder="Project title..."
-                        />
-                      ) : (
-                        <BreadcrumbPage className="flex text-2xl h-10 items-center font-bold text-gray-900">
-                          {bid.title}
-                        </BreadcrumbPage>
-                      )}
+                      <BreadcrumbPage className="flex text-2xl h-10 items-center font-bold text-gray-900">
+                        {bid.title}
+                      </BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
@@ -765,6 +765,80 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                       {bid.general_contractor || "Not assigned"}
                     </span>
                   )}
+                </div>
+
+                {/* GC System and Procore Status */}
+                <div className="mt-2 space-y-1">
+                  {/* GC System */}
+                  <div>
+                    <span className="text-gray-600 text-sm font-medium">GC System: </span>
+                    {isEditing ? (
+                      <select
+                        value={formData.gc_system || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({
+                            ...formData,
+                            gc_system: value === "" ? null : value as 'Procore' | 'AutoDesk' | 'Email' | 'Other',
+                          });
+                        }}
+                        className="border border-gray-300 rounded px-2 py-1 text-sm ml-1"
+                      >
+                        <option value="">Select system type</option>
+                        <option value="Procore">Procore</option>
+                        <option value="AutoDesk">AutoDesk</option>
+                        <option value="Email">Email</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    ) : (
+                      <>
+                        {bid.gc_system === "Procore" && (
+                          <span className="text-blue-600 text-sm font-medium">Procore</span>
+                        )}
+                        {bid.gc_system === "AutoDesk" && (
+                          <span className="text-purple-600 text-sm font-medium">AutoDesk</span>
+                        )}
+                        {bid.gc_system === "Email" && (
+                          <span className="text-green-600 text-sm font-medium">Email</span>
+                        )}
+                        {bid.gc_system === "Other" && (
+                          <span className="text-gray-600 text-sm font-medium">Other</span>
+                        )}
+                        {!bid.gc_system && (
+                          <span className="text-gray-400 text-sm">N/A</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Procore Status */}
+                  <div className="flex items-center">
+                    <span className="text-gray-600 text-sm font-medium">Procore Status: </span>
+                    {isEditing ? (
+                      <div className="flex items-center ml-2">
+                        <Checkbox
+                          checked={formData.added_to_procore || false}
+                          onCheckedChange={(checked) =>
+                            setFormData({
+                              ...formData,
+                              added_to_procore: checked === true,
+                            })
+                          }
+                        />
+                        <span className="ml-2 text-sm text-gray-600">
+                          Added to Procore
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        {bid.added_to_procore ? (
+                          <span className="text-green-600 text-sm font-medium ml-1">Added to Procore</span>
+                        ) : (
+                          <span className="text-red-600 text-sm font-medium ml-1">Not in Procore</span>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -50,6 +50,8 @@ export interface Bid {
   apm_on_hold_at: string | null;
   apm_archived: boolean;
   apm_archived_at: string | null;
+  gc_system: 'Procore' | 'AutoDesk' | 'Email' | 'Other' | null;
+  added_to_procore: boolean;
 }
 
 export interface BidVendor {

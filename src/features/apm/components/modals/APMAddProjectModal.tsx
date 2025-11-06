@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
-import type { Bid, User, Vendor } from '../../../../shared/types';
-import { useUserProfile } from '../../../../contexts/UserContext';
-import DialogModal from '../../../../shared/components/ui/DialogModal';
-import { Input, Textarea } from '../../../../shared/components/ui/FormField';
+import React, { useState } from "react";
+import type { Bid, User, Vendor } from "../../../../shared/types";
+import { useUserProfile } from "../../../../contexts/UserContext";
+import DialogModal from "../../../../shared/components/ui/DialogModal";
+import { Input, Textarea } from "../../../../shared/components/ui/FormField";
 import { Button } from "../../../../shared/components/ui/Button";
-import VendorSelectorPopup from '../../../../shared/components/modals/VendorSelectorPopup';
+import VendorSelectorPopup from "../../../../shared/components/modals/VendorSelectorPopup";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 
 interface APMAddProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddProject: (projectData: Omit<Bid, 'id'>) => void;
-  onCreateProjectWithVendors?: (projectData: Omit<Bid, 'id'>, selectedVendorIds: number[]) => Promise<void>;
+  onAddProject: (projectData: Omit<Bid, "id">) => void;
+  onCreateProjectWithVendors?: (
+    projectData: Omit<Bid, "id">,
+    selectedVendorIds: number[]
+  ) => Promise<void>;
   users: User[];
   vendors?: Vendor[];
   isLoading?: boolean;
@@ -26,52 +30,58 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
   isLoading = false,
 }) => {
   const { userProfile } = useUserProfile();
-  
+
   // Find the database user that matches the current Auth0 user by email
   const getCurrentDatabaseUser = () => {
     if (!userProfile?.email) return null;
-    return users.find(user => user.email === userProfile.email) || null;
+    return users.find((user) => user.email === userProfile.email) || null;
   };
-  
+
   const getInitialFormData = () => {
     const currentDbUser = getCurrentDatabaseUser();
     return {
-      project_name: '',
-      project_address: '',
-      general_contractor: '',
-      project_description: '',
+      project_name: "",
+      project_address: "",
+      general_contractor: "",
+      project_description: "",
       // Set default values for removed fields
-      project_email: '',
-      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-      status: 'New',
+      project_email: "",
+      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0], // 30 days from now
+      status: "New",
       priority: false,
       assign_to: null,
-      file_location: '',
+      file_location: "",
       created_by: currentDbUser?.id || null,
+      gc_system: null as "Procore" | "AutoDesk" | "Email" | "Other" | null,
+      added_to_procore: false,
     };
   };
-  
+
   const [formData, setFormData] = useState(getInitialFormData());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedVendors, setSelectedVendors] = useState<Vendor[]>([]);
   const [showVendorSelector, setShowVendorSelector] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState<'Estimating' | 'APM'>('APM');
+  const [selectedDepartment, setSelectedDepartment] = useState<
+    "Estimating" | "APM"
+  >("APM");
 
   // Check if user is admin
-  const isAdmin = userProfile?.role === 'Admin';
+  const isAdmin = userProfile?.role === "Admin";
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.project_name.trim()) {
-      newErrors.project_name = 'Project name is required';
+      newErrors.project_name = "Project name is required";
     }
     if (!formData.project_address.trim()) {
-      newErrors.project_address = 'Project address is required';
+      newErrors.project_address = "Project address is required";
     }
     if (!formData.general_contractor.trim()) {
-      newErrors.general_contractor = 'General contractor is required';
+      newErrors.general_contractor = "General contractor is required";
     }
 
     setErrors(newErrors);
@@ -97,7 +107,7 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
       created_by: formData.created_by || null, // Convert empty string to null
       assign_to: formData.assign_to || null, // Convert empty string to null
       estimated_value: 0, // Add default estimated_value
-      notes: '', // Add default notes
+      notes: "", // Add default notes
       archived: false,
       archived_at: null,
       archived_by: null,
@@ -110,13 +120,15 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
       apm_on_hold: false,
       apm_on_hold_at: null,
       apm_archived: false,
-      apm_archived_at: null
+      apm_archived_at: null,
+      gc_system: formData.gc_system, // Use form data
+      added_to_procore: formData.added_to_procore, // Use form data
     };
 
     try {
       // If vendors are selected and we have the enhanced handler, use it
       if (selectedVendors.length > 0 && onCreateProjectWithVendors) {
-        const vendorIds = selectedVendors.map(vendor => vendor.id);
+        const vendorIds = selectedVendors.map((vendor) => vendor.id);
         await onCreateProjectWithVendors(projectData, vendorIds);
       } else {
         // Allow onAddProject to be synchronous or return a promise
@@ -132,17 +144,20 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
       onClose();
     } catch (err) {
       // Keep the modal open so user can see errors; consider showing toast later
-      console.error('Failed to create project', err);
+      console.error("Failed to create project", err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleInputChange = (field: keyof typeof formData, value: string | boolean | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (
+    field: keyof typeof formData,
+    value: string | boolean | number | null
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -162,7 +177,9 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
   };
 
   const removeVendor = (vendorId: number) => {
-    setSelectedVendors(prev => prev.filter(vendor => vendor.id !== vendorId));
+    setSelectedVendors((prev) =>
+      prev.filter((vendor) => vendor.id !== vendorId)
+    );
   };
 
   const footerButtons = (
@@ -179,22 +196,32 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
         type="button"
         variant="default"
         disabled={isLoading || isSubmitting}
-        onClick={() => document.getElementById('apm-add-project-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}
+        onClick={() =>
+          document
+            .getElementById("apm-add-project-form")
+            ?.dispatchEvent(
+              new Event("submit", { bubbles: true, cancelable: true })
+            )
+        }
       >
-        {isLoading || isSubmitting ? 'Creating...' : 'Create Project'}
+        {isLoading || isSubmitting ? "Creating..." : "Create Project"}
       </Button>
     </div>
   );
 
   return (
     <>
-      <DialogModal 
-        isOpen={isOpen} 
-        onClose={handleClose} 
-        title="Add New APM Project"
+      <DialogModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="Add New Project"
         footer={footerButtons}
       >
-        <form id="apm-add-project-form" onSubmit={handleSubmit} className="space-y-6">
+        <form
+          id="apm-add-project-form"
+          onSubmit={handleSubmit}
+          className="space-y-6"
+        >
           {/* Project Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -203,26 +230,15 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
             <Input
               type="text"
               value={formData.project_name}
-              onChange={(e) => handleInputChange('project_name', e.target.value)}
+              onChange={(e) =>
+                handleInputChange("project_name", e.target.value)
+              }
               placeholder="Enter project name"
               disabled={isLoading || isSubmitting}
             />
-            {errors.project_name && <p className="text-red-600 text-sm mt-1">{errors.project_name}</p>}
-          </div>
-
-          {/* General Contractor */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              General Contractor *
-            </label>
-            <Input
-              type="text"
-              value={formData.general_contractor}
-              onChange={(e) => handleInputChange('general_contractor', e.target.value)}
-              placeholder="Enter contractor name"
-              disabled={isLoading || isSubmitting}
-            />
-            {errors.general_contractor && <p className="text-red-600 text-sm mt-1">{errors.general_contractor}</p>}
+            {errors.project_name && (
+              <p className="text-red-600 text-sm mt-1">{errors.project_name}</p>
+            )}
           </div>
 
           {/* Project Address */}
@@ -233,11 +249,87 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
             <Input
               type="text"
               value={formData.project_address}
-              onChange={(e) => handleInputChange('project_address', e.target.value)}
+              onChange={(e) =>
+                handleInputChange("project_address", e.target.value)
+              }
               placeholder="Enter project address"
               disabled={isLoading || isSubmitting}
             />
-            {errors.project_address && <p className="text-red-600 text-sm mt-1">{errors.project_address}</p>}
+            {errors.project_address && (
+              <p className="text-red-600 text-sm mt-1">
+                {errors.project_address}
+              </p>
+            )}
+          </div>
+
+          {/* General Contractor */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              General Contractor *
+            </label>
+            <Input
+              type="text"
+              value={formData.general_contractor}
+              onChange={(e) =>
+                handleInputChange("general_contractor", e.target.value)
+              }
+              placeholder="Enter contractor name"
+              disabled={isLoading || isSubmitting}
+            />
+            {errors.general_contractor && (
+              <p className="text-red-600 text-sm mt-1">
+                {errors.general_contractor}
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* General Contractor System */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                General Contractor System
+              </label>
+              <select
+                value={formData.gc_system || ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  handleInputChange(
+                    "gc_system",
+                    value === ""
+                      ? null
+                      : (value as "Procore" | "AutoDesk" | "Email" | "Other")
+                  );
+                }}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-[#d4af37] focus:border-[#d4af37] sm:text-sm rounded-md"
+                disabled={isLoading || isSubmitting}
+              >
+                <option value="">Select a system type</option>
+                <option value="Procore">Procore</option>
+                <option value="AutoDesk">AutoDesk</option>
+                <option value="Email">Email</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* Added to Procore */}
+            <div className="ml-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Added to Procore
+              </label>
+              <div className="flex items-center">
+                <Checkbox
+                  checked={formData.added_to_procore || false}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("added_to_procore", checked === true)
+                  }
+                  disabled={isLoading || isSubmitting}
+                />
+                <span className="ml-2 text-sm text-gray-600">
+                  Mark only if this project <br/> 
+                  has been added to Procore
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Project Description */}
@@ -247,7 +339,9 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
             </label>
             <Textarea
               value={formData.project_description}
-              onChange={(e) => handleInputChange('project_description', e.target.value)}
+              onChange={(e) =>
+                handleInputChange("project_description", e.target.value)
+              }
               placeholder="Enter project description"
               rows={3}
               disabled={isLoading || isSubmitting}
@@ -260,7 +354,7 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Vendor Assignment
               </label>
-              
+
               {/* Add Vendors Button */}
               <div className="mb-3">
                 <Button
@@ -280,8 +374,8 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
                     Selected Vendors
                   </h4>
                   <div className="space-y-2">
-                    {selectedVendors.map(vendor => (
-                      <div 
+                    {selectedVendors.map((vendor) => (
+                      <div
                         key={vendor.id}
                         className="flex items-center justify-between bg-white border border-gray-200 rounded px-3 py-2"
                       >
@@ -300,7 +394,8 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Vendors will be assigned with default settings (status: pending, priority: normal)
+                    Vendors will be assigned with default settings (status:
+                    pending, priority: normal)
                   </p>
                 </div>
               )}
@@ -319,20 +414,30 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
                     type="radio"
                     name="department"
                     value="Estimating"
-                    checked={selectedDepartment === 'Estimating'}
-                    onChange={(e) => setSelectedDepartment(e.target.value as 'Estimating' | 'APM')}
+                    checked={selectedDepartment === "Estimating"}
+                    onChange={(e) =>
+                      setSelectedDepartment(
+                        e.target.value as "Estimating" | "APM"
+                      )
+                    }
                     className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300"
                     disabled={isLoading || isSubmitting}
                   />
-                  <span className="ml-2 block text-sm text-gray-700">Estimating</span>
+                  <span className="ml-2 block text-sm text-gray-700">
+                    Estimating
+                  </span>
                 </label>
                 <label className="flex items-center">
                   <input
                     type="radio"
                     name="department"
                     value="APM"
-                    checked={selectedDepartment === 'APM'}
-                    onChange={(e) => setSelectedDepartment(e.target.value as 'Estimating' | 'APM')}
+                    checked={selectedDepartment === "APM"}
+                    onChange={(e) =>
+                      setSelectedDepartment(
+                        e.target.value as "Estimating" | "APM"
+                      )
+                    }
                     className="h-4 w-4 text-[#d4af37] focus:ring-[#d4af37] border-gray-300"
                     disabled={isLoading || isSubmitting}
                   />

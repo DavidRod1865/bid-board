@@ -19,6 +19,7 @@ interface BidColumnsContext {
   statusErrors?: Map<number, string>;
   updatingStatus?: Set<number>;
   showEstimatingColumns?: boolean;
+  onAddedToProcoreChange?: (bidId: number, checked: boolean) => Promise<void>;
 }
 
 export function createBidColumns(
@@ -319,7 +320,7 @@ export function createBidColumns(
           return (
             <div className="flex items-center text-gray-600 text-sm min-w-0">
               <span
-                className="leading-tight overflow-hidden"
+                className="leading-tight overflow-hidden truncate"
                 style={{
                   display: "-webkit-box",
                   WebkitLineClamp: 2,
@@ -366,6 +367,83 @@ export function createBidColumns(
             </div>
           );
         },
+      },
+      {
+        id: "gc_system",
+        meta: {
+          width: "w-[15%]",
+        },
+        header: () => (
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">
+            GC System
+          </div>
+        ),
+        cell: ({ row }) => {
+          const bid = row.original;
+          const gc_system = bid.gc_system // enumerate as Procore, AutoDesk, Email, Other
+          switch (gc_system) {
+            case "Procore":
+              return (
+                <div className="flex items-center justify-center text-blue-600 text-sm">
+                  Procore
+                </div>
+              );
+            case "AutoDesk":
+              return (
+                <div className="flex items-center justify-center text-purple-600 text-sm">
+                  AutoDesk
+                </div>
+              );
+            case "Email":
+              return (
+                <div className="flex items-center justify-center text-green-600 text-sm">
+                  Email
+                </div>
+              );
+            case "Other":
+              return (
+                <div className="flex items-center justify-center text-gray-600 text-sm">
+                  Other
+                </div>
+              );
+            default:
+              return (
+                <div className="flex items-center justify-center text-gray-400 text-sm">
+                  N/A
+                </div>
+              );
+          }
+        },
+        enableSorting: false,
+      },
+      {
+        id: "added_to_procore",
+        meta: {
+          width: "w-[15%]",
+        },
+        header: () => (
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">
+            Added to Procore
+          </div>
+        ),
+        cell: ({ row }) => {
+          const bid = row.original;
+          const validProcore = bid.added_to_procore // boolean
+          if (validProcore) {
+            return (
+              <div className="flex items-center justify-center text-green-600 text-sm">
+                Yes
+              </div>
+            );
+          } else {
+            return (
+              <div className="flex items-center justify-center text-red-600 text-sm">
+                No
+              </div>
+            );
+          }
+        },
+        enableSorting: false,
       },
       {
         id: "notes",

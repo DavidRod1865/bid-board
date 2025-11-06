@@ -24,7 +24,7 @@ const DialogModal: React.FC<DialogModalProps> = ({
   onClose,
   title,
   children,
-  size = 'md',
+  size = 'lg',
   showCloseButton = true,
   footer,
   description

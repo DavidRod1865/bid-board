@@ -40,6 +40,8 @@ type RawBidData = {
   apm_on_hold_at?: string;
   apm_archived?: boolean;
   apm_archived_at?: string;
+  gc_system?: 'Procore' | 'AutoDesk' | 'Email' | 'Other' | null;
+  added_to_procore?: boolean;
   bid_vendors?: Array<BidVendor & { vendors?: { company_name: string; specialty?: string } }>;
   created_by_user?: { name: string; email: string };
   assigned_user?: { name: string; email: string };
@@ -94,7 +96,8 @@ const AppContent: React.FC = () => {
           }
           
           // Return bid without the nested bid_vendors
-          const { bid_vendors: _, ...bidWithoutVendors } = bid;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { bid_vendors, ...bidWithoutVendors } = bid;
           return bidWithoutVendors as Bid;
         });
 
@@ -154,7 +157,9 @@ const AppContent: React.FC = () => {
                 apm_on_hold: rawBid.apm_on_hold || false,
                 apm_on_hold_at: rawBid.apm_on_hold_at || null,
                 apm_archived: rawBid.apm_archived || false,
-                apm_archived_at: rawBid.apm_archived_at || null
+                apm_archived_at: rawBid.apm_archived_at || null,
+                gc_system: rawBid.gc_system || null,
+                added_to_procore: rawBid.added_to_procore || false
               };
               
               // Check if bid already exists to prevent duplicates
@@ -391,7 +396,9 @@ const AppContent: React.FC = () => {
         apm_on_hold: newBid.apm_on_hold || false,
         apm_on_hold_at: newBid.apm_on_hold_at || null,
         apm_archived: newBid.apm_archived || false,
-        apm_archived_at: newBid.apm_archived_at || null
+        apm_archived_at: newBid.apm_archived_at || null,
+        gc_system: newBid.gc_system || null,
+        added_to_procore: newBid.added_to_procore || false
       };
       
       setBids(prev => {
@@ -437,7 +444,9 @@ const AppContent: React.FC = () => {
         apm_on_hold: newBid.apm_on_hold || false,
         apm_on_hold_at: newBid.apm_on_hold_at || null,
         apm_archived: newBid.apm_archived || false,
-        apm_archived_at: newBid.apm_archived_at || null
+        apm_archived_at: newBid.apm_archived_at || null,
+        gc_system: newBid.gc_system || null,
+        added_to_procore: newBid.added_to_procore || false
       };
       
       setBids(prev => {
@@ -483,7 +492,9 @@ const AppContent: React.FC = () => {
         apm_on_hold: result.project.apm_on_hold || false,
         apm_on_hold_at: result.project.apm_on_hold_at || null,
         apm_archived: result.project.apm_archived || false,
-        apm_archived_at: result.project.apm_archived_at || null
+        apm_archived_at: result.project.apm_archived_at || null,
+        gc_system: result.project.gc_system || null,
+        added_to_procore: result.project.added_to_procore || false
       };
       
       setBids(prev => {
@@ -493,7 +504,7 @@ const AppContent: React.FC = () => {
 
       // Add vendor relationships to state
       if (result.vendorRelationships && result.vendorRelationships.length > 0) {
-        const transformedBidVendors = result.vendorRelationships.map((bv: any) => ({
+        const transformedBidVendors = result.vendorRelationships.map((bv: BidVendor) => ({
           id: bv.id,
           bid_id: bv.bid_id,
           vendor_id: bv.vendor_id,
