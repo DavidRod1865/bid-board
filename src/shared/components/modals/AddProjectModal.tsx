@@ -144,7 +144,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       apm_on_hold: false,
       apm_on_hold_at: null,
       apm_archived: false,
-      apm_archived_at: null
+      apm_archived_at: null,
+      gc_system: null, // Default GC system
+      added_to_procore: false // Default Procore status
     };
 
     try {
