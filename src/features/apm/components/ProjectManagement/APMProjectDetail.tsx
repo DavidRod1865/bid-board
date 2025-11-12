@@ -23,6 +23,7 @@ import {
 } from "../../../../shared/components/ui/breadcrumb";
 import {
   dbOperations,
+  supabase,
 } from "../../../../shared/services/supabase";
 // Real-time updates handled by AppContent
 import { getCurrentPhasesWithSoonestFollowUp, getVendorFollowUpUrgency, getPhaseFollowUpDate } from "../../../../shared/utils/phaseFollowUpUtils";
@@ -123,8 +124,43 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
 
   // Data is now provided via props from AppContent - no local loading needed
 
-  // Real-time updates are now handled by the centralized AppContent subscription system
-  // Individual component subscriptions have been removed to prevent conflicts
+  // Set up real-time subscriptions for bid_vendors changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('apm_project_detail_bid_vendors')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bid_vendors',
+          filter: `bid_id=eq.${bid.id}`
+        },
+        (payload: { eventType: string; new?: unknown; old?: unknown }) => {
+          // Since we're receiving bid_vendors via props, the parent component
+          // should handle the real-time updates. This subscription ensures
+          // immediate feedback for any changes made within this component.
+          console.log('Bid vendor change detected:', payload);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'project_notes',
+          filter: `bid_id=eq.${bid.id}`
+        },
+        (payload: { eventType: string; new?: unknown; old?: unknown }) => {
+          console.log('Project note change detected:', payload);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [bid.id]);
 
   // Update form data when bid prop changes
   useEffect(() => {

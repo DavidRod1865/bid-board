@@ -437,13 +437,7 @@ export const dbOperations = {
         created_by_user:users!created_by(name, email),
         assigned_user:users!assign_to(name, email),
         bid_vendors(
-          id,
-          vendor_id,
-          due_date,
-          response_received_date,
-          status,
-          is_priority,
-          cost_amount,
+          *,
           vendors(company_name, specialty)
         )
       `)
@@ -466,13 +460,7 @@ export const dbOperations = {
         assigned_user:users!assign_to(name, email),
         archived_by_user:users!archived_by(name, email),
         bid_vendors(
-          id,
-          vendor_id,
-          due_date,
-          response_received_date,
-          status,
-          is_priority,
-          cost_amount,
+          *,
           vendors(company_name, specialty)
         )
       `)
@@ -492,13 +480,7 @@ export const dbOperations = {
         assigned_user:users!assign_to(name, email),
         archived_by_user:users!archived_by(name, email),
         bid_vendors(
-          id,
-          vendor_id,
-          due_date,
-          response_received_date,
-          status,
-          is_priority,
-          cost_amount,
+          *,
           vendors(company_name, specialty)
         )
       `)
