@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PauseIcon } from '@heroicons/react/24/outline';
 import type { Bid, ProjectNote } from '../../../shared/types';
@@ -7,23 +7,21 @@ import PageHeader from '../../../shared/components/ui/PageHeader';
 import AlertDialog from '../../../shared/components/ui/AlertDialog';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import { createOnHoldColumns } from '../../../shared/services/table-columns/archive-columns';
-import { useToast } from '../../../shared/hooks/useToast';
+// import { useToast } from '../../../shared/hooks/useToast';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
-import { dbOperations } from '../../../shared/services/supabase';
 import { isDateInRange } from '../../../shared/utils/formatters';
 import { getStatusColor } from '../../../shared/utils/statusUtils';
 
 interface OnHoldProps {
+  bids?: Bid[];
   onAddVendor?: () => void;
   onBidRestored?: (bid: Bid) => void;
   projectNotes?: ProjectNote[];
 }
 
-const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
-  const [onHoldBids, setOnHoldBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const OnHold: React.FC<OnHoldProps> = ({ bids = [], projectNotes = [] }) => {
+  const [error] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{startDate: Date | null, endDate: Date | null}>({
@@ -46,8 +44,7 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
     onActionComplete: (_, result) => {
       if (result.success) {
         clearSelection();
-        // Refresh data after successful bulk operation
-        loadOnHoldBids();
+        // Data refreshes automatically via real-time system in AppContent
       }
     }
   });
@@ -55,42 +52,7 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
   // Clear selection when filters change
   useClearSelectionOnFilterChange(clearSelection, [searchTerm, statusFilter.length, dateRange]);
 
-  const { showError } = useToast();
-
-  const loadOnHoldBids = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      // Get all bids and filter for on-hold bids client-side
-      const data = await dbOperations.getBids();
-      
-      // Filter for on-hold bids (archived = false, on_hold = true, not sent to APM)
-      const onHoldOnly = data.filter((bid: Bid) => 
-        !bid.archived && 
-        bid.on_hold &&
-        !bid.sent_to_apm
-      );
-      
-      // Transform the data to match our Bid interface
-      const transformedBids = onHoldOnly.map((bid: Record<string, unknown>) => ({
-        ...bid,
-        created_by_user: bid.created_by_user,
-        assigned_user: bid.assigned_user,
-        on_hold_by_user: bid.on_hold_by_user
-      }));
-      
-      setOnHoldBids(transformedBids as unknown as Bid[]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load on-hold bids');
-      showError('Error', 'Failed to load on-hold bids');
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
-
-  useEffect(() => {
-    loadOnHoldBids();
-  }, [loadOnHoldBids]);
+  // const { showError } = useToast();
 
 
   // Bulk action handlers
@@ -125,11 +87,11 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
 
   // Filter bids based on search term and filters
   const filteredBids = useMemo(() => {
-    if (!onHoldBids || onHoldBids.length === 0) {
+    if (!bids || bids.length === 0) {
       return [];
     }
 
-    let filtered = onHoldBids;
+    let filtered = bids;
     
     // Filter by search term
     if (searchTerm) {
@@ -153,7 +115,7 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
     }
     
     return filtered;
-  }, [onHoldBids, searchTerm, statusFilter, dateRange]);
+  }, [bids, searchTerm, statusFilter, dateRange]);
 
 
   // Helper function to get most recent note for a bid
@@ -175,7 +137,7 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
       projectNotes,
       getMostRecentNote
     });
-  }, [projectNotes]);
+  }, [projectNotes, getMostRecentNote]);
 
   // Row selection for DataTable
   const rowSelection = useMemo(() => {
@@ -202,23 +164,6 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
   // Dummy handlers for sidebar (on-hold page doesn't need these)
   const handleStatusFilter = () => {};
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar
-          statusFilter={[]}
-          setStatusFilter={handleStatusFilter}
-        />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#d4af37] mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading on-hold bids...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -232,7 +177,7 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading On-Hold Bids</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <button 
-              onClick={loadOnHoldBids}
+              onClick={() => window.location.reload()}
               className="px-4 py-2 bg-[#d4af37] text-white rounded-md hover:bg-[#b8941f] transition-colors"
             >
               Try Again
@@ -305,7 +250,7 @@ const OnHold: React.FC<OnHoldProps> = ({ projectNotes = [] }) => {
               });
             }}
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
-            isLoading={loading}
+            isLoading={false}
             emptyMessage={
               searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
                 ? 'No matching on-hold bids'

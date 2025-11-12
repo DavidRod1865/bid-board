@@ -110,7 +110,8 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
         
         {/* Individual notes */}
         {projectNotes.map((note) => {
-          const noteAuthor = users.find(u => u.id === note.user_id);
+          // Use joined user data from the note if available, otherwise fall back to users array
+          const noteAuthor = note.user || users.find(u => u.id === note.user_id);
           
           return (
             <div
@@ -137,7 +138,12 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
                 </button>
               </div>
               <div className="flex justify-between items-center text-xs text-gray-600">
-                <span className="font-semibold text-gray-700">
+                <span 
+                  className="font-semibold"
+                  style={{ 
+                    color: noteAuthor?.color_preference || '#374151' 
+                  }}
+                >
                   {noteAuthor?.name || 'Unknown User'}
                 </span>
                 <span className="italic">

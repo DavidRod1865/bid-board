@@ -10,6 +10,7 @@ interface ProjectDetailWrapperProps {
   users: User[];
   vendors: Vendor[];
   bidVendors: BidVendor[];
+  projectNotes: import('../../../../shared/types').ProjectNote[];
   onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   onDeleteBid: (bidId: number) => Promise<void>;
   onAddBidVendor: (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => Promise<void>;
@@ -88,8 +89,15 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
     // Render ProjectDetail component with the determined project
     <ProjectDetail 
       bid={projectToShow}
+      bidVendors={props.bidVendors}
+      projectNotes={props.projectNotes}
+      vendors={props.vendors}
+      users={props.users}
       onUpdateBid={props.onUpdateBid}
       onDeleteBid={props.onDeleteBid}
+      onAddBidVendor={props.onAddBidVendor}
+      onUpdateBidVendor={props.onUpdateBidVendor}
+      onRemoveBidVendors={props.onRemoveBidVendors}
     />
   );
 };

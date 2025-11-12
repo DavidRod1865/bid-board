@@ -34,6 +34,10 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
     notes: "",
     specialty: "",
     is_priority: false,
+    vendor_type: "Vendor",
+    insurance_expiry_date: null,
+    insurance_notes: "",
+    primary_contact_id: null,
   });
 
   // Sidebar state
@@ -66,6 +70,10 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
           notes: foundVendor.notes || "",
           specialty: foundVendor.specialty || "",
           is_priority: foundVendor.is_priority || false,
+          vendor_type: foundVendor.vendor_type || "Vendor",
+          insurance_expiry_date: foundVendor.insurance_expiry_date || null,
+          insurance_notes: foundVendor.insurance_notes || "",
+          primary_contact_id: foundVendor.primary_contact_id || null,
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load vendor");
@@ -77,6 +85,34 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
 
     fetchVendor();
   }, [id]);
+
+  // Create refresh function for vendor updates
+  const refreshVendor = async () => {
+    if (!id) return;
+    
+    try {
+      const foundVendor = await dbOperations.getVendor(parseInt(id));
+      setVendor(foundVendor);
+      
+      // Update form data with refreshed vendor data
+      setFormData({
+        company_name: foundVendor.company_name || "",
+        address: foundVendor.address || "",
+        contact_person: foundVendor.contact_person || "",
+        phone: foundVendor.phone || "",
+        email: foundVendor.email || "",
+        notes: foundVendor.notes || "",
+        specialty: foundVendor.specialty || "",
+        is_priority: foundVendor.is_priority || false,
+        vendor_type: foundVendor.vendor_type || "Vendor",
+        insurance_expiry_date: foundVendor.insurance_expiry_date || null,
+        insurance_notes: foundVendor.insurance_notes || "",
+        primary_contact_id: foundVendor.primary_contact_id || null,
+      });
+    } catch (err) {
+      console.error('Error refreshing vendor:', err);
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -226,6 +262,7 @@ const VendorDetail: React.FC<VendorDetailProps> = ({
               formData={formData}
               setFormData={setFormData}
               isEditing={isEditing}
+              onVendorUpdated={refreshVendor}
             />
           </div>
         </div>

@@ -6,19 +6,49 @@ export interface User {
   color_preference: string;
 }
 
+// Vendor Type ENUM matching database
+export type VendorType = 'Vendor' | 'Subcontractor' | 'General Contractor';
+
+// Contact Type ENUM matching database (capitalized as per user's update)
+export type ContactType = 'Office' | 'General Contractor' | 'Sales' | 'Billing';
+
 export interface Vendor {
   id: number;
   company_name: string;
   address: string | null;
-  contact_person: string | null;
-  phone: string | null;
-  email: string | null;
+  contact_person: string | null; // Keep for backward compatibility
+  phone: string | null; // Keep for backward compatibility
+  email: string | null; // Keep for backward compatibility
   notes: string | null;
   specialty?: string | null;
   is_priority?: boolean;
+  vendor_type: VendorType;
+  insurance_expiry_date: string | null;
+  insurance_notes: string | null;
+  primary_contact_id: number | null;
   created_at?: string;
   updated_at?: string;
   created_by?: string | null;
+}
+
+export interface VendorContact {
+  id: number;
+  vendor_id: number;
+  contact_name: string;
+  contact_title: string | null;
+  phone: string | null;
+  email: string | null;
+  contact_type: ContactType;
+  is_primary: boolean;
+  is_emergency_contact: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Extended vendor type that includes primary contact information
+export interface VendorWithContact extends Vendor {
+  primary_contact: Pick<VendorContact, 'id' | 'contact_name' | 'contact_title' | 'phone' | 'email' | 'contact_type'> | null;
 }
 
 export interface Bid {
@@ -166,6 +196,10 @@ export interface ProjectNote {
   user_id: string;
   content: string;
   created_at: string;
+  user?: {
+    name: string;
+    color_preference: string;
+  };
 }
 
 export interface DashboardData {

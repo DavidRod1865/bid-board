@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
 // Importing types
-import type { User, Bid, Vendor, BidVendor, ProjectNote } from './shared/types';
+import type { User, Bid, Vendor, VendorWithContact, BidVendor, ProjectNote } from './shared/types';
+import type { ContactData } from './features/estimating/components/VendorManagement/VendorCreationWizard';
 
 // Importing Supabase operations and realtime manager
-import { dbOperations, realtimeManager, supabase } from './shared/services/supabase';
+import { dbOperations, realtimeManager } from './shared/services/supabase';
 import { getDefaultAPMFields } from './shared/utils/bidVendorDefaults';
 
 // Import the new routing structure
@@ -47,19 +48,13 @@ type RawBidData = {
   assigned_user?: { name: string; email: string };
 };
 
-// Realtime payload type for Supabase subscriptions
-type RealtimePayload = {
-  eventType?: string;
-  event?: string;
-  new?: Record<string, unknown>;
-  old?: Record<string, unknown>;
-};
+// (RealtimePayload type removed - handled in supabase.ts now)
 
 
 // AppContent component definition
 const AppContent: React.FC = () => {
   const [bids, setBids] = useState<Bid[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<VendorWithContact[]>([]);
   const [bidVendors, setBidVendors] = useState<BidVendor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
@@ -102,7 +97,7 @@ const AppContent: React.FC = () => {
         });
 
         setBids(transformedBids); // Set transformed bids without nested bid_vendors (see above)
-        setVendors(vendorsData || []); // Set vendors
+        setVendors((vendorsData as VendorWithContact[]) || []); // Set vendors
         setBidVendors(extractedBidVendors); // Set extracted bid vendors (see above)
         setUsers(usersData || []); // Set users
         setProjectNotes(projectNotesData || []); // Set project notes
@@ -117,210 +112,32 @@ const AppContent: React.FC = () => {
     loadInitialData();
   }, []);
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions for instant updates
   useEffect(() => {
-    // Subscribe to bid changes
-    realtimeManager.subscribeToBids((payload: RealtimePayload) => {
-      const eventType = payload.eventType || payload.event;
-      switch (eventType) {
-        case 'INSERT':
-          if (payload.new && typeof payload.new === 'object') {
-            // Transform the payload to match our Bid interface
-            const rawBid = payload.new as RawBidData;
-            if (rawBid.id && (rawBid.title || rawBid.project_name)) {
-              // Transform to match the structure from getBids() 
-              const transformedBid: Bid = {
-                id: rawBid.id,
-                title: rawBid.title || rawBid.project_name,
-                project_name: rawBid.project_name,
-                project_email: rawBid.project_email || null,
-                project_address: rawBid.project_address || null,
-                general_contractor: rawBid.general_contractor || null,
-                project_description: rawBid.project_description || null,
-                due_date: rawBid.due_date,
-                status: rawBid.status,
-                priority: rawBid.priority,
-                estimated_value: rawBid.estimated_value || null,
-                notes: rawBid.notes || null,
-                created_by: rawBid.created_by || null,
-                assign_to: rawBid.assign_to || null,
-                file_location: rawBid.file_location || null,
-                archived: rawBid.archived || false,
-                archived_at: rawBid.archived_at || null,
-                archived_by: rawBid.archived_by || null,
-                on_hold: rawBid.on_hold || false,
-                on_hold_at: rawBid.on_hold_at || null,
-                on_hold_by: rawBid.on_hold_by || null,
-                department: rawBid.department,
-                sent_to_apm: rawBid.sent_to_apm || false,
-                sent_to_apm_at: rawBid.sent_to_apm_at || null,
-                apm_on_hold: rawBid.apm_on_hold || false,
-                apm_on_hold_at: rawBid.apm_on_hold_at || null,
-                apm_archived: rawBid.apm_archived || false,
-                apm_archived_at: rawBid.apm_archived_at || null,
-                gc_system: rawBid.gc_system || null,
-                added_to_procore: rawBid.added_to_procore || false
-              };
-              
-              // Check if bid already exists to prevent duplicates
-              setBids(prev => {
-                const exists = prev.some(bid => bid.id === transformedBid.id);
-                return exists ? prev : [...prev, transformedBid];
-              });
-            }
-          }
-          break;
-        case 'UPDATE':
-          if (payload.new && typeof payload.new === 'object') {
-            const updatedBid = payload.new as RawBidData;
-            if (updatedBid.id) {
-              setBids(prev => prev.map(bid => 
-                bid.id === updatedBid.id ? { ...bid, ...updatedBid } as Bid : bid
-              ));
-            }
-          }
-          break;
-        case 'DELETE':
-          if (payload.old && typeof payload.old === 'object') {
-            const deletedBid = payload.old as RawBidData;
-            if (deletedBid.id) {
-              setBids(prev => prev.filter(bid => bid.id !== deletedBid.id));
-            }
-          }
-          break;
+    // Pass state setters to RealtimeManager for direct state updates
+    realtimeManager.setStateUpdaters({
+      setBids: (newBids) => {
+        setBids(newBids);
+      },
+      setVendors: (newVendors) => {
+        setVendors(newVendors);
+      },
+      setBidVendors: (newBidVendors) => {
+        setBidVendors(newBidVendors);
+      },
+      setProjectNotes: (newNotes) => {
+        setProjectNotes(newNotes);
       }
     });
+    
+    // Set up real-time subscriptions with direct state updates
+    realtimeManager.subscribeToDataChanges(() => {
+      // Real-time notifications will be handled by updated RealtimeManager
+    });
 
-    // Subscribe to bid_vendors changes for real-time vendor response updates
-    const bidVendorsChannel = supabase
-      .channel('bid_vendors_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'bid_vendors'
-        },
-        (payload: RealtimePayload) => {
-          const bidVendorEventType = payload.eventType || payload.event;
-          switch (bidVendorEventType) {
-            case 'INSERT':
-              if (payload.new && typeof payload.new === 'object') {
-                const newBidVendor = payload.new as unknown as BidVendor;
-                setBidVendors(prev => [...prev, newBidVendor]);
-              }
-              break;
-            case 'UPDATE':
-              if (payload.new && typeof payload.new === 'object') {
-                const updatedBidVendor = payload.new as unknown as BidVendor;
-                setBidVendors(prev => prev.map(bv => 
-                  bv.id === updatedBidVendor.id ? updatedBidVendor : bv
-                ));
-              }
-              break;
-            case 'DELETE':
-              if (payload.old && typeof payload.old === 'object') {
-                const deletedBidVendor = payload.old as unknown as BidVendor;
-                setBidVendors(prev => prev.filter(bv => bv.id !== deletedBidVendor.id));
-              }
-              break;
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to vendors changes for real-time vendor list updates
-    const vendorsChannel = supabase
-      .channel('vendors_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vendors'
-        },
-        (payload: RealtimePayload) => {
-          const vendorEventType = payload.eventType || payload.event;
-          switch (vendorEventType) {
-            case 'INSERT':
-              if (payload.new && typeof payload.new === 'object') {
-                const newVendor = payload.new as unknown as Vendor;
-                // Check for duplicates before adding
-                setVendors(prev => {
-                  const exists = prev.some(v => v.id === newVendor.id);
-                  return exists ? prev : [...prev, newVendor];
-                });
-              }
-              break;
-            case 'UPDATE':
-              if (payload.new && typeof payload.new === 'object') {
-                const updatedVendor = payload.new as unknown as Vendor;
-                setVendors(prev => prev.map(v => 
-                  v.id === updatedVendor.id ? updatedVendor : v
-                ));
-              }
-              break;
-            case 'DELETE':
-              if (payload.old && typeof payload.old === 'object') {
-                const deletedVendor = payload.old as unknown as Vendor;
-                setVendors(prev => prev.filter(v => v.id !== deletedVendor.id));
-              }
-              break;
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to project notes changes for real-time notes updates
-    const projectNotesChannel = supabase
-      .channel('project_notes_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'project_notes'
-        },
-        (payload: RealtimePayload) => {
-          const noteEventType = payload.eventType || payload.event;
-          switch (noteEventType) {
-            case 'INSERT':
-              if (payload.new && typeof payload.new === 'object') {
-                const newNote = payload.new as unknown as ProjectNote;
-                setProjectNotes(prev => [...prev, newNote]);
-              }
-              break;
-            case 'UPDATE':
-              if (payload.new && typeof payload.new === 'object') {
-                const updatedNote = payload.new as unknown as ProjectNote;
-                setProjectNotes(prev => prev.map(n => 
-                  n.id === updatedNote.id ? updatedNote : n
-                ));
-              }
-              break;
-            case 'DELETE':
-              if (payload.old && typeof payload.old === 'object') {
-                const deletedNote = payload.old as unknown as ProjectNote;
-                setProjectNotes(prev => prev.filter(n => n.id !== deletedNote.id));
-              }
-              break;
-          }
-        }
-      )
-      .subscribe();
-
-
-    // Cleanup subscriptions on unmount
+    // Cleanup function
     return () => {
-      // Clean up all subscriptions to prevent memory leaks
-      try {
-        realtimeManager.unsubscribeAll();
-        bidVendorsChannel.unsubscribe();
-        vendorsChannel.unsubscribe();
-        projectNotesChannel.unsubscribe();
-      } catch (error) {
-        console.warn('Error during subscription cleanup:', error);
-      }
+      realtimeManager.unsubscribeAll();
     };
   }, []);
 
@@ -329,14 +146,19 @@ const AppContent: React.FC = () => {
     try {
       // Update bid status in the database
       await dbOperations.updateBid(bidId, { status: newStatus });
+      
       // Update bid status in local state
       setBids(prevBids => 
         prevBids.map(bid => 
           bid.id === bidId ? { ...bid, status: newStatus } : bid
         )
       );
+      
+      // Real-time subscription will handle UI updates automatically
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update bid status');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update bid status';
+      setError(errorMessage);
     }
   };
 
@@ -356,8 +178,12 @@ const AppContent: React.FC = () => {
           )
         );
       }
+      
+      // Real-time subscription will handle UI updates automatically
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update bid');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update bid';
+      setError(errorMessage);
     }
   };
 
@@ -539,13 +365,16 @@ const AppContent: React.FC = () => {
   };
 
   // Handler functions for vendor management
-  const handleAddVendor = async (vendorData: Omit<Vendor, 'id'>) => {
+  const handleAddVendor = async (vendorData: Omit<Vendor, 'id'>, contacts: ContactData[] = []) => {
     try {
-      const newVendor = await dbOperations.createVendor(vendorData);
-      // Let real-time subscription handle state update to prevent duplicates
-      return newVendor;
+      const result = await dbOperations.createVendorWithContacts(vendorData, contacts);
+      
+      // Real-time subscription will handle UI updates automatically
+      
+      return result.vendor;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add vendor');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add vendor';
+      setError(errorMessage);
       throw err;
     }
   };
@@ -554,9 +383,21 @@ const AppContent: React.FC = () => {
   const handleUpdateVendor = async (vendorId: number, updatedVendor: Partial<Vendor>) => {
     try {
       await dbOperations.updateVendor(vendorId, updatedVendor);
+      
+      // For legacy vendors, ensure primary contact sync
+      // This helps fix vendors that may not have proper primary_contact_id set
+      try {
+        await dbOperations.syncVendorPrimaryContact(vendorId);
+      } catch (syncError) {
+        // Don't fail the update if sync fails, just log it
+        console.warn('Failed to sync primary contact for vendor:', vendorId, syncError);
+      }
+      
       // Let real-time subscription handle state update to prevent conflicts
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update vendor');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update vendor';
+      setError(errorMessage);
+      throw err; // Re-throw so the UI component can handle it
     }
   };
 
@@ -564,9 +405,13 @@ const AppContent: React.FC = () => {
   const handleDeleteVendor = async (vendorId: number) => {
     try {
       await dbOperations.deleteVendor(vendorId);
-      // Let real-time subscription handle state update to prevent conflicts
+      
+      // Real-time subscription will handle UI updates automatically
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete vendor');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete vendor';
+      setError(errorMessage);
+      throw err; // Re-throw so the UI component can handle it
     }
   };
 
@@ -657,6 +502,11 @@ const AppContent: React.FC = () => {
     });
   };
 
+  // Handler function to force vendor refresh
+  const handleVendorUpdated = () => {
+    // Real-time subscription will handle UI updates automatically
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -709,6 +559,7 @@ const AppContent: React.FC = () => {
         handleUpdateBidVendor={handleUpdateBidVendor}
         handleRemoveBidVendors={handleRemoveBidVendors}
         handleBidRestored={handleBidRestored}
+        handleVendorUpdated={handleVendorUpdated}
       />
     </div>
   );

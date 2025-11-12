@@ -23,9 +23,8 @@ import {
 } from "../../../../shared/components/ui/breadcrumb";
 import {
   dbOperations,
-  realtimeManager,
 } from "../../../../shared/services/supabase";
-import supabase from "../../../../shared/services/supabase";
+// Real-time updates handled by AppContent
 import { getCurrentPhasesWithSoonestFollowUp, getVendorFollowUpUrgency, getPhaseFollowUpDate } from "../../../../shared/utils/phaseFollowUpUtils";
 import {
   UserPlusIcon,
@@ -41,6 +40,10 @@ import { Checkbox } from "../../../../shared/components/ui/checkbox";
 
 interface APMProjectDetailProps {
   bid: Bid;
+  bidVendors: BidVendor[];
+  projectNotes: ProjectNote[];
+  vendors: Vendor[];
+  users: User[];
   onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   onDeleteBid: (bidId: number) => Promise<void>;
   onUpdateBidVendor: (
@@ -51,6 +54,10 @@ interface APMProjectDetailProps {
 
 const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   bid,
+  bidVendors,
+  projectNotes,
+  vendors,
+  users,
   onUpdateBid,
   onDeleteBid,
   onUpdateBidVendor,
@@ -68,17 +75,19 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   );
   const [isVendorLoading, setIsVendorLoading] = useState(false);
 
-  // Loading states
-  const [isLoadingNotes, setIsLoadingNotes] = useState(true);
-  const [isLoadingVendors, setIsLoadingVendors] = useState(true);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  // State that's still needed
   const [error, setError] = useState<string | null>(null);
-
-  // Data states
-  const [users, setUsers] = useState<User[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [projectVendors, setProjectVendors] = useState<BidVendor[]>([]);
-  const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
+  // const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Filter bid vendors for this specific project
+  const projectVendors = bidVendors.filter(bv => bv.bid_id === bid.id);
+  // Filter project notes for this specific project  
+  const filteredProjectNotes = projectNotes.filter(note => note.bid_id === bid.id);
+  
+  // Set current user from users prop
+  useEffect(() => {
+    setCurrentUser(users[0] || null);
+  }, [users]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Sidebar state
@@ -112,113 +121,10 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
     added_to_procore: bid.added_to_procore,
   });
 
-  // Load initial data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setError(null);
+  // Data is now provided via props from AppContent - no local loading needed
 
-        // Load vendors, users, notes, and project data in parallel
-        const [vendorsData, usersData, notesData] = await Promise.all([
-          dbOperations.getVendors(),
-          dbOperations.getUsers(),
-          dbOperations.getProjectNotes(bid.id),
-        ]);
-
-        setUsers(usersData);
-        setCurrentUser(usersData[0] || null);
-        setVendors(vendorsData);
-        setProjectNotes(
-          notesData.map((note) => ({
-            id: note.id,
-            bid_id: note.bid_id,
-            user_id: note.user_id,
-            content: note.content,
-            created_at: note.created_at,
-          }))
-        );
-
-        // Load bid vendors for this project
-        const { data: bidVendorsData, error: bidVendorsError } = await supabase
-          .from("bid_vendors")
-          .select("*")
-          .eq("bid_id", bid.id);
-
-        if (bidVendorsError) throw bidVendorsError;
-        setProjectVendors(bidVendorsData || []);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load project data"
-        );
-      } finally {
-        setIsLoadingNotes(false);
-        setIsLoadingVendors(false);
-        setIsLoadingUsers(false);
-      }
-    };
-
-    loadData();
-  }, [bid.id]);
-
-  // Set up real-time subscriptions for project-specific updates
-  useEffect(() => {
-    // Subscribe to project notes changes
-    realtimeManager.subscribeToProjectNotes(bid.id, (payload) => {
-      if (payload.eventType === "INSERT" && payload.new) {
-        const newNote = payload.new as unknown as ProjectNote;
-        if (newNote.id && newNote.bid_id === bid.id) {
-          setProjectNotes((prev) => [newNote, ...prev]);
-        }
-      } else if (payload.eventType === "UPDATE" && payload.new) {
-        const updatedNote = payload.new as unknown as ProjectNote;
-        if (updatedNote.id) {
-          setProjectNotes((prev) =>
-            prev.map((note) =>
-              note.id === updatedNote.id ? updatedNote : note
-            )
-          );
-        }
-      } else if (payload.eventType === "DELETE" && payload.old) {
-        const deletedNote = payload.old as unknown as ProjectNote;
-        if (deletedNote.id) {
-          setProjectNotes((prev) =>
-            prev.filter((note) => note.id !== deletedNote.id)
-          );
-        }
-      }
-    });
-
-    // Subscribe to bid vendors changes
-    realtimeManager.subscribeToBidVendors(bid.id, (payload) => {
-      if (payload.eventType === "INSERT" && payload.new) {
-        const newBidVendor = payload.new as unknown as BidVendor;
-        if (newBidVendor.id && newBidVendor.vendor_id) {
-          setProjectVendors((prev) => [...prev, newBidVendor]);
-        }
-      } else if (payload.eventType === "UPDATE" && payload.new) {
-        const updatedBidVendor = payload.new as unknown as BidVendor;
-        if (updatedBidVendor.id) {
-          setProjectVendors((prev) =>
-            prev.map((bv) =>
-              bv.id === updatedBidVendor.id ? updatedBidVendor : bv
-            )
-          );
-        }
-      } else if (payload.eventType === "DELETE" && payload.old) {
-        const deletedBidVendor = payload.old as unknown as BidVendor;
-        if (deletedBidVendor.id) {
-          setProjectVendors((prev) =>
-            prev.filter((bv) => bv.id !== deletedBidVendor.id)
-          );
-        }
-      }
-    });
-
-    return () => {
-      realtimeManager.unsubscribe(`project_notes_${bid.id}`);
-      realtimeManager.unsubscribe(`bid_vendors_${bid.id}`);
-    };
-  }, [bid.id]);
+  // Real-time updates are now handled by the centralized AppContent subscription system
+  // Individual component subscriptions have been removed to prevent conflicts
 
   // Update form data when bid prop changes
   useEffect(() => {
@@ -372,10 +278,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
         bidVendorIds.map((id) => dbOperations.removeVendorFromBid(id))
       );
 
-      // Update local state to reflect the removal
-      setProjectVendors((prev) =>
-        prev.filter((bv) => !vendorsToRemove.includes(bv.vendor_id))
-      );
+      // Removal will be reflected via real-time updates from AppContent
 
       // Close modal and reset state
       setShowRemoveVendorsModal(false);
@@ -407,8 +310,8 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   };
 
   const handleAddNoteSubmit = async (content: string) => {
-    if (!currentUser) return;
-    await dbOperations.createProjectNote(bid.id, content, currentUser.id);
+    // Let the database function auto-detect current user via Auth
+    await dbOperations.createProjectNote(bid.id, content);
   };
 
   const confirmDeleteProject = async () => {
@@ -491,7 +394,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
     }
   };
 
-  const isLoading = isLoadingNotes || isLoadingVendors || isLoadingUsers;
+  const isLoading = false; // Data comes from props
 
   // Helper functions to determine APM project state
   const isAPMActive = bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold;
@@ -1047,8 +950,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           return 'None scheduled';
                         }
                         
-                        // Debug: Console log all dates to see what we're finding
-                        console.log('All follow-up dates found:', allFollowUpDates);
                         
                         // Find the earliest date using safe date comparison (avoiding timezone issues)
                         const earliestDateStr = allFollowUpDates
@@ -1062,7 +963,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                             return parseDate(a).getTime() - parseDate(b).getTime();
                           })[0];
                         
-                        console.log('Earliest date string:', earliestDateStr);
                         
                         // Format the date safely (same approach as vendor table)
                         const formatDateSafe = (dateString: string): string => {
@@ -1142,7 +1042,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     {
                       id: "notes",
                       label: "Notes",
-                      count: projectNotes.length,
+                      count: filteredProjectNotes.length,
                     },
                   ].map((tab) => (
                     <button
@@ -1241,8 +1141,8 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     <ProjectNotes
                       bid={bid}
                       users={users}
-                      projectNotes={projectNotes}
-                      setProjectNotes={setProjectNotes}
+                      projectNotes={filteredProjectNotes}
+                      setProjectNotes={() => {}} // Read-only for now, notes updated via real-time
                     />
                   )}
                   {!currentUser && (

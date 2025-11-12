@@ -10,6 +10,7 @@ interface APMProjectDetailWrapperProps {
   users: User[];
   vendors: Vendor[];
   bidVendors: BidVendor[];
+  projectNotes: import('../../../../shared/types').ProjectNote[];
   onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   onDeleteBid: (bidId: number) => Promise<void>;
   onUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
@@ -101,6 +102,10 @@ const APMProjectDetailWrapper: React.FC<APMProjectDetailWrapperProps> = (props) 
     // Render APMProjectDetail component with the determined APM project
     <APMProjectDetail 
       bid={projectToShow}
+      bidVendors={props.bidVendors}
+      projectNotes={props.projectNotes}
+      vendors={props.vendors}
+      users={props.users}
       onUpdateBid={props.onUpdateBid}
       onDeleteBid={props.onDeleteBid}
       onUpdateBidVendor={props.onUpdateBidVendor}

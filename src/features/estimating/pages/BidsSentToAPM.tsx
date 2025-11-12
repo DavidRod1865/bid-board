@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import type { Bid, ProjectNote } from '../../../shared/types';
@@ -7,23 +7,20 @@ import PageHeader from '../../../shared/components/ui/PageHeader';
 import AlertDialog from '../../../shared/components/ui/AlertDialog';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import { createSentToAPMColumns } from '../../../shared/services/table-columns/sent-to-apm-columns';
-import { useToast } from '../../../shared/hooks/useToast';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
-import { dbOperations } from '../../../shared/services/supabase';
 import { isDateInRange } from '../../../shared/utils/formatters';
 import { getStatusColor } from '../../../shared/utils/statusUtils';
 
 interface BidsSentToAPMProps {
+  bids?: Bid[];
   onAddVendor?: () => void;
   onBidRestored?: (bid: Bid) => void;
   projectNotes?: ProjectNote[];
 }
 
-const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
-  const [sentBids, setSentBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes = [] }) => {
+  const [error] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{startDate: Date | null, endDate: Date | null}>({
@@ -46,47 +43,13 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
     onActionComplete: (_, result) => {
       if (result.success) {
         clearSelection();
-        // Refresh data after successful bulk operation
-        loadSentBids();
+        // Data refreshes automatically via real-time system in AppContent
       }
     }
   });
 
   // Clear selection when filters change
   useClearSelectionOnFilterChange(clearSelection, [searchTerm, statusFilter.length, dateRange]);
-
-  const { showError } = useToast();
-
-  const loadSentBids = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      // Get all bids and filter for sent to APM bids client-side
-      const data = await dbOperations.getBids();
-      
-      // Filter for bids sent to APM (sent_to_apm = true)
-      const sentOnly = data.filter((bid: Bid) => bid.sent_to_apm === true);
-      
-      // Transform the data to match our Bid interface
-      const transformedBids = sentOnly.map((bid: Record<string, unknown>) => ({
-        ...bid,
-        created_by_user: bid.created_by_user,
-        assigned_user: bid.assigned_user,
-        sent_to_apm_user: bid.sent_to_apm_user
-      }));
-      
-      setSentBids(transformedBids as unknown as Bid[]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sent bids');
-      showError('Error', 'Failed to load bids sent to APM');
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
-
-  useEffect(() => {
-    loadSentBids();
-  }, [loadSentBids]);
 
 
   // Bulk action handlers
@@ -107,11 +70,11 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
 
   // Filter bids based on search term and filters
   const filteredBids = useMemo(() => {
-    if (!sentBids || sentBids.length === 0) {
+    if (!bids || bids.length === 0) {
       return [];
     }
 
-    let filtered = sentBids;
+    let filtered = bids;
     
     // Filter by search term
     if (searchTerm) {
@@ -135,7 +98,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
     }
     
     return filtered;
-  }, [sentBids, searchTerm, statusFilter, dateRange]);
+  }, [bids, searchTerm, statusFilter, dateRange]);
 
 
   // Helper function to get most recent note for a bid
@@ -157,7 +120,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
       projectNotes,
       getMostRecentNote
     });
-  }, [projectNotes]);
+  }, [projectNotes, getMostRecentNote]);
 
   // Row selection for DataTable
   const rowSelection = useMemo(() => {
@@ -184,23 +147,6 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
   // Dummy handlers for sidebar (sent to APM page doesn't need these)
   const handleStatusFilter = () => {};
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar
-          statusFilter={[]}
-          setStatusFilter={handleStatusFilter}
-        />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#d4af37] mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading bids sent to APM...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -214,7 +160,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Sent Bids</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <button 
-              onClick={loadSentBids}
+              onClick={() => window.location.reload()}
               className="px-4 py-2 bg-[#d4af37] text-white rounded-md hover:bg-[#b8941f] transition-colors"
             >
               Try Again
@@ -285,7 +231,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ projectNotes = [] }) => {
               });
             }}
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
-            isLoading={loading}
+            isLoading={false}
             emptyMessage={
               searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
                 ? 'No matching sent bids'

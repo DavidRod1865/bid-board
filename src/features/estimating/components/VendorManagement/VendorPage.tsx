@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import type { Vendor } from "../../../../shared/types";
+import type { Vendor, VendorWithContact } from "../../../../shared/types";
+import type { ContactData } from "./VendorCreationWizard";
 import Sidebar from "../../../../shared/components/ui/Sidebar";
 import VendorList from "./VendorList";
 import AddVendorModal from "./AddVendorModal";
@@ -9,12 +10,13 @@ import { useToast } from "../../../../shared/hooks/useToast";
 import { useBulkSelection } from "../../../../shared/hooks/useBulkSelection";
 
 interface VendorPageProps {
-  vendors: Vendor[];
+  vendors: VendorWithContact[];
   isLoading?: boolean;
   error?: string | null;
-  onAddVendor?: (vendorData: Omit<Vendor, "id">) => Promise<void>;
+  onAddVendor?: (vendorData: Omit<Vendor, "id">, contacts: ContactData[]) => Promise<void>;
   onEditVendor?: (vendorId: number, vendorData: Partial<Vendor>) => Promise<void>;
   onDeleteVendor?: (vendorId: number) => Promise<void>;
+  onVendorUpdated?: () => void;
 }
 
 const VendorPage: React.FC<VendorPageProps> = ({
@@ -24,12 +26,13 @@ const VendorPage: React.FC<VendorPageProps> = ({
   onAddVendor,
   onEditVendor,
   onDeleteVendor,
+  onVendorUpdated,
 }) => {
   const { showSuccess, showError } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isOperationLoading, setIsOperationLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
+  const [vendorToDelete, setVendorToDelete] = useState<VendorWithContact | null>(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   
   // Bulk selection hooks for vendors
@@ -40,30 +43,6 @@ const VendorPage: React.FC<VendorPageProps> = ({
   } = useBulkSelection();
   
 
-  const handleEditVendor = async (vendorId: number) => {
-    if (!onEditVendor) {
-      return;
-    }
-    
-    setIsOperationLoading(true);
-    try {
-      // This would open an edit modal in a full implementation
-      // For now, just call the handler with empty data
-      await onEditVendor(vendorId, {});
-    } catch {
-      showError('Edit Failed', 'Failed to edit vendor. Please try again.');
-    } finally {
-      setIsOperationLoading(false);
-    }
-  };
-
-  const handleDeleteVendor = (vendorId: number) => {
-    const vendor = vendors.find(v => v.id === vendorId);
-    if (vendor) {
-      setVendorToDelete(vendor);
-      setShowDeleteModal(true);
-    }
-  };
 
   const confirmDeleteVendor = async () => {
     if (!onDeleteVendor || !vendorToDelete) {
@@ -87,16 +66,19 @@ const VendorPage: React.FC<VendorPageProps> = ({
     setIsAddModalOpen(true);
   };
 
-  const handleAddVendorSubmit = async (vendorData: Omit<Vendor, "id">) => {
+  const handleAddVendorSubmit = async (vendorData: Omit<Vendor, "id">, contacts: ContactData[]) => {
     if (isOperationLoading) return; // Prevent double submission
     
     setIsOperationLoading(true);
     try {
-      await onAddVendor?.(vendorData);
+      await onAddVendor?.(vendorData, contacts);
       setIsAddModalOpen(false);
-      showSuccess('Vendor Added', `Successfully added ${vendorData.company_name}`);
+      showSuccess(
+        'Vendor Created', 
+        `Successfully created ${vendorData.company_name}${contacts.length > 0 ? ` with ${contacts.length} contact(s)` : ''}`
+      );
     } catch {
-      showError('Add Failed', 'Failed to add vendor. Please try again.');
+      showError('Creation Failed', 'Failed to create vendor. Please try again.');
     } finally {
       setIsOperationLoading(false);
     }
@@ -162,14 +144,17 @@ const VendorPage: React.FC<VendorPageProps> = ({
           <div className="flex-1 overflow-auto mx-auto w-full">
             <VendorList
               vendors={vendors}
-              onEditVendor={handleEditVendor}
-              onDeleteVendor={handleDeleteVendor}
+              onUpdateVendor={async (vendorId, updates) => {
+                await onEditVendor?.(vendorId, updates);
+              }}
+              onDeleteVendor={onDeleteVendor}
               onAddVendor={handleAddVendorClick}
               isLoading={globalLoading}
               isOperationLoading={isOperationLoading}
               selectedVendors={selectedVendors}
               onVendorSelect={handleVendorSelect}
               onBulkDelete={handleBulkDelete}
+              onVendorUpdated={onVendorUpdated}
             />
           </div>
         </div>

@@ -3,13 +3,9 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../../../shared/components/ui/Sidebar";
 import PageHeader from "../../../shared/components/ui/PageHeader";
 import type { BidVendor, Vendor, Bid, User } from "../../../shared/types";
-import {
-  dbOperations,
-} from "../../../shared/services/supabase";
+import { dbOperations } from "../../../shared/services/supabase";
 import { supabase } from "../../../shared/services/supabase";
-import {
-  getFollowUpUrgency,
-} from "../../../shared/utils/phaseFollowUpUtils";
+import { getFollowUpUrgency } from "../../../shared/utils/phaseFollowUpUtils";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface APMDashboardProps {
@@ -112,9 +108,12 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [dateRange, setDateRange] = useState<{startDate: Date | null, endDate: Date | null}>({
+  const [dateRange, setDateRange] = useState<{
+    startDate: Date | null;
+    endDate: Date | null;
+  }>({
     startDate: null,
-    endDate: null
+    endDate: null,
   });
   const [urgencyFilter] = useState("all");
   const [sortField, setSortField] = useState<
@@ -183,13 +182,13 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
   useEffect(() => {
     // Subscribe to all bid vendors changes
     const channel = supabase
-      .channel('apm_bid_vendors_all')
+      .channel("apm_bid_vendors_all")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'bid_vendors'
+          event: "*",
+          schema: "public",
+          table: "bid_vendors",
         },
         (payload: { eventType: string; new?: unknown; old?: unknown }) => {
           if (payload.eventType === "INSERT" && payload.new) {
@@ -324,21 +323,23 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
       filtered = filtered.filter((task) => {
         const taskDate = parseDateSafe(task.phase.followUpDate);
         if (!taskDate) return false;
-        
+
         const startDate = normalizeDateToMidnight(dateRange.startDate);
         const endDate = normalizeDateToMidnight(dateRange.endDate);
         const normalizedTaskDate = normalizeDateToMidnight(taskDate);
-        
+
         if (!normalizedTaskDate) return false;
-        
+
         if (startDate && endDate) {
-          return normalizedTaskDate >= startDate && normalizedTaskDate <= endDate;
+          return (
+            normalizedTaskDate >= startDate && normalizedTaskDate <= endDate
+          );
         } else if (startDate) {
           return normalizedTaskDate >= startDate;
         } else if (endDate) {
           return normalizedTaskDate <= endDate;
         }
-        
+
         return true;
       });
     }
@@ -468,7 +469,7 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#d4af37] mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading APM tasks...</p>
+            <p className="text-gray-600">Loading daily tasks...</p>
           </div>
         </div>
       </div>
@@ -486,7 +487,7 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
           <PageHeader
-            title="APM Dashboard"
+            title="Dashboard"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search projects..."
@@ -541,7 +542,7 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                   onClick={() => setActiveTab("unassigned")}
                   className={`py-3 px-1 border-b-2 font-medium text-sm ${
                     activeTab === "unassigned"
-                      ? "border-blue-500 text-blue-600"
+                      ? "text-orange-600 border-orange-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
@@ -554,9 +555,17 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                     onClick={() => setActiveTab(user.id)}
                     className={`py-3 px-1 border-b-2 font-medium text-sm ${
                       activeTab === user.id
-                        ? "border-blue-500 text-blue-600"
+                        ? "border-current"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                     }`}
+                    style={
+                      activeTab === user.id
+                        ? {
+                            color: user.color_preference || "#000",
+                            borderColor: user.color_preference || "#000",
+                          }
+                        : undefined
+                    }
                   >
                     {user.name} (
                     {
@@ -598,9 +607,9 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                     </button>
                     <button
                       onClick={() => handleSort("gc")}
-                      className="col-span-1 text-left hover:text-gray-700 flex items-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex items-center gap-1 justify-center"
                     >
-                      GC
+                      General Contractor
                       {sortField === "gc" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}
@@ -609,7 +618,7 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                     </button>
                     <button
                       onClick={() => handleSort("vendor")}
-                      className="col-span-1 text-left hover:text-gray-700 flex items-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
                     >
                       Vendor
                       {sortField === "vendor" && (
@@ -620,7 +629,7 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                     </button>
                     <button
                       onClick={() => handleSort("phase")}
-                      className="col-span-1 text-left hover:text-gray-700 flex items-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
                     >
                       Phase
                       {sortField === "phase" && (
@@ -631,19 +640,19 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                     </button>
                     <button
                       onClick={() => handleSort("follow_up_date")}
-                      className="col-span-1 text-left hover:text-gray-700 flex items-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
                     >
-                      Follow Up Date
+                      Follow Up On
                       {sortField === "follow_up_date" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}
                         </span>
                       )}
                     </button>
-                    <div className="col-span-1 text-left">Phase Notes</div>
+                    <div className="col-span-1 text-left">Notes</div>
                     <button
                       onClick={() => handleSort("assigned_user")}
-                      className="col-span-1 text-left hover:text-gray-700 flex items-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
                     >
                       Assigned User
                       {sortField === "assigned_user" && (
@@ -674,7 +683,7 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                         <div className="grid grid-cols-7 gap-4 px-6 py-4 items-center w-full">
                           {/* Project Name */}
                           <div className="col-span-1">
-                            <div className="font-medium text-gray-900 text-sm">
+                            <div className="font-medium text-gray-900 text-xs truncate">
                               {task.project.project_name}
                             </div>
                             {task.project.project_address && (
@@ -685,30 +694,30 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                           </div>
 
                           {/* GC */}
-                          <div className="col-span-1">
+                          <div className="col-span-1 flex items-center justify-center">
                             <div className="text-sm text-gray-900">
                               {task.project.general_contractor || "—"}
                             </div>
                           </div>
 
                           {/* Vendor */}
-                          <div className="col-span-1">
+                          <div className="col-span-1 flex items-center justify-center">
                             <div className="text-sm font-medium text-gray-900">
                               {task.vendor.company_name}
                             </div>
                           </div>
 
                           {/* Phase */}
-                          <div className="col-span-1">
+                          <div className="col-span-1 flex items-center justify-center">
                             <span
                               className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                                 task.urgency.level === "overdue"
-                                  ? "bg-red-100 text-red-800"
+                                  ? "text-red-500 border-2 border-red-500"
                                   : task.urgency.level === "due_today"
-                                  ? "bg-orange-100 text-orange-800"
+                                  ? "text-red-800 border-2 border-red-800"
                                   : task.urgency.level === "critical"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
+                                  ? "text-yellow-700 border-2 border-yellow-700"
+                                  : "text-gray-600 border-2 border-gray-600"
                               }`}
                             >
                               {task.phase.displayName}
@@ -716,8 +725,8 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
                           </div>
 
                           {/* Follow Up Date */}
-                          <div className="col-span-1">
-                            <div className="text-sm font-medium text-gray-900">
+                          <div className="col-span-1 flex flex-col items-center">
+                            <div className="text-xs font-medium text-gray-900">
                               {formatDateSafe(task.phase.followUpDate)}
                             </div>
                             <div className="text-xs text-gray-500">
@@ -735,19 +744,31 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
 
                           {/* Phase Notes */}
                           <div className="col-span-1">
-                            <div className="text-sm text-gray-600 truncate">
-                              {task.phase.notes || "—"}
+                            <div className="relative group">
+                              <div className="text-xs text-gray-600 truncate">
+                                {task.phase.notes || "—"}
+                              </div>
+                              {task.phase.notes &&
+                                task.phase.notes.length > 50 && (
+                                  <div className="hidden group-hover:block absolute rounded-md z-10 left-0 mt-1 w-64 p-2 bg-white border border-gray-300 shadow-lg text-xs text-gray-700 whitespace-pre-wrap truncate">
+                                    {task.phase.notes}
+                                  </div>
+                                )}
                             </div>
                           </div>
 
                           {/* Assigned User */}
-                          <div className="col-span-1">
+                          <div className="col-span-1 flex items-center justify-center">
                             {task.assignedUser ? (
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                                  {task.assignedUser.name?.charAt(0) || "U"}
-                                </div>
-                                <span className="text-sm text-gray-900 truncate">
+                                <span
+                                  className="text-sm truncate"
+                                  style={{
+                                    color:
+                                      task.assignedUser.color_preference ||
+                                      "#000",
+                                  }}
+                                >
                                   {task.assignedUser.name}
                                 </span>
                               </div>

@@ -155,7 +155,7 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className="bg-white shadow-sm overflow-hidden flex-1 flex flex-col">
+    <div className="bg-white shadow-sm overflow-hidden flex-1 flex flex-col h-full">
       <div className="overflow-auto flex-1">
         <table className="w-full table-fixed">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -217,7 +217,7 @@ export function DataTable<TData, TValue>({
                         <EmptyIcon className="mx-auto h-24 w-24" />
                       </div>
                     )}
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">{emptyMessage}</h3>
+                    <h3 className="text-xs font-medium text-gray-900 mb-2">{emptyMessage}</h3>
                   </div>
                 </td>
               </tr>

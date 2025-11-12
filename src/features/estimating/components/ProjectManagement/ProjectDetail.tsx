@@ -16,8 +16,8 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "../../../../shared/components/ui/breadcrumb";
-import { dbOperations, realtimeManager } from "../../../../shared/services/supabase";
-import supabase from "../../../../shared/services/supabase";
+import { dbOperations } from "../../../../shared/services/supabase";
+// Real-time updates handled by AppContent
 import { formatDate } from "../../../../shared/utils/formatters";
 import { BID_STATUSES } from "../../../../shared/utils/constants";
 import {
@@ -34,20 +34,32 @@ import {
 
 interface ProjectDetailProps {
   bid: Bid;
+  bidVendors: BidVendor[];
+  projectNotes: ProjectNote[];
+  vendors: Vendor[];
+  users: User[];
   onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   onDeleteBid: (bidId: number) => Promise<void>;
-  // onRefreshBid?: () => void; // TODO: Implement if needed
+  onAddBidVendor: (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => Promise<void>;
+  onUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
+  onRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
 }
 
 const ProjectDetail: React.FC<ProjectDetailProps> = ({
   bid,
+  bidVendors,
+  projectNotes,
+  vendors,
+  users,
   onUpdateBid,
   onDeleteBid,
-  // onRefreshBid, // TODO: Implement if needed
+  onAddBidVendor,
+  onUpdateBidVendor,
+  onRemoveBidVendors,
 }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
+  // projectNotes now comes from props
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
@@ -59,16 +71,12 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   );
   const [isVendorLoading, setIsVendorLoading] = useState(false);
 
-  // Loading states
-  const [isLoadingNotes, setIsLoadingNotes] = useState(true);
-  const [isLoadingVendors, setIsLoadingVendors] = useState(true);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  // Error state
   const [error, setError] = useState<string | null>(null);
 
-  // Data states
-  const [users, setUsers] = useState<User[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [projectVendors, setProjectVendors] = useState<BidVendor[]>([]);
+  // Data comes from props - create filtered/derived state
+  const projectVendors = bidVendors.filter(bv => bv.bid_id === bid.id);
+  const filteredProjectNotes = projectNotes.filter(note => note.bid_id === bid.id);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Sidebar state
@@ -98,104 +106,13 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     file_location: bid.file_location || "",
   });
 
-  // Load initial data
+  // Set current user from users prop
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setError(null);
+    setCurrentUser(users[0] || null);
+  }, [users]);
 
-        // Load vendors, users, and project data in parallel
-        const [vendorsData, notesData, usersData] = await Promise.all([
-          dbOperations.getVendors(),
-          dbOperations.getProjectNotes(bid.id),
-          dbOperations.getUsers(),
-        ]);
-
-        setUsers(usersData);
-        setCurrentUser(usersData[0] || null);
-        setVendors(vendorsData);
-        setProjectNotes(
-          notesData.map((note) => ({
-            id: note.id,
-            bid_id: note.bid_id,
-            user_id: note.user_id,
-            content: note.content,
-            created_at: note.created_at,
-          }))
-        );
-
-        // Load bid vendors for this project
-        const { data: bidVendorsData, error: bidVendorsError } = await supabase
-          .from("bid_vendors")
-          .select("*")
-          .eq("bid_id", bid.id);
-
-        if (bidVendorsError) throw bidVendorsError;
-        setProjectVendors(bidVendorsData || []);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load project data"
-        );
-      } finally {
-        setIsLoadingNotes(false);
-        setIsLoadingVendors(false);
-        setIsLoadingUsers(false);
-      }
-    };
-
-    loadData();
-  }, [bid.id]);
-
-  // Set up real-time subscriptions for project-specific updates
-  useEffect(() => {
-    // Subscribe to project notes changes
-    realtimeManager.subscribeToProjectNotes(bid.id, (payload) => {
-      if (payload.eventType === "INSERT" && payload.new) {
-        const newNote = payload.new as unknown as ProjectNote;
-        if (newNote.id && newNote.content) {
-          setProjectNotes((prev) => [...prev, newNote]);
-        }
-      } else if (payload.eventType === "DELETE" && payload.old) {
-        const deletedNote = payload.old as unknown as ProjectNote;
-        if (deletedNote.id) {
-          setProjectNotes((prev) =>
-            prev.filter((note) => note.id !== deletedNote.id)
-          );
-        }
-      }
-    });
-
-    // Subscribe to bid vendors changes
-    realtimeManager.subscribeToBidVendors(bid.id, (payload) => {
-      if (payload.eventType === "INSERT" && payload.new) {
-        const newBidVendor = payload.new as unknown as BidVendor;
-        if (newBidVendor.id && newBidVendor.vendor_id) {
-          setProjectVendors((prev) => [...prev, newBidVendor]);
-        }
-      } else if (payload.eventType === "UPDATE" && payload.new) {
-        const updatedBidVendor = payload.new as unknown as BidVendor;
-        if (updatedBidVendor.id) {
-          setProjectVendors((prev) =>
-            prev.map((bv) =>
-              bv.id === updatedBidVendor.id ? updatedBidVendor : bv
-            )
-          );
-        }
-      } else if (payload.eventType === "DELETE" && payload.old) {
-        const deletedBidVendor = payload.old as unknown as BidVendor;
-        if (deletedBidVendor.id) {
-          setProjectVendors((prev) =>
-            prev.filter((bv) => bv.id !== deletedBidVendor.id)
-          );
-        }
-      }
-    });
-
-    return () => {
-      realtimeManager.unsubscribe(`project_notes_${bid.id}`);
-      realtimeManager.unsubscribe(`bid_vendors_${bid.id}`);
-    };
-  }, [bid.id]);
+  // Real-time updates are now handled by the centralized AppContent subscription system
+  // Individual component subscriptions have been removed to prevent conflicts
 
   // Update form data when bid prop changes
   useEffect(() => {
@@ -273,10 +190,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     try {
       if (editingBidVendor) {
         // Update existing bid vendor
-        await dbOperations.updateBidVendor(editingBidVendor.id, vendorData);
+        await onUpdateBidVendor(editingBidVendor.id, vendorData);
       } else {
         // Add new bid vendor
-        await dbOperations.addVendorToBid(bid.id, vendorData);
+        await onAddBidVendor(bid.id, vendorData);
       }
       setShowVendorModal(false);
       setEditingBidVendor(null);
@@ -314,15 +231,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         .filter((bv) => vendorsToRemove.includes(bv.vendor_id))
         .map((bv) => bv.id);
 
-      // Remove vendors one by one using the existing operation
-      await Promise.all(
-        bidVendorIds.map((id) => dbOperations.removeVendorFromBid(id))
-      );
+      // Remove vendors using prop function for real-time updates
+      await onRemoveBidVendors(bidVendorIds);
 
-      // Update local state to reflect the removal
-      setProjectVendors((prev) =>
-        prev.filter((bv) => !vendorsToRemove.includes(bv.vendor_id))
-      );
+      // Removal will be reflected via real-time updates from AppContent
 
       // Close modal and reset state
       setShowRemoveVendorsModal(false);
@@ -354,8 +266,8 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   };
 
   const handleAddNoteSubmit = async (content: string) => {
-    if (!currentUser) return;
-    await dbOperations.createProjectNote(bid.id, content, currentUser.id);
+    // Let the database function auto-detect current user via Auth
+    await dbOperations.createProjectNote(bid.id, content);
   };
 
   const confirmDeleteProject = async () => {
@@ -442,7 +354,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     }
   };
 
-  const isLoading = isLoadingNotes || isLoadingVendors || isLoadingUsers;
+  const isLoading = false; // Data comes from props
 
   // Helper functions to determine project state
   const isActive = !bid.archived && !bid.on_hold;
@@ -874,7 +786,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       {
                         id: "notes",
                         label: "Notes",
-                        count: projectNotes.length,
+                        count: filteredProjectNotes.length,
                       },
                       { id: "timeline", label: "Timeline", count: null },
                       { id: "documents", label: "Documents", count: null },
@@ -970,8 +882,8 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       <ProjectNotes
                         bid={bid}
                         users={users}
-                        projectNotes={projectNotes}
-                        setProjectNotes={setProjectNotes}
+                        projectNotes={filteredProjectNotes}
+                        setProjectNotes={() => {}} // Read-only for now, notes updated via real-time
                       />
                     )}
                     {!currentUser && (

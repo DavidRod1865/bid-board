@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { Vendor } from '../../../../shared/types';
-import { Input, Textarea } from '../../../../shared/components/ui/FormField';
+import type { Vendor, VendorType } from '../../../../shared/types';
+import FormField, { Input, Textarea, Select } from '../../../../shared/components/ui/FormField';
 import { Button } from "../../../../shared/components/ui/Button";
 
 interface VendorFormProps {
@@ -24,7 +24,10 @@ const VendorForm: React.FC<VendorFormProps> = ({
     email: vendor?.email || '',
     notes: vendor?.notes || '',
     specialty: vendor?.specialty || '',
-    is_priority: vendor?.is_priority || false
+    is_priority: vendor?.is_priority || false,
+    vendor_type: vendor?.vendor_type || 'Vendor' as VendorType,
+    insurance_expiry_date: vendor?.insurance_expiry_date || '',
+    insurance_notes: vendor?.insurance_notes || ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -51,17 +54,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
       newErrors.company_name = 'Company name is required';
     }
 
-    if (!formData.contact_person.trim()) {
-      newErrors.contact_person = 'Contact person is required';
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    // Contact fields are now optional since we have VendorContacts table
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
 
@@ -77,119 +71,179 @@ const VendorForm: React.FC<VendorFormProps> = ({
     e.preventDefault();
     
     if (validateForm()) {
-      onSubmit(formData);
+      onSubmit({
+        ...formData,
+        primary_contact_id: null  // Will be set later when contact management is used
+      });
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Company Name */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Company Name *
-        </label>
-        <Input
-          type="text"
-          value={formData.company_name}
-          onChange={(e) => handleInputChange('company_name', e.target.value)}
-          placeholder="Enter company name"
-          disabled={isLoading}
-          className={errors.company_name ? 'border-red-300 focus:border-red-500' : ''}
-        />
-        {errors.company_name && (
-          <p className="mt-1 text-sm text-red-600">{errors.company_name}</p>
-        )}
-      </div>
-
-      {/* Contact Person */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Contact Person *
-        </label>
-        <Input
-          type="text"
-          value={formData.contact_person}
-          onChange={(e) => handleInputChange('contact_person', e.target.value)}
-          placeholder="Enter contact person name"
-          disabled={isLoading}
-          className={errors.contact_person ? 'border-red-300 focus:border-red-500' : ''}
-        />
-        {errors.contact_person && (
-          <p className="mt-1 text-sm text-red-600">{errors.contact_person}</p>
-        )}
-      </div>
-
-      {/* Phone and Email in a row */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Phone *
-          </label>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Section 1: Basic Company Information */}
+      <div className="space-y-4">
+        <h3 className="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">
+          Company Information
+        </h3>
+        
+        <FormField
+          label="Company Name"
+          required
+          error={errors.company_name}
+        >
           <Input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => handleInputChange('phone', e.target.value)}
-            placeholder="(555) 123-4567"
+            type="text"
+            value={formData.company_name}
+            onChange={(e) => handleInputChange('company_name', e.target.value)}
+            placeholder="Enter company name"
             disabled={isLoading}
-            className={errors.phone ? 'border-red-300 focus:border-red-500' : ''}
+            className={errors.company_name ? 'border-red-300 focus:border-red-500' : ''}
           />
-          {errors.phone && (
-            <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-          )}
+        </FormField>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            label="Vendor Type"
+            required
+            error={errors.vendor_type}
+          >
+            <Select
+              value={formData.vendor_type}
+              onChange={(e) => handleInputChange('vendor_type', e.target.value as VendorType)}
+              disabled={isLoading}
+              className={errors.vendor_type ? 'border-red-300 focus:border-red-500' : ''}
+            >
+              <option value="Vendor">Vendor</option>
+              <option value="Subcontractor">Subcontractor</option>
+              <option value="General Contractor">General Contractor</option>
+            </Select>
+          </FormField>
+
+          <FormField
+            label="Specialty"
+            error={errors.specialty}
+          >
+            <Input
+              type="text"
+              value={formData.specialty}
+              onChange={(e) => handleInputChange('specialty', e.target.value)}
+              placeholder="e.g., Electrical, Plumbing"
+              disabled={isLoading}
+              className={errors.specialty ? 'border-red-300 focus:border-red-500' : ''}
+            />
+          </FormField>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email *
-          </label>
+        <FormField
+          label="Address"
+          required
+          error={errors.address}
+        >
           <Input
-            type="email"
-            value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-            placeholder="contact@company.com"
+            type="text"
+            value={formData.address}
+            onChange={(e) => handleInputChange('address', e.target.value)}
+            placeholder="Enter full address"
             disabled={isLoading}
-            className={errors.email ? 'border-red-300 focus:border-red-500' : ''}
+            className={errors.address ? 'border-red-300 focus:border-red-500' : ''}
           />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-          )}
+        </FormField>
+      </div>
+
+      {/* Section 2: Legacy Contact Information */}
+      <div className="space-y-4">
+        <h3 className="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">
+          Primary Contact <span className="text-sm font-normal text-gray-500">(Optional - use Contact Management below)</span>
+        </h3>
+        
+        <FormField
+          label="Contact Person"
+          error={errors.contact_person}
+        >
+          <Input
+            type="text"
+            value={formData.contact_person}
+            onChange={(e) => handleInputChange('contact_person', e.target.value)}
+            placeholder="Enter contact person name"
+            disabled={isLoading}
+            className={errors.contact_person ? 'border-red-300 focus:border-red-500' : ''}
+          />
+        </FormField>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            label="Phone"
+            error={errors.phone}
+          >
+            <Input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="(555) 123-4567"
+              disabled={isLoading}
+              className={errors.phone ? 'border-red-300 focus:border-red-500' : ''}
+            />
+          </FormField>
+
+          <FormField
+            label="Email"
+            error={errors.email}
+          >
+            <Input
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              placeholder="contact@company.com"
+              disabled={isLoading}
+              className={errors.email ? 'border-red-300 focus:border-red-500' : ''}
+            />
+          </FormField>
         </div>
       </div>
 
-      {/* Address */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Address *
-        </label>
-        <Input
-          type="text"
-          value={formData.address}
-          onChange={(e) => handleInputChange('address', e.target.value)}
-          placeholder="Enter full address"
-          disabled={isLoading}
-          className={errors.address ? 'border-red-300 focus:border-red-500' : ''}
-        />
-        {errors.address && (
-          <p className="mt-1 text-sm text-red-600">{errors.address}</p>
-        )}
+      {/* Section 3: Insurance Information */}
+      <div className="space-y-4">
+        <h3 className="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">
+          Insurance Information
+        </h3>
+        
+        <FormField
+          label="Insurance Expiry Date"
+          error={errors.insurance_expiry_date}
+        >
+          <Input
+            type="date"
+            value={formData.insurance_expiry_date}
+            onChange={(e) => handleInputChange('insurance_expiry_date', e.target.value)}
+            disabled={isLoading}
+            className={errors.insurance_expiry_date ? 'border-red-300 focus:border-red-500' : ''}
+          />
+        </FormField>
       </div>
 
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Notes
-        </label>
-        <Textarea
-          value={formData.notes}
-          onChange={(e) => handleInputChange('notes', e.target.value)}
-          placeholder="Additional notes about this vendor..."
-          rows={3}
-          disabled={isLoading}
-        />
+      {/* Section 4: Additional Notes */}
+      <div className="space-y-4">
+        <h3 className="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">
+          Additional Information
+        </h3>
+        
+        <FormField
+          label="General Notes"
+          error={errors.notes}
+        >
+          <Textarea
+            value={formData.notes}
+            onChange={(e) => handleInputChange('notes', e.target.value)}
+            placeholder="Additional notes about this vendor..."
+            rows={3}
+            disabled={isLoading}
+            className={errors.notes ? 'border-red-300 focus:border-red-500' : ''}
+          />
+        </FormField>
       </div>
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
         <Button
           type="button"
           variant="secondary"

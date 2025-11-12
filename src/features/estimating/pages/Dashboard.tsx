@@ -83,9 +83,18 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [showEmailConfirmModal, setShowEmailConfirmModal] = useState(false);
   const { showSuccess, showError } = useToast();
 
-  // Use all bids for Estimating dashboard - no department filtering
+  // Filter for active bids only (not archived, not on-hold, not sent to APM)
   const estimatingBids = useMemo(() => {
-    return bids || [];
+    if (!bids || bids.length === 0) {
+      return [];
+    }
+    
+    // Filter for active bids: not archived, not on hold, not sent to APM
+    return bids.filter(bid => 
+      !bid.archived &&      // Not archived
+      !bid.on_hold &&       // Not on hold
+      !bid.sent_to_apm      // Not sent to APM (APM manages those)
+    );
   }, [bids]);
 
   // Calculate overdue count for estimating bids

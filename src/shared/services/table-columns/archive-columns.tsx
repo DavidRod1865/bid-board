@@ -27,11 +27,11 @@ export function createArchiveColumns(context: ArchiveColumnsContext = {}): Colum
         
         return (
             <div className="min-w-0 flex-1">
-              <div className="font-medium text-gray-900 text-sm truncate">
+              <div className="font-medium text-gray-900 text-xs truncate">
                 {bid.project_name}
               </div>
               {bid.project_address && (
-                <div className="text-sm text-gray-500 truncate" title={bid.project_address}>
+                <div className="text-xs text-gray-500 truncate" title={bid.project_address}>
                   {bid.project_address.length > 40 
                     ? `${bid.project_address.substring(0, 40)}...` 
                     : bid.project_address}
@@ -105,7 +105,7 @@ export function createArchiveColumns(context: ArchiveColumnsContext = {}): Colum
         const bid = row.original
         
         return (
-          <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
+          <div className="flex items-center justify-center gap-2 text-gray-600 text-xs">
             <div className="rounded px-2 py-1">
               <span>{formatDate(bid.due_date, "short")}</span>
             </div>
@@ -130,7 +130,7 @@ export function createArchiveColumns(context: ArchiveColumnsContext = {}): Colum
       cell: ({ row }) => {
         const archivedAt = row.getValue("archivedDate") as string
         return (
-          <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
+          <div className="flex items-center justify-center gap-2 text-gray-600 text-xs">
             <div className="rounded px-2 py-1">
               <span>{archivedAt ? formatDate(archivedAt, 'short') : 'Unknown'}</span>
             </div>
@@ -157,7 +157,7 @@ export function createArchiveColumns(context: ArchiveColumnsContext = {}): Colum
         const bid = row.original
         if (getMostRecentNote) {
           return (
-            <div className="text-gray-600 text-sm truncate">
+            <div className="text-gray-600 text-xs truncate">
               {getMostRecentNote(bid.id)}
             </div>
           )
@@ -187,11 +187,11 @@ export function createOnHoldColumns(context: ArchiveColumnsContext = {}): Column
         
         return (
             <div className="min-w-0 flex-1">
-              <div className="font-medium text-gray-900 text-sm truncate">
+              <div className="font-medium text-gray-900 text-xs truncate">
                 {bid.project_name}
               </div>
               {bid.project_address && (
-                <div className="text-sm text-gray-500 truncate" title={bid.project_address}>
+                <div className="text-xs text-gray-500 truncate" title={bid.project_address}>
                   {bid.project_address.length > 40 
                     ? `${bid.project_address.substring(0, 40)}...` 
                     : bid.project_address}
@@ -265,7 +265,7 @@ export function createOnHoldColumns(context: ArchiveColumnsContext = {}): Column
         const bid = row.original
         
         return (
-          <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
+          <div className="flex items-center justify-center gap-2 text-gray-600 text-xs">
             <div className="rounded px-2 py-1">
               <span>{formatDate(bid.due_date, "short")}</span>
             </div>
@@ -290,7 +290,7 @@ export function createOnHoldColumns(context: ArchiveColumnsContext = {}): Column
       cell: ({ row }) => {
         const onHoldAt = row.getValue("onHoldSince") as string
         return (
-          <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
+          <div className="flex items-center justify-center gap-2 text-gray-600 text-xs">
             <div className="rounded px-2 py-1">
               <span>{onHoldAt ? formatDate(onHoldAt, 'short') : 'Unknown'}</span>
             </div>
@@ -349,7 +349,7 @@ export function createAPMOnHoldColumns(context: ArchiveColumnsContext = {}): Col
         return (
           <div className="flex items-center gap-3 min-w-0 flex-1 relative">
             <div className="min-w-0 flex-1">
-              <div className="font-medium text-gray-900 text-sm truncate">
+              <div className="font-medium text-gray-900 text-xs truncate">
                 {bid.title}
               </div>
             </div>
@@ -370,7 +370,7 @@ export function createAPMOnHoldColumns(context: ArchiveColumnsContext = {}): Col
         const bid = row.original;
         const address = bid.project_address;
         return (
-          <div className="flex items-center text-gray-600 text-sm min-w-0">
+          <div className="flex items-center text-gray-600 text-xs min-w-0">
             <span
               className="leading-tight overflow-hidden"
               style={{
@@ -403,7 +403,7 @@ export function createAPMOnHoldColumns(context: ArchiveColumnsContext = {}): Col
       cell: ({ row }) => {
         const contractor = row.getValue("general_contractor") as string;
         return (
-          <div className="flex items-center justify-center text-gray-600 text-sm min-w-0">
+          <div className="flex items-center justify-center text-gray-600 text-xs min-w-0">
             <span
               className="text-center leading-tight overflow-hidden"
               style={{

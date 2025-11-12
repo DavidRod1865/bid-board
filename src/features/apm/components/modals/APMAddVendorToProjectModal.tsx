@@ -91,7 +91,6 @@ const APMAddVendorToProjectModal: React.FC<APMAddVendorToProjectModalProps> = ({
       final_quote_amount: hasFinalQuoteAmount ? parseFloat(formData.final_quote_amount.toString()) : null
     };
 
-    console.log('APM Vendor Data being saved:', vendorData);
     onSave(vendorData);
   };
 

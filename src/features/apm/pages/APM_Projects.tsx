@@ -72,14 +72,9 @@ const APMProjects: React.FC<APMProjectsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError } = useToast();
 
-  // Filter bids to show projects sent to APM that are active (not archived or on-hold by APM)
+  // Use filtered bids passed from routes (already filtered for APM active projects)
   const apmBids = useMemo(() => {
-    if (!bids || bids.length === 0) return [];
-    return bids.filter(bid => 
-      bid.sent_to_apm === true && 
-      bid.apm_archived === false && 
-      bid.apm_on_hold === false
-    );
+    return bids || [];
   }, [bids]);
 
   // Calculate overdue count for APM bids

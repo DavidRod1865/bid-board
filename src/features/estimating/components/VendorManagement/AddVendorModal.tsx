@@ -1,12 +1,13 @@
 import React from 'react';
 import type { Vendor } from '../../../../shared/types';
+import type { ContactData } from './VendorCreationWizard';
 import DialogModal from '../../../../shared/components/ui/DialogModal';
-import VendorForm from './VendorForm';
+import VendorCreationWizard from './VendorCreationWizard';
 
 interface AddVendorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddVendor: (vendorData: Omit<Vendor, 'id'>) => void;
+  onAddVendor: (vendorData: Omit<Vendor, 'id'>, contacts: ContactData[]) => void;
   isLoading?: boolean;
 }
 
@@ -16,19 +17,19 @@ const AddVendorModal: React.FC<AddVendorModalProps> = ({
   onAddVendor,
   isLoading = false
 }) => {
-  const handleSubmit = (vendorData: Omit<Vendor, 'id'>) => {
-    onAddVendor(vendorData);
+  const handleComplete = async (vendorData: Omit<Vendor, 'id'>, contacts: ContactData[]) => {
+    onAddVendor(vendorData, contacts);
   };
 
   return (
     <DialogModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add New Vendor"
-      size="lg"
+      title="Create New Vendor"
+      size="xl"
     >
-      <VendorForm
-        onSubmit={handleSubmit}
+      <VendorCreationWizard
+        onComplete={handleComplete}
         onCancel={onClose}
         isLoading={isLoading}
       />

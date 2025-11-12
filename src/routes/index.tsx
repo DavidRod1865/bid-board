@@ -23,12 +23,13 @@ import Archives from '../features/estimating/pages/Archives';
 import OnHold from '../features/estimating/pages/OnHold';
 
 // Types
-import type { User, Bid, Vendor, BidVendor, ProjectNote } from '../shared/types';
+import type { User, Bid, Vendor, VendorWithContact, BidVendor, ProjectNote } from '../shared/types';
+import type { ContactData } from '../features/estimating/components/VendorManagement/VendorCreationWizard';
 
 interface AppRoutesProps {
   // Data props
   bids: Bid[];
-  vendors: Vendor[];
+  vendors: VendorWithContact[];
   bidVendors: BidVendor[];
   users: User[];
   projectNotes: ProjectNote[];
@@ -40,13 +41,14 @@ interface AppRoutesProps {
   handleAddBid: (bidData: Omit<Bid, 'id'>) => Promise<void>;
   handleAddProjectWithVendors: (bidData: Omit<Bid, 'id'>, vendorIds: number[]) => Promise<void>;
   handleCopyProject: (originalProjectId: number, newProjectData: Omit<Bid, 'id'>) => Promise<void>;
-  handleAddVendor: (vendorData: Omit<Vendor, 'id'>) => Promise<Vendor>;
+  handleAddVendor: (vendorData: Omit<Vendor, 'id'>, contacts?: ContactData[]) => Promise<Vendor>;
   handleUpdateVendor: (vendorId: number, updatedVendor: Partial<Vendor>) => Promise<void>;
   handleDeleteVendor: (vendorId: number) => Promise<void>;
   handleAddBidVendor: (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => Promise<void>;
   handleUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
   handleRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
   handleBidRestored: (restoredBid: Bid) => void;
+  handleVendorUpdated: () => void;
 }
 
 const AppRoutes: React.FC<AppRoutesProps> = ({
@@ -67,7 +69,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   handleAddBidVendor,
   handleUpdateBidVendor,
   handleRemoveBidVendors,
-  handleBidRestored
+  handleBidRestored,
+  handleVendorUpdated
 }) => {
   return (
     <Routes>
@@ -111,6 +114,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/estimating/bids-sent-to-apm" 
         element={
           <BidsSentToAPM 
+            bids={bids.filter(bid => bid.sent_to_apm === true)}
             onBidRestored={handleBidRestored} 
             projectNotes={projectNotes} 
           />
@@ -122,8 +126,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         element={
           <VendorPage 
             vendors={vendors}
-            onAddVendor={async (vendorData) => {
-              await handleAddVendor(vendorData);
+            onAddVendor={async (vendorData, contacts = []) => {
+              await handleAddVendor(vendorData, contacts);
             }}
             onEditVendor={handleUpdateVendor}
             onDeleteVendor={handleDeleteVendor}
@@ -151,7 +155,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/apm/projects" 
         element={
           <APMProjects 
-            bids={bids}
+            bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
             bidVendors={bidVendors}
             vendors={vendors}
             projectNotes={projectNotes}
@@ -172,6 +176,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             users={users}
             vendors={vendors}
             bidVendors={bidVendors}
+            projectNotes={projectNotes}
             onUpdateBid={handleUpdateBid}
             onDeleteBid={handleDeleteBid}
             onUpdateBidVendor={handleUpdateBidVendor}
@@ -193,6 +198,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/apm/archives" 
         element={
           <APMArchives 
+            bids={bids.filter(bid => bid.sent_to_apm && bid.apm_archived)}
             onBidRestored={handleBidRestored} 
             projectNotes={projectNotes} 
           />
@@ -203,6 +209,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/apm/on-hold" 
         element={
           <APMOnHold 
+            bids={bids.filter(bid => bid.sent_to_apm && bid.apm_on_hold && !bid.apm_archived)}
             onBidRestored={handleBidRestored} 
             projectNotes={projectNotes} 
           />
@@ -214,8 +221,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         element={
           <VendorPage 
             vendors={vendors}
-            onAddVendor={async (vendorData) => {
-              await handleAddVendor(vendorData);
+            onAddVendor={async (vendorData, contacts = []) => {
+              await handleAddVendor(vendorData, contacts);
             }}
             onEditVendor={handleUpdateVendor}
             onDeleteVendor={handleDeleteVendor}
@@ -232,6 +239,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             users={users}
             vendors={vendors}
             bidVendors={bidVendors}
+            projectNotes={projectNotes}
             onUpdateBid={handleUpdateBid}
             onDeleteBid={handleDeleteBid}
             onAddBidVendor={handleAddBidVendor}
@@ -246,11 +254,12 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         element={
           <VendorPage 
             vendors={vendors}
-            onAddVendor={async (vendorData) => {
-              await handleAddVendor(vendorData);
+            onAddVendor={async (vendorData, contacts = []) => {
+              await handleAddVendor(vendorData, contacts);
             }}
             onEditVendor={handleUpdateVendor}
             onDeleteVendor={handleDeleteVendor}
+            onVendorUpdated={handleVendorUpdated}
           />
         } 
       />
@@ -280,6 +289,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/archives" 
         element={
           <Archives 
+            bids={bids.filter(bid => bid.archived && !bid.sent_to_apm)}
             onBidRestored={handleBidRestored} 
             projectNotes={projectNotes} 
           />
@@ -290,6 +300,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/on-hold" 
         element={
           <OnHold 
+            bids={bids.filter(bid => bid.on_hold && !bid.archived && !bid.sent_to_apm)}
             onBidRestored={handleBidRestored} 
             projectNotes={projectNotes} 
           />

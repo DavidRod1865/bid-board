@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import type { Bid, ProjectNote } from '../../../shared/types';
@@ -7,23 +7,21 @@ import PageHeader from '../../../shared/components/ui/PageHeader';
 import AlertDialog from '../../../shared/components/ui/AlertDialog';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import { createArchiveColumns } from '../../../shared/services/table-columns/archive-columns';
-import { useToast } from '../../../shared/hooks/useToast';
+// import { useToast } from '../../../shared/hooks/useToast';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
-import { dbOperations } from '../../../shared/services/supabase';
 import { isDateInRange } from '../../../shared/utils/formatters';
 import { getStatusColor } from '../../../shared/utils/statusUtils';
 
 interface ArchivesProps {
+  bids?: Bid[];
   onAddVendor?: () => void;
   onBidRestored?: (bid: Bid) => void;
   projectNotes?: ProjectNote[];
 }
 
-const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
-  const [archivedBids, setArchivedBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const Archives: React.FC<ArchivesProps> = ({ bids = [], projectNotes = [] }) => {
+  const [error] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{startDate: Date | null, endDate: Date | null}>({
@@ -46,8 +44,7 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
     onActionComplete: (_, result) => {
       if (result.success) {
         clearSelection();
-        // Refresh data after successful bulk operation
-        loadArchivedBids();
+        // Data refreshes automatically via real-time system in AppContent
       }
     }
   });
@@ -55,37 +52,7 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
   // Clear selection when filters change
   useClearSelectionOnFilterChange(clearSelection, [searchTerm, statusFilter.length, dateRange]);
 
-  const { showError } = useToast();
-
-  const loadArchivedBids = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await dbOperations.getArchivedBids();
-      
-      // Filter out bids sent to APM (they should only show in the APM page)
-      const archivedNotSentToAPM = data.filter((bid: Bid) => !bid.sent_to_apm);
-      
-      // Transform the data to match our Bid interface
-      const transformedBids = archivedNotSentToAPM.map((bid: Record<string, unknown>) => ({
-        ...bid,
-        created_by_user: bid.created_by_user,
-        assigned_user: bid.assigned_user,
-        archived_by_user: bid.archived_by_user
-      }));
-      
-      setArchivedBids(transformedBids as unknown as Bid[]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load archived bids');
-      showError('Error', 'Failed to load archived bids');
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
-
-  useEffect(() => {
-    loadArchivedBids();
-  }, [loadArchivedBids]);
+  // const { showError } = useToast();
 
 
   // Bulk action handlers
@@ -120,11 +87,11 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
 
   // Filter bids based on search term and filters  
   const filteredBids = useMemo(() => {
-    if (!archivedBids || archivedBids.length === 0) {
+    if (!bids || bids.length === 0) {
       return [];
     }
 
-    let filtered = archivedBids;
+    let filtered = bids;
     
     // Filter by search term
     if (searchTerm) {
@@ -148,7 +115,7 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
     }
     
     return filtered;
-  }, [archivedBids, searchTerm, statusFilter, dateRange]);
+  }, [bids, searchTerm, statusFilter, dateRange]);
 
 
   // Helper function to get most recent note for a bid
@@ -170,7 +137,7 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
       projectNotes,
       getMostRecentNote
     });
-  }, [projectNotes]);
+  }, [projectNotes, getMostRecentNote]);
 
   // Row selection for DataTable
   const rowSelection = useMemo(() => {
@@ -197,23 +164,6 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
   // Dummy handlers for sidebar (archives page doesn't need these)
   const handleStatusFilter = () => {};
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar
-          statusFilter={[]}
-          setStatusFilter={handleStatusFilter}
-        />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#d4af37] mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading archived bids...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -227,7 +177,7 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Archives</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <button 
-              onClick={loadArchivedBids}
+              onClick={() => window.location.reload()}
               className="px-4 py-2 bg-[#d4af37] text-white rounded-md hover:bg-[#b8941f] transition-colors"
             >
               Try Again
@@ -300,7 +250,7 @@ const Archives: React.FC<ArchivesProps> = ({ projectNotes = [] }) => {
               });
             }}
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
-            isLoading={loading}
+            isLoading={false}
             emptyMessage={
               searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
                 ? 'No matching archived bids'

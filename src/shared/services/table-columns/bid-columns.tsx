@@ -4,6 +4,7 @@ import { DataTableColumnHeader } from "../../components/ui/data-table-column-hea
 import StatusBadge from "../../components/ui/StatusBadge";
 import { getBidUrgency, formatDate } from "../../utils/formatters";
 import { BID_STATUSES } from "../../utils/constants";
+import { CheckIcon, XMarkIcon } from "@heroicons/react/24/solid";
 
 // Simplified BidVendor structure that's actually passed from components
 interface SimpleBidVendor {
@@ -52,10 +53,10 @@ export function createBidColumns(
           return (
             <div className="flex items-center gap-3 min-w-0 flex-1 relative">
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900 text-sm truncate">
+                <div className="font-medium text-xs text-gray-900 truncate">
                   {bid.title}
                 </div>
-                <div className="text-gray-600 text-sm truncate">
+                <div className="text-gray-600 text-xs truncate">
                   {bid.project_address || "No address provided"}
                 </div>
               </div>
@@ -79,7 +80,7 @@ export function createBidColumns(
         cell: ({ row }) => {
           const contractor = row.getValue("general_contractor") as string;
           return (
-            <div className="flex items-center justify-center text-gray-600 text-sm min-w-0">
+            <div className="flex items-center justify-center text-gray-600 text-xs min-w-0">
               <span
                 className="text-center leading-tight overflow-hidden"
                 style={{
@@ -161,7 +162,7 @@ export function createBidColumns(
           const urgency = getBidUrgency(bid.due_date, bid.status);
 
           return (
-            <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
+            <div className="flex items-center justify-center gap-2 text-gray-600 text-xs">
               <div
                 className={`rounded px-2 py-1 ${
                   urgency.level === "overdue"
@@ -217,7 +218,7 @@ export function createBidColumns(
             <div className="flex items-center justify-center text-gray-600 text-sm">
               {totalVendors > 0 ? (
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-gray-900 text-xs">
                     {respondedVendors}/{totalVendors}
                   </span>
                   <div className="w-12 bg-gray-200 rounded-full h-2">
@@ -267,11 +268,12 @@ export function createBidColumns(
           // Sort by created_at descending to get most recent first
           const sortedNotes = bidNotes.sort(
             (a: ProjectNote, b: ProjectNote) =>
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
           );
 
           return (
-            <div className="text-gray-600 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+            <div className="text-gray-600 text-xs whitespace-nowrap overflow-hidden text-ellipsis">
               {sortedNotes[0].content || ""}
             </div>
           );
@@ -293,44 +295,18 @@ export function createBidColumns(
         ),
         cell: ({ row }) => {
           const bid = row.original;
+          const address = bid.project_address;
 
           return (
             <div className="flex items-center gap-3 min-w-0 flex-1 relative">
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900 text-sm truncate">
+                <div className="font-medium text-gray-900 text-xs truncate">
                   {bid.title}
                 </div>
+                <div className="text-gray-600 text-xs truncate">
+                  {address || "No address provided"}
+                </div>
               </div>
-            </div>
-          );
-        },
-      },
-      {
-        id: "address",
-        accessorKey: "project_address",
-        meta: {
-          width: "w-[22%]",
-        },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Address" />
-        ),
-        cell: ({ row }) => {
-          const bid = row.original;
-          const address = bid.project_address;
-          return (
-            <div className="flex items-center text-gray-600 text-sm min-w-0">
-              <span
-                className="leading-tight overflow-hidden truncate"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  wordBreak: "break-word",
-                }}
-                title={address || "No address provided"}
-              >
-                {address || "No address provided"}
-              </span>
             </div>
           );
         },
@@ -380,7 +356,7 @@ export function createBidColumns(
         ),
         cell: ({ row }) => {
           const bid = row.original;
-          const gc_system = bid.gc_system // enumerate as Procore, AutoDesk, Email, Other
+          const gc_system = bid.gc_system;
           switch (gc_system) {
             case "Procore":
               return (
@@ -402,7 +378,7 @@ export function createBidColumns(
               );
             case "Other":
               return (
-                <div className="flex items-center justify-center text-gray-600 text-sm">
+                <div className="flex items-center justify-center text-orange-600-600 text-sm">
                   Other
                 </div>
               );
@@ -428,17 +404,17 @@ export function createBidColumns(
         ),
         cell: ({ row }) => {
           const bid = row.original;
-          const validProcore = bid.added_to_procore // boolean
+          const validProcore = bid.added_to_procore; // boolean
           if (validProcore) {
             return (
-              <div className="flex items-center justify-center text-green-600 text-sm">
-                Yes
+              <div className="flex items-center justify-center text-green-600">
+                <CheckIcon className="h-5 w-5" />
               </div>
             );
           } else {
             return (
-              <div className="flex items-center justify-center text-red-600 text-sm">
-                No
+              <div className="flex items-center justify-center text-red-600">
+                <XMarkIcon className="h-5 w-5" />
               </div>
             );
           }
@@ -465,12 +441,37 @@ export function createBidColumns(
           // Sort by created_at descending to get most recent first
           const sortedNotes = bidNotes.sort(
             (a: ProjectNote, b: ProjectNote) =>
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
           );
 
           return (
-            <div className="text-gray-600 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
-              {sortedNotes[0].content || ""}
+            <div className="relative group" style={{ position: 'relative', zIndex: 1 }}>
+              <div className="text-gray-600 text-xs truncate cursor-help">
+                {sortedNotes.length > 0 ? sortedNotes[0].content || "" : ""}
+              </div>
+              {sortedNotes.length > 0 &&
+                sortedNotes[0].content &&
+                sortedNotes[0].content.length > 30 && (
+                  <div 
+                    className="hidden group-hover:block absolute rounded-md border border-gray-300 shadow-lg text-xs text-gray-700 whitespace-pre-wrap"
+                    style={{
+                      position: 'absolute',
+                      zIndex: 99999,
+                      left: 0,
+                      top: '100%',
+                      marginTop: '4px',
+                      width: '256px',
+                      padding: '8px',
+                      backgroundColor: 'white',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                    }}
+                  >
+                    {sortedNotes[0].content}
+                  </div>
+                )}
             </div>
           );
         },
