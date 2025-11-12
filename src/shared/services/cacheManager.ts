@@ -1,4 +1,4 @@
-import type { Bid, BidVendor, Vendor, ProjectNote, User } from '../types';
+// Cache manager for storing frequently accessed data
 
 // Cache entry interface
 interface CacheEntry<T> {
@@ -21,14 +21,7 @@ const CACHE_CONFIGS: Record<string, CacheConfig> = {
   notes: { ttl: 2 * 60 * 1000, maxSize: 20 }, // 2 minutes, 20 entries
 };
 
-// Paginated data result interface
-interface PaginatedResult<T> {
-  data: T[];
-  count: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+// Cache manager class
 
 class CacheManager {
   private caches = new Map<string, Map<string, CacheEntry<any>>>();

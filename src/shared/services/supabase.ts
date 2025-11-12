@@ -289,12 +289,12 @@ export class RealtimeManager {
     return this.subscribeToDataChanges(callback);
   }
 
-  subscribeToBidVendors(bidId: number, callback: (payload: RealtimePayload) => void) {
+  subscribeToBidVendors(_bidId: number, callback: (payload: RealtimePayload) => void) {
     console.warn('⚠️ subscribeToBidVendors is deprecated - use subscribeToDataChanges instead');
     return this.subscribeToDataChanges(callback);
   }
 
-  subscribeToProjectNotes(bidId: number, callback: (payload: RealtimePayload) => void) {
+  subscribeToProjectNotes(_bidId: number, callback: (payload: RealtimePayload) => void) {
     console.warn('⚠️ subscribeToProjectNotes is deprecated - use subscribeToDataChanges instead');
     return this.subscribeToDataChanges(callback);
   }
@@ -421,8 +421,7 @@ export const dbOperations = {
 
   // Bid operations
   async getBids() {
-    // Performance monitoring
-    const startTime = Date.now();
+    // Performance monitoring (removed for cleanup)
     
     // Try cache first
     const cached = cacheManager.get('bids', {});
@@ -631,7 +630,7 @@ export const dbOperations = {
 
   // Vendor operations
   async getVendors() {
-    const startTime = Date.now();
+    // Performance monitoring (removed for cleanup)
     
     // Try cache first
     const cached = cacheManager.get('vendors', {});
@@ -1111,7 +1110,7 @@ export const dbOperations = {
   },
 
   async getAllProjectNotes() {
-    const startTime = Date.now();
+    // Performance monitoring (removed for cleanup)
     
     // Try cache first
     const cached = cacheManager.get('notes', {});
@@ -1408,7 +1407,7 @@ export const dbOperations = {
 
 // Expose dbOperations on window for debugging
 if (typeof window !== 'undefined') {
-  window.dbOperations = dbOperations;
+  (window as any).dbOperations = dbOperations;
 }
 
 // Export the main client

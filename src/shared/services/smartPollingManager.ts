@@ -215,7 +215,7 @@ class SmartPollingManager {
    * Pause all polling (when page hidden)
    */
   private pauseAllPolling(): void {
-    this.pollingStates.forEach((state, type) => {
+    this.pollingStates.forEach((state) => {
       if (state.timeoutId) {
         clearTimeout(state.timeoutId);
         state.timeoutId = undefined;
