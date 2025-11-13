@@ -18,6 +18,7 @@ A modern React TypeScript application for managing construction project bids, ve
 - **Response Tracking** - Monitor vendor bid responses and due dates
 - **Priority Vendors** - Mark vendors as priority with visual highlighting
 - **Vendor Performance** - Track response rates and project history
+- **Insurance Tracking** - Monitor vendor insurance certificate expiration dates
 
 ### 🔍 Advanced Filtering & Search
 - **Multi-status Filtering** - Filter projects by multiple statuses simultaneously
@@ -40,16 +41,24 @@ A modern React TypeScript application for managing construction project bids, ve
 - **Responsive Design** - Works across desktop and mobile devices
 - **Visual Status Indicators** - Color-coded borders and highlighting for urgency and priority
 
+### 📧 Automated Reporting
+- **Insurance Expiry Reports** - Automated bi-weekly reports for vendor insurance certificates
+- **Email Notifications** - Professional HTML email reports via SMTP2GO
+- **Scheduled Reports** - Automated reports on 1st and 15th of every month
+- **Real-time Monitoring** - Track vendors with insurance expiring within 30 days
+
 ## Technology Stack
 
 - **Frontend**: React 19 + TypeScript
 - **Build Tool**: Vite 7.x
 - **Styling**: Tailwind CSS 4.x (no config file - uses Vite plugin)
-- **Backend**: Supabase (PostgreSQL + Real-time subscriptions)
+- **Backend**: Supabase (PostgreSQL + Real-time subscriptions + Edge Functions)
 - **Authentication**: Auth0 (configured but optional)
 - **Routing**: React Router v7
 - **State Management**: React Hooks (useState/useEffect)
 - **Table Library**: TanStack Table (@tanstack/react-table)
+- **Email Service**: SMTP2GO for automated reports
+- **Task Scheduling**: PostgreSQL pg_cron for automated reports
 - **Deployment**: Netlify SPA with proper routing
 
 ## Project Structure
@@ -80,7 +89,13 @@ src/
 │   └── utils.ts          # Utility functions
 ├── types/                 # TypeScript interfaces
 ├── utils/                 # Utility functions and formatters
-└── hooks/                # Custom React hooks
+├── hooks/                # Custom React hooks
+└── supabase/             # Supabase configuration
+    ├── functions/        # Edge Functions for automation
+    │   ├── insurance-expiry-report/  # Automated insurance reports
+    │   └── test-insurance-report/    # Testing functions
+    ├── migrations/       # Database migrations and cron jobs
+    └── config.toml      # Supabase project configuration
 ```
 
 ## Key Components
@@ -148,7 +163,7 @@ VITE_AUTH0_DOMAIN=your-domain.us.auth0.com
 VITE_AUTH0_CLIENT_ID=your-client-id
 VITE_AUTH0_REDIRECT_URI=http://localhost:5173
 
-# Email Service (Optional - for PDF reports)
+# Email Service (Required for automated insurance reports)
 VITE_SMTP2GO_API_KEY=your-smtp2go-api-key
 VITE_SMTP2GO_SENDER_EMAIL=your-sender@domain.com
 ```
@@ -158,7 +173,8 @@ VITE_SMTP2GO_SENDER_EMAIL=your-sender@domain.com
 The application uses Supabase with the following main tables:
 
 - **bids** - Project information, status, dates, and assignments
-- **vendors** - Contractor directory with contact information
+- **vendors** - Contractor directory with contact information and insurance tracking
+- **vendor_contacts** - Contact information for vendor representatives
 - **bid_vendors** - Many-to-many project-vendor associations with cost tracking and priority flags
 - **project_notes** - User-attributed notes with timestamps
 - **users** - User management with Auth0 integration
@@ -168,6 +184,42 @@ The application uses Supabase with the following main tables:
 - `vendors_changes` - Vendor updates  
 - `bid_vendors_changes` - Project-vendor associations
 - `project_notes_changes` - Note updates
+
+## Automated Insurance Reporting
+
+### Overview
+The application includes an automated insurance expiry reporting system that monitors vendor insurance certificates and sends bi-weekly email reports to the contracts team.
+
+### Features
+- **Automated Scheduling**: Reports sent on the 1st and 15th of every month at 9:00 AM
+- **Insurance Monitoring**: Tracks vendors with insurance certificates expiring within 30 days
+- **Professional Email Reports**: HTML-formatted emails with company branding
+- **Contact Integration**: Pulls vendor contact details from the `vendor_contacts` table
+- **Manual Testing**: SQL function for immediate report generation
+
+### Technical Implementation
+- **Supabase Edge Functions**: Server-side TypeScript functions for report generation
+- **PostgreSQL pg_cron**: Reliable scheduling for bi-weekly automation
+- **SMTP2GO Integration**: Professional email delivery service
+- **Database Triggers**: Automated logging of report generation
+
+### Setup and Configuration
+For detailed setup instructions, see `/supabase/INSURANCE_REPORTS_SETUP.md`
+
+#### Quick Setup:
+1. **Deploy Edge Functions**: `supabase functions deploy insurance-expiry-report`
+2. **Configure Environment Variables**: Set email credentials in Supabase dashboard
+3. **Apply Database Migration**: Run migration to set up cron jobs
+4. **Test System**: `SELECT trigger_insurance_expiry_report();`
+
+#### Environment Variables for Edge Functions:
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_SMTP2GO_API_KEY=your-smtp2go-api-key
+VITE_SMTP2GO_SENDER_EMAIL=your-sender-email
+HR_EMAIL=hr-email-address
+```
 
 ## Deployment
 
