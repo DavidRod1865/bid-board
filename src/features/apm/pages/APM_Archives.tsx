@@ -112,6 +112,7 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
+          showViewToggle={true}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md">
@@ -135,6 +136,7 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
+        showViewToggle={true}
       />
       
       <div className="flex-1 flex flex-col mx-auto w-full">

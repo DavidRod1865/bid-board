@@ -193,9 +193,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Navigation Items */}
       <div className="flex-1 py-2 overflow-y-auto">
         <nav className="space-y-1 px-3">
-          <div className={`${isCollapsed ? "hidden" : "block"}`}>
-            {showViewToggle && <ViewToggle/>}
-          </div>
 
           {navigationItems.map((item) => {
             const active = isActive(item.path);
@@ -323,6 +320,13 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </div>
+
+      {/* View Toggle at bottom */}
+      {showViewToggle && (
+        <div className="px-2 py-3 border-t border-gray-200 bg-gray-50">
+          <ViewToggle isCollapsed={isCollapsed} />
+        </div>
+      )}
 
       {/* User Menu at bottom */}
       <div className="p-3 border-t border-gray-200 bg-gray-50">

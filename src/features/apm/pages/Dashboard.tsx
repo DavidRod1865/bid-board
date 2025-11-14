@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../../shared/components/ui/Sidebar";
 import PageHeader from "../../../shared/components/ui/PageHeader";
-import type { BidVendor, Vendor, Bid, User } from "../../../shared/types";
-import { dbOperations } from "../../../shared/services/supabase";
-import { supabase } from "../../../shared/services/supabase";
+import type { BidVendor, Vendor, VendorWithContact, Bid, User, ProjectNote } from "../../../shared/types";
 import { getFollowUpUrgency } from "../../../shared/utils/phaseFollowUpUtils";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface APMDashboardProps {
-  // No props needed for now - component manages its own data
+  bids: Bid[];
+  bidVendors: BidVendor[];
+  vendors: VendorWithContact[];
+  users: User[];
+  projectNotes: ProjectNote[];
+  handleStatusChange: (bidId: number, newStatus: string) => Promise<void>;
+  isLoading?: boolean;
 }
 
 interface IndividualTask {
@@ -104,7 +107,15 @@ const getPhaseNotes = (
   }
 };
 
-const APMDashboard: React.FC<APMDashboardProps> = () => {
+const APMDashboard: React.FC<APMDashboardProps> = ({
+  bids,
+  bidVendors,
+  vendors,
+  users,
+  projectNotes: _projectNotes,
+  handleStatusChange: _handleStatusChange,
+  isLoading = false
+}) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -126,95 +137,11 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
   >("follow_up_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  // Data states
-  const [bids, setBids] = useState<Bid[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [bidVendors, setBidVendors] = useState<BidVendor[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use loading state from props (consistent with other dashboards)
+  const error = null; // Error handling is in AppContent
 
-  // Load all APM data
-  useEffect(() => {
-    const loadAPMData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
 
-        // Load all data in parallel
-        const [bidsData, vendorsData, usersData] = await Promise.all([
-          dbOperations.getBids(),
-          dbOperations.getVendors(),
-          dbOperations.getUsers(),
-        ]);
-
-        // Filter for APM-sent bids only
-        const apmBids = bidsData.filter((bid) => bid.sent_to_apm === true);
-        setBids(apmBids);
-        setVendors(vendorsData);
-        setUsers(usersData);
-
-        // Load bid vendors for all APM projects
-        const apmBidIds = apmBids.map((bid) => bid.id);
-        if (apmBidIds.length > 0) {
-          const { data: bidVendorsData, error: bidVendorsError } =
-            await supabase
-              .from("bid_vendors")
-              .select("*")
-              .in("bid_id", apmBidIds);
-
-          if (bidVendorsError) throw bidVendorsError;
-          setBidVendors(bidVendorsData || []);
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load APM data"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAPMData();
-  }, []);
-
-  // Set up real-time subscriptions
-  useEffect(() => {
-    // Subscribe to all bid vendors changes
-    const channel = supabase
-      .channel("apm_bid_vendors_all")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bid_vendors",
-        },
-        (payload: { eventType: string; new?: unknown; old?: unknown }) => {
-          if (payload.eventType === "INSERT" && payload.new) {
-            const newBidVendor = payload.new as unknown as BidVendor;
-            setBidVendors((prev) => [...prev, newBidVendor]);
-          } else if (payload.eventType === "UPDATE" && payload.new) {
-            const updatedBidVendor = payload.new as unknown as BidVendor;
-            setBidVendors((prev) =>
-              prev.map((bv) =>
-                bv.id === updatedBidVendor.id ? updatedBidVendor : bv
-              )
-            );
-          } else if (payload.eventType === "DELETE" && payload.old) {
-            const deletedBidVendor = payload.old as unknown as BidVendor;
-            setBidVendors((prev) =>
-              prev.filter((bv) => bv.id !== deletedBidVendor.id)
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, []);
+  // Real-time data updates are handled by AppContent
 
   // Transform data into individual task rows
   const individualTasks = useMemo(() => {
@@ -462,7 +389,7 @@ const APMDashboard: React.FC<APMDashboardProps> = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="h-screen flex bg-gray-50">
         <Sidebar statusFilter={[]} setStatusFilter={() => {}} />

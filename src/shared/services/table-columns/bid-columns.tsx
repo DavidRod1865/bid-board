@@ -11,6 +11,7 @@ interface SimpleBidVendor {
   bid_id: number;
   response_received_date?: string | null;
   cost_amount?: string | number | null;
+  is_priority: boolean;
 }
 
 interface BidColumnsContext {
@@ -18,7 +19,7 @@ interface BidColumnsContext {
   projectNotes?: ProjectNote[];
   onStatusChange?: (bidId: number, newStatus: string) => Promise<void>;
   statusErrors?: Map<number, string>;
-  updatingStatus?: Set<number>;
+  isOperationLoading?: (bidId: number) => boolean;
   showEstimatingColumns?: boolean;
   onAddedToProcoreChange?: (bidId: number, checked: boolean) => Promise<void>;
 }
@@ -31,7 +32,7 @@ export function createBidColumns(
     projectNotes = [],
     onStatusChange,
     statusErrors,
-    updatingStatus,
+    isOperationLoading,
     showEstimatingColumns = false,
   } = context;
 
@@ -108,7 +109,7 @@ export function createBidColumns(
         ),
         cell: ({ row }) => {
           const bid = row.original;
-          const isUpdating = updatingStatus?.has(bid.id) || false;
+          const isUpdating = isOperationLoading?.(bid.id) || false;
           const hasError = statusErrors?.has(bid.id) || false;
 
           return (
@@ -195,9 +196,9 @@ export function createBidColumns(
         ),
         cell: ({ row }) => {
           const bid = row.original;
-          // Calculate vendor response rate
+          // Calculate vendor response rate for priority vendors only
           const projectBidVendors = bidVendors.filter(
-            (bv: SimpleBidVendor) => bv.bid_id === bid.id
+            (bv: SimpleBidVendor) => bv.bid_id === bid.id && bv.is_priority === true
           );
           const totalVendors = projectBidVendors.length;
           const respondedVendors = projectBidVendors.filter(

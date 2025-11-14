@@ -5,11 +5,13 @@ import { DataTable } from "../../../../shared/components/ui/data-table";
 import { createBidColumns } from "../../../../shared/services/table-columns/bid-columns";
 import { getBidUrgencyClasses, getBidUrgency } from "../../../../shared/utils/formatters";
 import { getStatusColor } from "../../../../shared/utils/statusUtils";
+import { useLoading } from "../../../../shared/contexts/LoadingContext";
 
 interface BidVendor {
   bid_id: number;
   response_received_date?: string | null;
   cost_amount?: string | number | null;
+  is_priority: boolean;
 }
 
 interface ProjectTableProps {
@@ -35,14 +37,16 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   onBidSelect,
   useAPMRouting = false,
 }) => {
-  const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set());
   const [statusErrors, setStatusErrors] = useState<Map<number, string>>(
     new Map()
   );
   const navigate = useNavigate();
+  const { isOperationLoading, setOperationLoading } = useLoading();
 
   const handleStatusChange = useCallback(async (bidId: number, newStatus: string) => {
     if (!onStatusChange) return;
+
+    const operationId = `status-update-${bidId}`;
 
     // Clear any previous errors for this bid
     setStatusErrors((prev) => {
@@ -51,8 +55,8 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       return newErrors;
     });
 
-    // Add bid to updating set
-    setUpdatingStatus((prev) => new Set(prev).add(bidId));
+    // Set loading state for this specific operation
+    setOperationLoading(operationId, true);
 
     try {
       await onStatusChange(bidId, newStatus);
@@ -67,14 +71,10 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
         return newErrors;
       });
     } finally {
-      // Remove bid from updating set
-      setUpdatingStatus((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(bidId);
-        return newSet;
-      });
+      // Clear loading state for this operation
+      setOperationLoading(operationId, false);
     }
-  }, [onStatusChange]);
+  }, [onStatusChange, setOperationLoading]);
 
   // Create column definitions with context
   const columns = useMemo(() => {
@@ -83,10 +83,10 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       projectNotes,
       onStatusChange: handleStatusChange,
       statusErrors,
-      updatingStatus,
+      isOperationLoading: (bidId: number) => isOperationLoading(`status-update-${bidId}`),
       showEstimatingColumns: !useAPMRouting
     });
-  }, [bidVendors, projectNotes, handleStatusChange, statusErrors, updatingStatus, useAPMRouting]);
+  }, [bidVendors, projectNotes, handleStatusChange, statusErrors, isOperationLoading, useAPMRouting]);
 
   // Convert Set to TanStack Table row selection format
   const rowSelection = useMemo(() => {

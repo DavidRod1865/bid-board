@@ -18,6 +18,7 @@ import {
   generateReportSummary
 } from '../../../shared/utils/reportFilters';
 import { generateWeeklyVendorCostsPDF } from '../../../shared/utils/pdfGenerator';
+import { TableSkeleton } from '../../../shared/components/ui/skeleton';
 import emailService from '../../../shared/services/emailService';
 
 interface DashboardProps {
@@ -267,7 +268,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  // Show loading state if data is being fetched
+  // Show loading state with skeleton
   if (isLoading && (!bids || bids.length === 0)) {
     return (
       <div className="flex h-screen">
@@ -277,10 +278,14 @@ const Dashboard: React.FC<DashboardProps> = ({
           showViewToggle={true}
         />
         
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading projects...</p>
+        <div className="flex-1 flex flex-col">
+          <div className="p-6 border-b">
+            <div className="h-8 w-64 bg-gray-200 animate-pulse rounded mb-4"></div>
+            <div className="h-4 w-48 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+          
+          <div className="flex-1 p-6">
+            <TableSkeleton rows={8} columns={6} />
           </div>
         </div>
       </div>

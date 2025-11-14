@@ -7,6 +7,7 @@ import type { ContactData } from './features/estimating/components/VendorManagem
 // Importing Supabase operations and realtime manager
 import { dbOperations, realtimeManager } from './shared/services/supabase';
 import { getDefaultAPMFields } from './shared/utils/bidVendorDefaults';
+import { LoadingProvider, useLoading } from './shared/contexts/LoadingContext';
 
 // Import the new routing structure
 import AppRoutes from './routes';
@@ -51,21 +52,21 @@ type RawBidData = {
 // (RealtimePayload type removed - handled in supabase.ts now)
 
 
-// AppContent component definition
-const AppContent: React.FC = () => {
+// Main content component that uses the loading context
+const AppContentInternal: React.FC = () => {
   const [bids, setBids] = useState<Bid[]>([]);
   const [vendors, setVendors] = useState<VendorWithContact[]>([]);
   const [bidVendors, setBidVendors] = useState<BidVendor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAppLoading, setAppLoading } = useLoading();
 
   // Load initial data from Supabase
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        setLoading(true);
+        setAppLoading(true);
         setError(null);
         
         // Fetch bids, vendors, users, and project notes in parallel
@@ -105,29 +106,21 @@ const AppContent: React.FC = () => {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
-        setLoading(false);
+        setAppLoading(false);
       }
     };
 
     loadInitialData();
-  }, []);
+  }, [setAppLoading]);
 
   // Set up real-time subscriptions for instant updates
   useEffect(() => {
-    // Pass state setters to RealtimeManager for direct state updates
+    // Pass React state setters to RealtimeManager for incremental updates
     realtimeManager.setStateUpdaters({
-      setBids: (newBids) => {
-        setBids(newBids);
-      },
-      setVendors: (newVendors) => {
-        setVendors(newVendors);
-      },
-      setBidVendors: (newBidVendors) => {
-        setBidVendors(newBidVendors);
-      },
-      setProjectNotes: (newNotes) => {
-        setProjectNotes(newNotes);
-      }
+      setBids,
+      setVendors,
+      setBidVendors,
+      setProjectNotes
     });
     
     // Set up real-time subscriptions with direct state updates
@@ -508,7 +501,7 @@ const AppContent: React.FC = () => {
   };
 
   // Show loading state
-  if (loading) {
+  if (isAppLoading) {
     return (
       <div className="min-h-screen bg-gray-50 font-sans flex items-center justify-center">
         <div className="text-center">
@@ -546,6 +539,7 @@ const AppContent: React.FC = () => {
         bidVendors={bidVendors}
         users={users}
         projectNotes={projectNotes}
+        isLoading={isAppLoading}
         handleStatusChange={handleStatusChange}
         handleUpdateBid={handleUpdateBid}
         handleDeleteBid={handleDeleteBid}
@@ -562,6 +556,15 @@ const AppContent: React.FC = () => {
         handleVendorUpdated={handleVendorUpdated}
       />
     </div>
+  );
+};
+
+// Wrapper component that provides the LoadingContext
+const AppContent: React.FC = () => {
+  return (
+    <LoadingProvider>
+      <AppContentInternal />
+    </LoadingProvider>
   );
 };
 

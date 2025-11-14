@@ -33,6 +33,7 @@ interface AppRoutesProps {
   bidVendors: BidVendor[];
   users: User[];
   projectNotes: ProjectNote[];
+  isLoading?: boolean;
   
   // Handler functions
   handleStatusChange: (bidId: number, newStatus: string) => Promise<void>;
@@ -57,6 +58,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   bidVendors,
   users,
   projectNotes,
+  isLoading = false,
   handleStatusChange,
   handleUpdateBid,
   handleDeleteBid,
@@ -85,6 +87,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             projectNotes={projectNotes}
             handleStatusChange={handleStatusChange}
             users={users}
+            isLoading={isLoading}
             onAddProject={handleAddBid}
             onAddProjectWithVendors={handleAddProjectWithVendors}
             onCopyProject={handleCopyProject}
@@ -103,6 +106,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             projectNotes={projectNotes}
             handleStatusChange={handleStatusChange}
             users={users}
+            isLoading={isLoading}
             onAddProject={handleAddBid}
             onAddProjectWithVendors={handleAddProjectWithVendors}
             onCopyProject={handleCopyProject}
@@ -148,7 +152,17 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       {/* APM Team Routes */}
       <Route 
         path="/apm" 
-        element={<APMDashboard />} 
+        element={
+          <APMDashboard 
+            bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
+            bidVendors={bidVendors.filter(bv => bids.find(b => b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold))}
+            vendors={vendors}
+            users={users}
+            projectNotes={projectNotes}
+            handleStatusChange={handleStatusChange}
+            isLoading={isLoading}
+          />
+        } 
       />
       
       <Route 
@@ -161,6 +175,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             projectNotes={projectNotes}
             handleStatusChange={handleStatusChange}
             users={users}
+            isLoading={isLoading}
             onAddProject={handleAddBid}
             onAddProjectWithVendors={handleAddProjectWithVendors}
             onCopyProject={handleCopyProject}

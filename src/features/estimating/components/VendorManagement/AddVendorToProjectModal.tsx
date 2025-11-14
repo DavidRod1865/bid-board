@@ -70,9 +70,6 @@ const AddVendorToProjectModal: React.FC<AddVendorToProjectModalProps> = ({
       newErrors.vendor_id = 'Please select a vendor';
     }
 
-    if (!formData.due_date) {
-      newErrors.due_date = 'Cost due date is required';
-    }
 
     // If cost amount is provided, response date is required
     // If no cost amount, response date will be automatically cleared
@@ -195,7 +192,7 @@ const AddVendorToProjectModal: React.FC<AddVendorToProjectModalProps> = ({
         {/* Cost Due Date */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Cost Due Date *
+            Cost Due Date
           </label>
           <Input
             type="date"
@@ -203,7 +200,6 @@ const AddVendorToProjectModal: React.FC<AddVendorToProjectModalProps> = ({
             onChange={(e) => handleInputChange('due_date', e.target.value)}
             disabled={isLoading}
           />
-          {errors.due_date && <p className="text-red-600 text-sm mt-1">{errors.due_date}</p>}
         </div>
 
         {/* Cost Amount */}

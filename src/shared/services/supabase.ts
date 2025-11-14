@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { cacheManager } from './cacheManager'
 // TODO: Re-enable strict typing once schema is stabilized
 // import type { Database } from './database.types'
 
@@ -42,18 +41,18 @@ export const supabaseService = supabaseServiceKey ?
 export class RealtimeManager {
   private channels: { [key: string]: ReturnType<typeof supabase.channel> } = {}
   private stateUpdaters: {
-    setBids?: (bids: any[]) => void;
-    setVendors?: (vendors: any[]) => void;
-    setBidVendors?: (bidVendors: any[]) => void;
-    setProjectNotes?: (notes: any[]) => void;
+    setBids?: (bids: any[] | ((prev: any[]) => any[])) => void;
+    setVendors?: (vendors: any[] | ((prev: any[]) => any[])) => void;
+    setBidVendors?: (bidVendors: any[] | ((prev: any[]) => any[])) => void;
+    setProjectNotes?: (notes: any[] | ((prev: any[]) => any[])) => void;
   } = {}
 
   // Set state updater functions for direct React state updates
   setStateUpdaters(updaters: {
-    setBids?: (bids: any[]) => void;
-    setVendors?: (vendors: any[]) => void;
-    setBidVendors?: (bidVendors: any[]) => void;
-    setProjectNotes?: (notes: any[]) => void;
+    setBids?: (bids: any[] | ((prev: any[]) => any[])) => void;
+    setVendors?: (vendors: any[] | ((prev: any[]) => any[])) => void;
+    setBidVendors?: (bidVendors: any[] | ((prev: any[]) => any[])) => void;
+    setProjectNotes?: (notes: any[] | ((prev: any[]) => any[])) => void;
   }) {
     this.stateUpdaters = updaters;
   }
@@ -135,133 +134,215 @@ export class RealtimeManager {
   private debounceTimers = new Map<string, NodeJS.Timeout>();
   private readonly DEBOUNCE_DELAY = 1000; // 1 second debounce
 
-  // Handle bids table notifications with debouncing
-  private handleBidsNotification(_payload: RealtimePayload) {
-    console.log('🔔 Bids notification received, triggering state update');
-    this.debounceNotification('bids', async () => {
+  // Handle bids table notifications with incremental updates
+  private handleBidsNotification(payload: RealtimePayload) {
+    console.log('🔔 Bids notification received:', payload.eventType);
+    this.debounceNotification('bids', () => {
       try {
-        // Invalidate cache to ensure fresh data
-        cacheManager.invalidate('bids', {});
-        
-        // Fetch fresh bids data and update state directly
-        const freshBidsData = await dbOperations.getBids();
-        
-        // Transform data same way as AppContent initial load
-        const extractedBidVendors: any[] = [];
-        const transformedBids = freshBidsData.map((bid: any) => {
-          if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
-            extractedBidVendors.push(...bid.bid_vendors.map((bv: any) => ({
-              ...bv,
-              bid_id: bid.id
-            })));
-          }
+        if (payload.eventType === 'INSERT' && payload.new) {
+          // Add new bid to existing state with deduplication
+          const newBid = payload.new as any;
+          console.log('➕ Adding new bid:', newBid.id);
+          this.stateUpdaters.setBids?.(prevBids => {
+            const exists = prevBids.some(bid => bid.id === newBid.id);
+            return exists ? prevBids : [newBid, ...prevBids];
+          });
           
-          const { bid_vendors, ...bidWithoutVendors } = bid;
-          return bidWithoutVendors;
-        });
-
-        // Update React state directly
-        console.log('🔄 Setting bids state with', transformedBids.length, 'items from bids notification');
-        console.log('🔄 Setting bid vendors state with', extractedBidVendors.length, 'items from bids notification');
-        this.stateUpdaters.setBids?.(transformedBids);
-        this.stateUpdaters.setBidVendors?.(extractedBidVendors);
-      } catch (error) {
-        console.error('Error refreshing bids from real-time notification:', error);
-      }
-    });
-  }
-
-  // Handle bid_vendors table notifications with debouncing
-  private handleBidVendorsNotification(_payload: RealtimePayload) {
-    console.log('🔔 Bid vendors notification received, triggering state update');
-    this.debounceNotification('bid_vendors', async () => {
-      try {
-        // Invalidate cache to ensure fresh data
-        cacheManager.invalidate('bids', {});
-        
-        // bid_vendors affects bids data, so refresh bids
-        const freshBidsData = await dbOperations.getBids();
-        
-        // Transform data same way as AppContent initial load
-        const extractedBidVendors: any[] = [];
-        const transformedBids = freshBidsData.map((bid: any) => {
-          if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
-            extractedBidVendors.push(...bid.bid_vendors.map((bv: any) => ({
-              ...bv,
-              bid_id: bid.id
-            })));
-          }
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          // Update existing bid in state
+          const updatedBid = payload.new as any;
+          console.log('✏️ Updating bid:', updatedBid.id);
+          this.stateUpdaters.setBids?.(prevBids => 
+            prevBids.map(bid => bid.id === updatedBid.id ? updatedBid : bid)
+          );
           
-          const { bid_vendors, ...bidWithoutVendors } = bid;
-          return bidWithoutVendors;
-        });
-
-        // Update React state directly
-        console.log('🔄 Setting bids state with', transformedBids.length, 'items from bid_vendors notification');
-        console.log('🔄 Setting bid vendors state with', extractedBidVendors.length, 'items from bid_vendors notification');
-        this.stateUpdaters.setBids?.(transformedBids);
-        this.stateUpdaters.setBidVendors?.(extractedBidVendors);
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          // Remove bid from state
+          const deletedBid = payload.old as any;
+          console.log('🗑️ Removing bid:', deletedBid.id);
+          this.stateUpdaters.setBids?.(prevBids => 
+            prevBids.filter(bid => bid.id !== deletedBid.id)
+          );
+          // Also remove related bid vendors
+          this.stateUpdaters.setBidVendors?.(prevBidVendors =>
+            prevBidVendors.filter(bv => bv.bid_id !== deletedBid.id)
+          );
+        }
       } catch (error) {
-        console.error('Error refreshing bids from bid_vendors notification:', error);
+        console.error('Error handling bids real-time notification:', error);
       }
     });
   }
 
-  // Handle vendors table notifications with debouncing
-  private handleVendorsNotification(_payload: RealtimePayload) {
-    console.log('🔔 Vendors notification received, triggering state update');
-    this.debounceNotification('vendors', async () => {
+  // Handle bid_vendors table notifications with incremental updates
+  private handleBidVendorsNotification(payload: RealtimePayload) {
+    console.log('🔔 Bid vendors notification received:', payload.eventType);
+    this.debounceNotification('bid_vendors', () => {
       try {
-        // Invalidate cache to ensure fresh data
-        cacheManager.invalidate('vendors', {});
-        
-        // Fetch fresh vendors data and update state directly
-        const freshVendors = await dbOperations.getVendors();
-        console.log('🔄 Setting vendors state with', freshVendors?.length || 0, 'items from vendors notification');
-        this.stateUpdaters.setVendors?.(freshVendors || []);
+        if (payload.eventType === 'INSERT' && payload.new) {
+          // Add new bid vendor to existing state with deduplication
+          const newBidVendor = { ...payload.new, bid_id: (payload.new as any).bid_id } as any;
+          console.log('➕ Adding new bid vendor:', newBidVendor.id);
+          this.stateUpdaters.setBidVendors?.(prevBidVendors => {
+            const exists = prevBidVendors.some(bv => bv.id === newBidVendor.id);
+            return exists ? prevBidVendors : [newBidVendor, ...prevBidVendors];
+          });
+          
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          // Update existing bid vendor in state
+          const updatedBidVendor = payload.new as any;
+          console.log('✏️ Updating bid vendor:', updatedBidVendor.id);
+          this.stateUpdaters.setBidVendors?.(prevBidVendors => 
+            prevBidVendors.map(bv => bv.id === updatedBidVendor.id ? updatedBidVendor : bv)
+          );
+          
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          // Remove bid vendor from state
+          const deletedBidVendor = payload.old as any;
+          console.log('🗑️ Removing bid vendor:', deletedBidVendor.id);
+          this.stateUpdaters.setBidVendors?.(prevBidVendors => 
+            prevBidVendors.filter(bv => bv.id !== deletedBidVendor.id)
+          );
+        }
       } catch (error) {
-        console.error('Error refreshing vendors from real-time notification:', error);
+        console.error('Error handling bid_vendors real-time notification:', error);
       }
     });
   }
 
-  // Handle project_notes table notifications with debouncing
+  // Handle vendors table notifications with incremental updates
+  private handleVendorsNotification(payload: RealtimePayload) {
+    console.log('🔔 Vendors notification received:', payload.eventType);
+    this.debounceNotification('vendors', () => {
+      try {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          // Add new vendor to existing state with deduplication
+          const newVendor = payload.new as any;
+          console.log('➕ Adding new vendor:', newVendor.id);
+          this.stateUpdaters.setVendors?.(prevVendors => {
+            const exists = prevVendors.some(vendor => vendor.id === newVendor.id);
+            return exists ? prevVendors : [newVendor, ...prevVendors];
+          });
+          
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          // Update existing vendor in state
+          const updatedVendor = payload.new as any;
+          console.log('✏️ Updating vendor:', updatedVendor.id);
+          this.stateUpdaters.setVendors?.(prevVendors => 
+            prevVendors.map(vendor => vendor.id === updatedVendor.id ? updatedVendor : vendor)
+          );
+          
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          // Remove vendor from state
+          const deletedVendor = payload.old as any;
+          console.log('🗑️ Removing vendor:', deletedVendor.id);
+          this.stateUpdaters.setVendors?.(prevVendors => 
+            prevVendors.filter(vendor => vendor.id !== deletedVendor.id)
+          );
+          // Also remove related bid vendors
+          this.stateUpdaters.setBidVendors?.(prevBidVendors =>
+            prevBidVendors.filter(bv => bv.vendor_id !== deletedVendor.id)
+          );
+        }
+      } catch (error) {
+        console.error('Error handling vendors real-time notification:', error);
+      }
+    });
+  }
+
+  // Handle project_notes table notifications with incremental updates  
   private handleProjectNotesNotification(payload: RealtimePayload) {
     console.log('🔔 Project notes notification received:', payload.eventType, 'for note ID:', payload.new?.id || payload.old?.id);
-    this.debounceNotification('notes', async () => {
+    this.debounceNotification('notes', () => {
       try {
-        // Invalidate cache to ensure fresh data
-        cacheManager.invalidate('notes', {});
-        
-        // Add small delay for INSERT operations to ensure database transaction is committed
-        if (payload.eventType === 'INSERT') {
-          await new Promise(resolve => setTimeout(resolve, 150));
+        if (payload.eventType === 'INSERT' && payload.new) {
+          // Add new note to existing state with deduplication
+          const newNote = payload.new as any;
+          console.log('➕ Adding new note:', newNote.id);
+          this.stateUpdaters.setProjectNotes?.(prevNotes => {
+            const exists = prevNotes.some(note => note.id === newNote.id);
+            return exists ? prevNotes : [newNote, ...prevNotes];
+          });
+          
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          // Update existing note in state
+          const updatedNote = payload.new as any;
+          console.log('✏️ Updating note:', updatedNote.id);
+          this.stateUpdaters.setProjectNotes?.(prevNotes => 
+            prevNotes.map(note => note.id === updatedNote.id ? updatedNote : note)
+          );
+          
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          // Remove note from state
+          const deletedNote = payload.old as any;
+          console.log('🗑️ Removing note:', deletedNote.id);
+          this.stateUpdaters.setProjectNotes?.(prevNotes => 
+            prevNotes.filter(note => note.id !== deletedNote.id)
+          );
         }
-        
-        // Fetch fresh project notes and update state directly
-        const freshNotes = await dbOperations.getAllProjectNotes();
-        console.log('🔄 Setting project notes state with', freshNotes?.length || 0, 'items from notes notification');
-        this.stateUpdaters.setProjectNotes?.(freshNotes || []);
       } catch (error) {
-        console.error('Error refreshing project notes from real-time notification:', error);
+        console.error('Error handling project notes real-time notification:', error);
       }
     });
   }
 
-  // Handle vendor_contacts table notifications with debouncing
-  private handleVendorContactsNotification(_payload: RealtimePayload) {
-    console.log('🔔 Vendor contacts notification received, triggering state update');
+  // Handle vendor_contacts table notifications with incremental updates
+  private handleVendorContactsNotification(payload: RealtimePayload) {
+    console.log('🔔 Vendor contacts notification received:', payload.eventType);
     this.debounceNotification('vendor_contacts', async () => {
       try {
-        // Invalidate cache to ensure fresh data
-        cacheManager.invalidate('vendors', {});
+        const newContact = payload.new as any;
+        const oldContact = payload.old as any;
         
-        // vendor_contacts affects vendor display, so refresh vendors
-        const freshVendors = await dbOperations.getVendors();
-        console.log('🔄 Setting vendors state with', freshVendors?.length || 0, 'items from vendor_contacts notification');
-        this.stateUpdaters.setVendors?.(freshVendors || []);
+        // Determine which vendor is affected
+        const vendorId = newContact?.vendor_id || oldContact?.vendor_id;
+        if (!vendorId) {
+          console.warn('No vendor_id found in vendor_contacts notification payload');
+          return;
+        }
+        
+        // Check if primary contact status changed or if this affects a primary contact
+        const isPrimaryContactChange = newContact?.is_primary || oldContact?.is_primary;
+        
+        if (isPrimaryContactChange) {
+          console.log('🔄 Primary contact changed for vendor:', vendorId);
+          
+          // For primary contact changes, we need to refresh the vendor to get the updated primary contact data
+          // This is more efficient than a full vendor refresh
+          try {
+            const { data: updatedVendor, error } = await supabase
+              .from('vendors')
+              .select(`
+                *,
+                primary_contact:vendor_contacts!primary_contact_id(
+                  id,
+                  contact_name,
+                  contact_title,
+                  phone,
+                  email,
+                  contact_type
+                )
+              `)
+              .eq('id', vendorId)
+              .single();
+              
+            if (error) throw error;
+            
+            if (updatedVendor) {
+              console.log('✏️ Updating vendor with new primary contact:', vendorId);
+              this.stateUpdaters.setVendors?.(prevVendors => 
+                prevVendors.map(vendor => vendor.id === vendorId ? updatedVendor : vendor)
+              );
+            }
+          } catch (vendorError) {
+            console.error('Error fetching updated vendor after primary contact change:', vendorError);
+          }
+        } else {
+          // Non-primary contact changes don't affect the vendor display in most cases
+          console.log('📝 Non-primary vendor contact updated for vendor:', vendorId);
+        }
       } catch (error) {
-        console.error('Error refreshing vendors from vendor_contacts notification:', error);
+        console.error('Error handling vendor_contacts real-time notification:', error);
       }
     });
   }
@@ -423,11 +504,6 @@ export const dbOperations = {
   async getBids() {
     // Performance monitoring (removed for cleanup)
     
-    // Try cache first
-    const cached = cacheManager.get('bids', {});
-    if (cached && Array.isArray(cached)) {
-      return cached;
-    }
     this.trackApiCall('getBids');
     
     const { data, error } = await supabase
@@ -445,8 +521,6 @@ export const dbOperations = {
 
     if (error) throw error
     
-    // Cache the result for 5 minutes
-    cacheManager.set('bids', {}, data);
     
     return data
   },
@@ -615,10 +689,6 @@ export const dbOperations = {
     // Performance monitoring (removed for cleanup)
     
     // Try cache first
-    const cached = cacheManager.get('vendors', {});
-    if (cached && Array.isArray(cached)) {
-      return cached;
-    }
     this.trackApiCall('getVendors');
 
     const { data, error } = await supabase
@@ -639,7 +709,6 @@ export const dbOperations = {
     if (error) throw error
     
     // Cache vendors for 30 minutes (they change less frequently)
-    cacheManager.set('vendors', {}, data);
     
     return data
   },
@@ -892,7 +961,6 @@ export const dbOperations = {
       }
 
       // Invalidate vendor cache to force refresh
-      cacheManager.invalidateRelated(['vendors']);
       
       console.log('deleteVendorContact: Deletion process completed successfully');
     } catch (error) {
@@ -936,7 +1004,6 @@ export const dbOperations = {
       console.log('syncVendorPrimaryContact: Successfully updated vendor primary_contact_id to:', primaryContactId);
 
       // Invalidate vendor cache to force refresh
-      cacheManager.invalidateRelated(['vendors'])
 
       return primaryContactId
     } catch (error) {
@@ -1094,11 +1161,6 @@ export const dbOperations = {
   async getAllProjectNotes() {
     // Performance monitoring (removed for cleanup)
     
-    // Try cache first
-    const cached = cacheManager.get('notes', {});
-    if (cached && Array.isArray(cached)) {
-      return cached;
-    }
     this.trackApiCall('getAllProjectNotes');
 
     const { data, error } = await supabase
@@ -1112,7 +1174,6 @@ export const dbOperations = {
     if (error) throw error
     
     // Cache notes for 2 minutes (they change more frequently)
-    cacheManager.set('notes', {}, data);
     
     return data
   },

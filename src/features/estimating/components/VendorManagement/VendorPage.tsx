@@ -8,6 +8,7 @@ import AlertDialog from "../../../../shared/components/ui/AlertDialog";
 import { Toaster } from "../../../../shared/components/ui/sonner";
 import { useToast } from "../../../../shared/hooks/useToast";
 import { useBulkSelection } from "../../../../shared/hooks/useBulkSelection";
+import { useLoading } from "../../../../shared/contexts/LoadingContext";
 
 interface VendorPageProps {
   vendors: VendorWithContact[];
@@ -29,8 +30,13 @@ const VendorPage: React.FC<VendorPageProps> = ({
   onVendorUpdated,
 }) => {
   const { showSuccess, showError } = useToast();
+  const { setOperationLoading, isOperationLoading } = useLoading();
+  
+  // Operation IDs for different operations
+  const DELETE_OPERATION = 'vendor-delete';
+  const ADD_OPERATION = 'vendor-add';
+  const BULK_DELETE_OPERATION = 'vendor-bulk-delete';
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isOperationLoading, setIsOperationLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<VendorWithContact | null>(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -49,7 +55,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
       return;
     }
 
-    setIsOperationLoading(true);
+    setOperationLoading(DELETE_OPERATION, true);
     try {
       await onDeleteVendor(vendorToDelete.id);
       setShowDeleteModal(false);
@@ -58,7 +64,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
     } catch {
       showError('Delete Failed', 'Failed to delete vendor. Please try again.');
     } finally {
-      setIsOperationLoading(false);
+      setOperationLoading(DELETE_OPERATION, false);
     }
   };
 
@@ -67,9 +73,9 @@ const VendorPage: React.FC<VendorPageProps> = ({
   };
 
   const handleAddVendorSubmit = async (vendorData: Omit<Vendor, "id">, contacts: ContactData[]) => {
-    if (isOperationLoading) return; // Prevent double submission
+    if (isOperationLoading(ADD_OPERATION)) return; // Prevent double submission
     
-    setIsOperationLoading(true);
+    setOperationLoading(ADD_OPERATION, true);
     try {
       await onAddVendor?.(vendorData, contacts);
       setIsAddModalOpen(false);
@@ -80,12 +86,12 @@ const VendorPage: React.FC<VendorPageProps> = ({
     } catch {
       showError('Creation Failed', 'Failed to create vendor. Please try again.');
     } finally {
-      setIsOperationLoading(false);
+      setOperationLoading(ADD_OPERATION, false);
     }
   };
 
   const handleCloseModal = () => {
-    if (!isOperationLoading) {
+    if (!isOperationLoading(ADD_OPERATION)) {
       setIsAddModalOpen(false);
     }
   };
@@ -101,7 +107,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
       return;
     }
 
-    setIsOperationLoading(true);
+    setOperationLoading(BULK_DELETE_OPERATION, true);
     try {
       // Delete all selected vendors
       const deletePromises = Array.from(selectedVendors).map(vendorId => 
@@ -116,7 +122,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
     } catch {
       showError('Delete Failed', 'Failed to delete vendors. Please try again.');
     } finally {
-      setIsOperationLoading(false);
+      setOperationLoading(BULK_DELETE_OPERATION, false);
     }
   };
 
@@ -138,6 +144,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
+          showViewToggle={true}
         />
 
         <div className="flex-1 bg-gray-50 flex flex-col">
@@ -150,7 +157,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
               onDeleteVendor={onDeleteVendor}
               onAddVendor={handleAddVendorClick}
               isLoading={globalLoading}
-              isOperationLoading={isOperationLoading}
+              isOperationLoading={isOperationLoading(ADD_OPERATION) || isOperationLoading(DELETE_OPERATION) || isOperationLoading(BULK_DELETE_OPERATION)}
               selectedVendors={selectedVendors}
               onVendorSelect={handleVendorSelect}
               onBulkDelete={handleBulkDelete}
@@ -164,7 +171,7 @@ const VendorPage: React.FC<VendorPageProps> = ({
         isOpen={isAddModalOpen}
         onClose={handleCloseModal}
         onAddVendor={handleAddVendorSubmit}
-        isLoading={isOperationLoading}
+        isLoading={isOperationLoading(ADD_OPERATION)}
       />
 
       {/* Delete Confirmation Modal */}
