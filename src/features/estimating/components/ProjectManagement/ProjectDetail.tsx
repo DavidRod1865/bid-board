@@ -870,6 +870,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       projectVendors={projectVendors}
                       getVendorById={getVendorById}
                       onEdit={handleEditVendor}
+                      onUpdateBidVendor={onUpdateBidVendor}
                       hideActions={true}
                       onSelectionChange={handleVendorSelectionChange}
                     />

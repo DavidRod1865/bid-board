@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import type { Vendor, BidVendor } from "../../../../shared/types";
 import { Button } from "../../../../shared/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../../../../shared/components/ui/CardComponent";
@@ -15,6 +15,7 @@ interface VendorTableProps {
   onAddVendor?: () => void;
   onEdit?: (vendorId: number) => void;
   onRemoveVendors?: (vendorIds: number[]) => void;
+  onUpdateBidVendor?: (bidVendorId: number, vendorData: Partial<BidVendor>) => void;
   // New props for sidebar integration
   hideActions?: boolean;
   onSelectionChange?: (selectedVendors: number[]) => void;
@@ -26,6 +27,7 @@ const VendorTable: React.FC<VendorTableProps> = ({
   onAddVendor,
   onEdit,
   onRemoveVendors,
+  onUpdateBidVendor,
   hideActions = false,
   onSelectionChange,
 }) => {
@@ -53,8 +55,13 @@ const VendorTable: React.FC<VendorTableProps> = ({
       });
   }, [projectVendors, getVendorById]);
 
+  // Priority update handler
+  const handlePriorityUpdate = useCallback((bidVendorId: number, isPriority: boolean) => {
+    onUpdateBidVendor?.(bidVendorId, { is_priority: isPriority });
+  }, [onUpdateBidVendor]);
+
   // Create column definitions
-  const columns = useMemo(() => createBidVendorColumns(onEdit), [onEdit]);
+  const columns = useMemo(() => createBidVendorColumns(onEdit, handlePriorityUpdate), [onEdit, handlePriorityUpdate]);
 
   const handleRemoveSelected = () => {
     if (selectedVendors.length > 0 && onRemoveVendors) {

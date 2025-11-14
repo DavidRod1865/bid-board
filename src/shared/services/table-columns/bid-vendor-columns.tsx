@@ -4,20 +4,23 @@ import { DataTableColumnHeader } from "../../components/ui/data-table-column-hea
 import { formatDate, formatCurrency, getBidUrgency } from "../../utils/formatters"
 import { getVendorStatusColor } from "../../utils/statusUtils"
 import { Button } from "../../components/ui/Button"
+import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
+import { StarIcon as StarOutline } from '@heroicons/react/24/outline'
 
 interface BidVendorWithVendor extends BidVendor {
   vendor?: Vendor
 }
 
 export function createBidVendorColumns(
-  onEdit?: (vendorId: number) => void
+  onEdit?: (vendorId: number) => void,
+  onUpdatePriority?: (bidVendorId: number, isPriority: boolean) => void
 ): ColumnDef<BidVendorWithVendor>[] {
   return [
     {
       id: "vendor",
       accessorKey: "vendor.company_name",
       meta: {
-        width: "w-[25%]",
+        width: "w-[23%]",
       },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Vendor" />
@@ -34,10 +37,49 @@ export function createBidVendorColumns(
       },
     },
     {
+      id: "priority",
+      accessorKey: "is_priority",
+      meta: {
+        width: "w-[8%]",
+      },
+      header: () => (
+        <div className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          Priority
+        </div>
+      ),
+      cell: ({ row }) => {
+        const bidVendor = row.original;
+        const isPriority = bidVendor.is_priority;
+        
+        return (
+          <div className="flex items-center justify-center">
+            <button
+              onClick={() => onUpdatePriority?.(bidVendor.id, !isPriority)}
+              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              aria-label={isPriority ? "Remove priority" : "Mark as priority"}
+              title={isPriority ? "Remove priority" : "Mark as priority"}
+            >
+              {isPriority ? (
+                <StarSolid className="w-5 h-5 text-yellow-500 hover:text-yellow-600 cursor-pointer" />
+              ) : (
+                <StarOutline className="w-5 h-5 text-gray-400 hover:text-yellow-400 cursor-pointer transition-colors" />
+              )}
+            </button>
+          </div>
+        );
+      },
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.is_priority ? 1 : 0;
+        const b = rowB.original.is_priority ? 1 : 0;
+        return b - a; // Priority items first
+      },
+    },
+    {
       id: "cost_amount",
       accessorKey: "cost_amount",
       meta: {
-        width: "w-[15%]",
+        width: "w-[14%]",
       },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Cost Amount" center />
@@ -66,7 +108,7 @@ export function createBidVendorColumns(
       id: "response_received_date",
       accessorKey: "response_received_date",
       meta: {
-        width: "w-[15%]",
+        width: "w-[14%]",
       },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Response Date" center />
@@ -95,7 +137,7 @@ export function createBidVendorColumns(
       id: "due_date",
       accessorKey: "due_date",
       meta: {
-        width: "w-[15%]",
+        width: "w-[14%]",
       },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Due Date" center />
@@ -165,7 +207,7 @@ export function createBidVendorColumns(
     {
       id: "actions",
       meta: {
-        width: "w-[13%]",
+        width: "w-[15%]",
       },
       header: () => (
         <div className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
