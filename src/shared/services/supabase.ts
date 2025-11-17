@@ -425,7 +425,7 @@ class ApiUsageTracker {
   }
 
   logCurrentStats() {
-    const stats = this.getStats();
+    this.getStats();
     // Stats available for monitoring if needed
   }
 }

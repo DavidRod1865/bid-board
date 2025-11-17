@@ -144,7 +144,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           table: 'bid_vendors',
           filter: `bid_id=eq.${bid.id}`
         },
-        (_payload: { eventType: string; new?: unknown; old?: unknown }) => {
+        () => {
           // Since we're receiving bid_vendors via props, the parent component
           // should handle the real-time updates. This subscription ensures
           // immediate feedback for any changes made within this component.
@@ -158,7 +158,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           table: 'project_notes',
           filter: `bid_id=eq.${bid.id}`
         },
-        (_payload: { eventType: string; new?: unknown; old?: unknown }) => {
+        () => {
         }
       )
       .subscribe();
@@ -495,6 +495,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
         <Sidebar
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
+          showViewToggle={true}
         />
 
         <div className="flex-1 overflow-y-auto">
@@ -575,6 +576,11 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                             <ArchiveBoxIcon className="w-4 h-4 mr-2" />
                             Move to Completed
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            Delete Project
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -597,6 +603,11 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                             <ArchiveBoxIcon className="w-4 h-4 mr-2" />
                             Move to Completed
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            Delete Project
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -618,6 +629,11 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
                             <PauseCircleIcon className="w-4 h-4 mr-2" />
                             Move to Closeouts
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            Delete Project
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1203,18 +1219,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
             </div>
           </div>
 
-          {/* Delete Button - hide when vendors selected */}
-          <div className="p-6 flex justify-end space-x-2">
-            {selectedVendorIds.size === 0 && (
-              <button
-                onClick={handleDeleteProject}
-                className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                <TrashIcon className="w-5 h-5 mr-2" />
-                Delete This Project
-              </button>
-            )}
-          </div>
         </div>
       </div>
       {/* Archive Confirmation Modal */}

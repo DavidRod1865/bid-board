@@ -435,6 +435,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         <Sidebar
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
+          showViewToggle={true}
         />
 
         <div className="flex-1 overflow-y-auto">
@@ -525,6 +526,11 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                             <ArchiveBoxIcon className="w-4 h-4 mr-2" />
                             Move to Completed
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            Delete Project
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -547,6 +553,11 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                             <ArchiveBoxIcon className="w-4 h-4 mr-2" />
                             Move to Completed
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            Delete Project
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -568,6 +579,11 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                           <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
                             <PauseCircleIcon className="w-4 h-4 mr-2" />
                             Move to On-Hold
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <TrashIcon className="w-4 h-4 mr-2" />
+                            Delete Project
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -793,7 +809,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     <div className="text-3xl font-bold text-green-700 mb-2">
                       {(() => {
                         const totalVendorCosts = projectVendors
-                          .filter((bv) => bv.status == "yes bid")
+                          .filter((bv) => bv.status == "yes bid" || bv.status == "no bid")
                           .filter(
                             (bv) =>
                               bv.cost_amount !== null &&
@@ -816,7 +832,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     <div className="text-green-600 text-md font-medium">
                       {(() => {
                         const respondedVendors = projectVendors
-                          .filter((bv) => bv.status == "yes bid")
+                          .filter((bv) => bv.status == "yes bid" || bv.status == "no bid")
                           .filter(
                             (bv) =>
                               bv.response_received_date !== null ||
@@ -1012,18 +1028,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end space-x-2">
-              {/* Delete Button - hide when vendors selected */}
-              {selectedVendorIds.length === 0 && (
-                <button
-                  onClick={handleDeleteProject}
-                  className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                  <TrashIcon className="w-5 h-5 mr-2" />
-                  Delete This Bid / Cannot Be Undone
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </div>
