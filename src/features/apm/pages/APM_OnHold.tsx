@@ -155,8 +155,8 @@ const APMOnHold: React.FC<APMOnHoldProps> = ({ bids = [], projectNotes = [] }) =
             bulkActions={{
               selectedCount: selectedBids.size,
               actions: [
-                { label: "Move Project to Active", onClick: handleBulkRestore, color: "blue" },
-                { label: "Move Project to Archive", onClick: handleBulkArchive, color: "orange" }
+                { label: "Move to Active", onClick: handleBulkRestore, color: "blue" },
+                { label: "Move to Completed", onClick: handleBulkArchive, color: "orange" }
               ],
               onDelete: handleBulkDelete
             }}

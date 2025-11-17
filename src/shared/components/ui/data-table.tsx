@@ -12,6 +12,7 @@ import {
   getSortedRowModel,
 } from "@tanstack/table-core"
 import { useState } from "react"
+import NoDataFound from "./NoDataFound"
 import { Checkbox } from "./checkbox"
 
 interface DataTableProps<TData, TValue> {
@@ -47,13 +48,11 @@ export function DataTable<TData, TValue>({
   onRowSelectionChange,
   onRowClick,
   isLoading = false,
-  emptyMessage = "No results.",
-  emptyIcon: EmptyIcon,
   getRowClassName,
   getRowStyle,
   initialSorting = [],
   enableSorting = true,
-  pageSize = 10,
+  pageSize = 12,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -75,7 +74,7 @@ export function DataTable<TData, TValue>({
               }
               onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
               aria-label="Select all"
-              className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
+              className="h-4 w-4"
             />
           ),
           cell: ({ row }: { row: Row<TData> }) => (
@@ -83,9 +82,10 @@ export function DataTable<TData, TValue>({
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}
               aria-label="Select row"
-              className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
+              className="h-4 w-4"
             />
           ),
+          enableResizing: true,
           enableSorting: false,
           enableHiding: false,
         },
@@ -209,16 +209,9 @@ export function DataTable<TData, TValue>({
               <tr>
                 <td
                   colSpan={tableColumns.length}
-                  className="h-24 text-center"
+                  className="text-center"
                 >
-                  <div className="text-center py-12">
-                    {EmptyIcon && (
-                      <div className="text-gray-400 mb-4">
-                        <EmptyIcon className="mx-auto h-24 w-24" />
-                      </div>
-                    )}
-                    <h3 className="text-xs font-medium text-gray-900 mb-2">{emptyMessage}</h3>
-                  </div>
+                  <NoDataFound />
                 </td>
               </tr>
             )}

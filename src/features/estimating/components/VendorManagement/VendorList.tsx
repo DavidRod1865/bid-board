@@ -215,7 +215,7 @@ const VendorList: React.FC<VendorListProps> = ({
         {/* Custom Vendor Filters */}
         <div className="bg-gray-50 border-b border-gray-200 px-6 pb-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mt-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -354,13 +354,7 @@ const VendorList: React.FC<VendorListProps> = ({
           onRowClick={handleVendorClick}
           isLoading={isLoading}
           pageSize={15}
-          emptyMessage={
-            searchTerm 
-              ? `No vendors match your search for "${searchTerm}"`
-              : vendors.length === 0 
-                ? 'No vendors found. Get started by adding your first vendor.'
-                : 'No vendors found'
-          }
+          emptyMessage="No projects found"
         />
 
         {/* Empty State Actions */}

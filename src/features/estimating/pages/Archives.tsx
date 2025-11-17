@@ -253,11 +253,7 @@ const Archives: React.FC<ArchivesProps> = ({ bids = [], projectNotes = [] }) => 
             }}
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
             isLoading={false}
-            emptyMessage={
-              searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
-                ? 'No matching archived bids'
-                : 'No archived bids'
-            }
+            emptyMessage="No projects found"
             emptyIcon={ArchiveBoxIcon}
             getRowClassName={getRowClassName}
             getRowStyle={getRowStyle}

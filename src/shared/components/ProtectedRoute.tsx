@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth0 } from '../../auth';
+import { useLoading } from '../contexts/LoadingContext';
 import LoginPage from '../pages/LoginPage';
 
 interface ProtectedRouteProps {
@@ -8,20 +9,22 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth0();
+  const { setAuthLoading } = useLoading();
 
-  // Show loading spinner while Auth0 is initializing
+  // Sync Auth0 loading state with our global loading context
+  useEffect(() => {
+    setAuthLoading(isLoading);
+  }, [isLoading, setAuthLoading]);
+
+  // Don't show a separate loading spinner - let the unified loading system handle it
+  // The AppContent component will show the loading spinner when isGlobalLoading is true
+
+  // Show nothing while Auth0 is loading - let global loading context handle the display
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#d4af37] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  // Show login page if not authenticated
+  // Show login page if not authenticated (after Auth0 has finished checking)
   if (!isAuthenticated) {
     return <LoginPage />;
   }

@@ -155,8 +155,8 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
             bulkActions={{
               selectedCount: selectedBids.size,
               actions: [
-                { label: "Move Project to Active", onClick: handleBulkRestore, color: "blue" },
-                { label: "Move Project to On-Hold", onClick: handleBulkOnHold, color: "yellow" }
+                { label: "Move to Active", onClick: handleBulkRestore, color: "blue" },
+                { label: "Move to Closeouts", onClick: handleBulkOnHold, color: "yellow" }
               ],
               onDelete: handleBulkDelete
             }}

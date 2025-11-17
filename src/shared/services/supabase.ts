@@ -59,7 +59,6 @@ export class RealtimeManager {
 
   // Lightweight notification-only subscription for bids
   subscribeToDataChanges(callback?: (payload: RealtimePayload) => void) {
-    console.log('🚀 Setting up real-time subscriptions for all tables...');
     
     const channel = supabase
       .channel('data_changes_notifications')
@@ -125,7 +124,6 @@ export class RealtimeManager {
       )
       .subscribe();
 
-    console.log('✅ Real-time subscriptions established for: bids, bid_vendors, vendors, project_notes, vendor_contacts');
     this.channels['data_changes'] = channel;
     return channel;
   }
@@ -136,13 +134,11 @@ export class RealtimeManager {
 
   // Handle bids table notifications with incremental updates
   private handleBidsNotification(payload: RealtimePayload) {
-    console.log('🔔 Bids notification received:', payload.eventType);
     this.debounceNotification('bids', () => {
       try {
         if (payload.eventType === 'INSERT' && payload.new) {
           // Add new bid to existing state with deduplication
           const newBid = payload.new as any;
-          console.log('➕ Adding new bid:', newBid.id);
           this.stateUpdaters.setBids?.(prevBids => {
             const exists = prevBids.some(bid => bid.id === newBid.id);
             return exists ? prevBids : [newBid, ...prevBids];
@@ -151,7 +147,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           // Update existing bid in state
           const updatedBid = payload.new as any;
-          console.log('✏️ Updating bid:', updatedBid.id);
           this.stateUpdaters.setBids?.(prevBids => 
             prevBids.map(bid => bid.id === updatedBid.id ? updatedBid : bid)
           );
@@ -159,7 +154,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'DELETE' && payload.old) {
           // Remove bid from state
           const deletedBid = payload.old as any;
-          console.log('🗑️ Removing bid:', deletedBid.id);
           this.stateUpdaters.setBids?.(prevBids => 
             prevBids.filter(bid => bid.id !== deletedBid.id)
           );
@@ -176,13 +170,11 @@ export class RealtimeManager {
 
   // Handle bid_vendors table notifications with incremental updates
   private handleBidVendorsNotification(payload: RealtimePayload) {
-    console.log('🔔 Bid vendors notification received:', payload.eventType);
     this.debounceNotification('bid_vendors', () => {
       try {
         if (payload.eventType === 'INSERT' && payload.new) {
           // Add new bid vendor to existing state with deduplication
           const newBidVendor = { ...payload.new, bid_id: (payload.new as any).bid_id } as any;
-          console.log('➕ Adding new bid vendor:', newBidVendor.id);
           this.stateUpdaters.setBidVendors?.(prevBidVendors => {
             const exists = prevBidVendors.some(bv => bv.id === newBidVendor.id);
             return exists ? prevBidVendors : [newBidVendor, ...prevBidVendors];
@@ -191,7 +183,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           // Update existing bid vendor in state
           const updatedBidVendor = payload.new as any;
-          console.log('✏️ Updating bid vendor:', updatedBidVendor.id);
           this.stateUpdaters.setBidVendors?.(prevBidVendors => 
             prevBidVendors.map(bv => bv.id === updatedBidVendor.id ? updatedBidVendor : bv)
           );
@@ -199,7 +190,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'DELETE' && payload.old) {
           // Remove bid vendor from state
           const deletedBidVendor = payload.old as any;
-          console.log('🗑️ Removing bid vendor:', deletedBidVendor.id);
           this.stateUpdaters.setBidVendors?.(prevBidVendors => 
             prevBidVendors.filter(bv => bv.id !== deletedBidVendor.id)
           );
@@ -212,13 +202,11 @@ export class RealtimeManager {
 
   // Handle vendors table notifications with incremental updates
   private handleVendorsNotification(payload: RealtimePayload) {
-    console.log('🔔 Vendors notification received:', payload.eventType);
     this.debounceNotification('vendors', () => {
       try {
         if (payload.eventType === 'INSERT' && payload.new) {
           // Add new vendor to existing state with deduplication
           const newVendor = payload.new as any;
-          console.log('➕ Adding new vendor:', newVendor.id);
           this.stateUpdaters.setVendors?.(prevVendors => {
             const exists = prevVendors.some(vendor => vendor.id === newVendor.id);
             return exists ? prevVendors : [newVendor, ...prevVendors];
@@ -227,7 +215,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           // Update existing vendor in state
           const updatedVendor = payload.new as any;
-          console.log('✏️ Updating vendor:', updatedVendor.id);
           this.stateUpdaters.setVendors?.(prevVendors => 
             prevVendors.map(vendor => vendor.id === updatedVendor.id ? updatedVendor : vendor)
           );
@@ -235,7 +222,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'DELETE' && payload.old) {
           // Remove vendor from state
           const deletedVendor = payload.old as any;
-          console.log('🗑️ Removing vendor:', deletedVendor.id);
           this.stateUpdaters.setVendors?.(prevVendors => 
             prevVendors.filter(vendor => vendor.id !== deletedVendor.id)
           );
@@ -252,13 +238,11 @@ export class RealtimeManager {
 
   // Handle project_notes table notifications with incremental updates  
   private handleProjectNotesNotification(payload: RealtimePayload) {
-    console.log('🔔 Project notes notification received:', payload.eventType, 'for note ID:', payload.new?.id || payload.old?.id);
     this.debounceNotification('notes', () => {
       try {
         if (payload.eventType === 'INSERT' && payload.new) {
           // Add new note to existing state with deduplication
           const newNote = payload.new as any;
-          console.log('➕ Adding new note:', newNote.id);
           this.stateUpdaters.setProjectNotes?.(prevNotes => {
             const exists = prevNotes.some(note => note.id === newNote.id);
             return exists ? prevNotes : [newNote, ...prevNotes];
@@ -267,7 +251,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           // Update existing note in state
           const updatedNote = payload.new as any;
-          console.log('✏️ Updating note:', updatedNote.id);
           this.stateUpdaters.setProjectNotes?.(prevNotes => 
             prevNotes.map(note => note.id === updatedNote.id ? updatedNote : note)
           );
@@ -275,7 +258,6 @@ export class RealtimeManager {
         } else if (payload.eventType === 'DELETE' && payload.old) {
           // Remove note from state
           const deletedNote = payload.old as any;
-          console.log('🗑️ Removing note:', deletedNote.id);
           this.stateUpdaters.setProjectNotes?.(prevNotes => 
             prevNotes.filter(note => note.id !== deletedNote.id)
           );
@@ -288,7 +270,6 @@ export class RealtimeManager {
 
   // Handle vendor_contacts table notifications with incremental updates
   private handleVendorContactsNotification(payload: RealtimePayload) {
-    console.log('🔔 Vendor contacts notification received:', payload.eventType);
     this.debounceNotification('vendor_contacts', async () => {
       try {
         const newContact = payload.new as any;
@@ -305,7 +286,6 @@ export class RealtimeManager {
         const isPrimaryContactChange = newContact?.is_primary || oldContact?.is_primary;
         
         if (isPrimaryContactChange) {
-          console.log('🔄 Primary contact changed for vendor:', vendorId);
           
           // For primary contact changes, we need to refresh the vendor to get the updated primary contact data
           // This is more efficient than a full vendor refresh
@@ -329,7 +309,6 @@ export class RealtimeManager {
             if (error) throw error;
             
             if (updatedVendor) {
-              console.log('✏️ Updating vendor with new primary contact:', vendorId);
               this.stateUpdaters.setVendors?.(prevVendors => 
                 prevVendors.map(vendor => vendor.id === vendorId ? updatedVendor : vendor)
               );
@@ -339,7 +318,6 @@ export class RealtimeManager {
           }
         } else {
           // Non-primary contact changes don't affect the vendor display in most cases
-          console.log('📝 Non-primary vendor contact updated for vendor:', vendorId);
         }
       } catch (error) {
         console.error('Error handling vendor_contacts real-time notification:', error);
@@ -448,10 +426,7 @@ class ApiUsageTracker {
 
   logCurrentStats() {
     const stats = this.getStats();
-    console.log('📊 API Usage Stats (Last Hour):', {
-      ...stats,
-      vsOriginal: `${Math.round((1 - parseFloat(stats.callsPerSecond) / 15.2) * 100)}% reduction vs original 54,686/hour`
-    });
+    // Stats available for monitoring if needed
   }
 }
 
@@ -895,7 +870,6 @@ export const dbOperations = {
 
   async deleteVendorContact(id: number) {
     try {
-      console.log('deleteVendorContact: Starting deletion for contact ID:', id);
       
       // Get the vendor_id and primary status before deleting
       const { data: contactData, error: contactError } = await supabase
@@ -909,7 +883,6 @@ export const dbOperations = {
         throw new Error(`Contact not found: ${contactError.message}`);
       }
 
-      console.log('deleteVendorContact: Contact data before deletion:', contactData);
 
       // Check if this is the last remaining contact for this vendor
       const { data: allContacts, error: countError } = await supabase
@@ -923,11 +896,9 @@ export const dbOperations = {
       }
 
       const isLastContact = allContacts?.length === 1;
-      console.log('deleteVendorContact: Is last contact:', isLastContact);
 
       // If this is the last contact and it's primary, clear the vendor's primary_contact_id first
       if (isLastContact && contactData.is_primary) {
-        console.log('deleteVendorContact: Clearing vendor primary_contact_id before deleting last contact');
         const { error: clearError } = await supabase
           .from('vendors')
           .update({ primary_contact_id: null })
@@ -937,7 +908,6 @@ export const dbOperations = {
           console.error('deleteVendorContact: Error clearing primary_contact_id:', clearError);
           throw new Error(`Failed to clear primary contact reference: ${clearError.message}`);
         }
-        console.log('deleteVendorContact: Successfully cleared primary_contact_id');
       }
 
       // Now delete the contact
@@ -951,18 +921,14 @@ export const dbOperations = {
         throw new Error(`Failed to delete contact: ${error.message}`);
       }
 
-      console.log('deleteVendorContact: Contact deleted successfully');
 
       // If we deleted a primary contact and it wasn't the last contact, sync the vendor's primary_contact_id
       if (contactData.is_primary && !isLastContact) {
-        console.log('deleteVendorContact: Syncing primary contact for vendor:', contactData.vendor_id);
         await this.syncVendorPrimaryContact(contactData.vendor_id);
-        console.log('deleteVendorContact: Primary contact sync completed');
       }
 
       // Invalidate vendor cache to force refresh
       
-      console.log('deleteVendorContact: Deletion process completed successfully');
     } catch (error) {
       console.error('deleteVendorContact: Unexpected error:', error);
       throw error;
@@ -972,7 +938,6 @@ export const dbOperations = {
   // Synchronize vendor primary_contact_id with the contact marked as primary
   async syncVendorPrimaryContact(vendorId: number) {
     try {
-      console.log('syncVendorPrimaryContact: Starting sync for vendor:', vendorId);
       
       // Find the contact marked as primary for this vendor
       const { data: primaryContacts, error: contactError } = await supabase
@@ -988,7 +953,6 @@ export const dbOperations = {
       }
 
       const primaryContactId = primaryContacts && primaryContacts.length > 0 ? primaryContacts[0].id : null
-      console.log('syncVendorPrimaryContact: Found primary contact ID:', primaryContactId);
 
       // Update the vendor's primary_contact_id
       const { error: updateError } = await supabase
@@ -1001,7 +965,6 @@ export const dbOperations = {
         throw new Error(`Failed to update vendor primary contact: ${updateError.message}`);
       }
 
-      console.log('syncVendorPrimaryContact: Successfully updated vendor primary_contact_id to:', primaryContactId);
 
       // Invalidate vendor cache to force refresh
 

@@ -322,14 +322,11 @@ const VendorProfile: React.FC<VendorProfileProps> = ({
               }}
               onDeleteContact={async (contactId) => {
                 try {
-                  console.log('Starting contact deletion for contactId:', contactId);
                   
                   // Check if we're deleting the primary contact
                   const contactToDelete = contacts.find(c => c.id === contactId);
                   const remainingContacts = contacts.filter(c => c.id !== contactId);
                   
-                  console.log('Contact to delete:', contactToDelete);
-                  console.log('Remaining contacts:', remainingContacts.length);
                   
                   if (!contactToDelete) {
                     throw new Error('Contact not found in current contact list');
@@ -338,15 +335,11 @@ const VendorProfile: React.FC<VendorProfileProps> = ({
                   // If deleting primary contact and there are other contacts,
                   // promote another contact to primary BEFORE deleting
                   if (contactToDelete.is_primary && remainingContacts.length > 0) {
-                    console.log('Promoting new primary contact before deletion');
                     const firstRemainingContact = remainingContacts[0];
                     await dbOperations.setPrimaryContact(vendor.id, firstRemainingContact.id);
-                    console.log('Successfully promoted contact', firstRemainingContact.id, 'to primary');
                   }
                   
-                  console.log('Deleting contact...');
                   await dbOperations.deleteVendorContact(contactId);
-                  console.log('Contact deleted successfully');
                   
                   // Refresh contacts
                   const updatedContacts = await dbOperations.getVendorContacts(vendor.id);

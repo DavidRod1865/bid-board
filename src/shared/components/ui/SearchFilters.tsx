@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DateRangePicker } from 'react-date-range';
 import { Input } from './FormField';
 import { Button } from "./Button";
-import StatusBadge from './StatusBadge';
 import { BID_STATUSES } from '../../utils/constants';
+import { getStatusColor } from '../../utils/statusUtils';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
@@ -72,12 +72,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   };
 
   const handleStatusFilter = (status: string) => {
-    if (statusFilter.includes(status)) {
-      // Remove status if already selected
-      setStatusFilter(statusFilter.filter(s => s !== status));
+    // Only allow single selection - if clicking the same status, clear it
+    if (statusFilter.length === 1 && statusFilter[0] === status) {
+      setStatusFilter([]);
     } else {
-      // Add status to selection
-      setStatusFilter([...statusFilter, status]);
+      setStatusFilter([status]);
     }
   };
 
@@ -145,37 +144,71 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         </div>
       </div>
 
-      {/* Status Filter Badges */}
+      {/* Status Filter Tabs */}
       {showStatusFilter && (
-        <div className="flex items-center gap-2 m-2 flex-wrap">
-          <div
-            onClick={handleClearAllStatuses}
-            className={`
-              px-3 py-1 w-30 rounded-full text-center text-xs font-medium transition-all duration-200 border cursor-pointer
-              ${statusFilter.length === 0 
-                ? 'bg-[#d4af37] text-white border-2 border-black' 
-                : 'bg-[#d4af37] text-gray-700 border-gray-300 opacity-55 hover:opacity-70'
-              }
-            `}
-          >
-            All
-          </div>
+        <div className="border-b border-gray-200 bg-gray-50">
+          <div className="px-2">
+            <nav 
+              role="tablist" 
+              aria-label="Filter by project status"
+              className="-mb-px flex space-x-8"
+            >
+              <button
+                role="tab"
+                aria-selected={statusFilter.length === 0}
+                aria-controls="filtered-projects"
+                aria-label="Show all projects"
+                tabIndex={statusFilter.length === 0 ? 0 : -1}
+                onClick={handleClearAllStatuses}
+                className={`py-3 px-1 border-b-2 font-medium text-sm focus:outline-none transition-colors duration-200 ${
+                  statusFilter.length === 0
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                All
+              </button>
+              
+              {BID_STATUSES.map((status) => {
+                const isActive = statusFilter.length === 1 && statusFilter[0] === status;
+                const statusColor = getStatusColor(status);
+                const handleKeyDown = (e: React.KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleStatusFilter(status);
+                  }
+                };
 
-          {BID_STATUSES.map((status) => (
-            <StatusBadge
-              key={status}
-              status={status}
-              variant="badge"
-              onClick={() => handleStatusFilter(status)}
-              className={`
-                cursor-pointer transition-all duration-200 border w-30
-                ${statusFilter.includes(status)
-                  ? ' opacity-100 border-black border-2'
-                  : 'bg-gray-100 !text-gray-700 border-gray-300 hover:bg-gray-200 opacity-55 hover:opacity-70'
-                }
-              `}
-            />
-          ))}
+                return (
+                  <button
+                    key={status}
+                    id={`search-status-tab-${status.toLowerCase().replace(/\s+/g, '-')}`}
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls="filtered-projects"
+                    aria-label={`Filter by ${status} status`}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => handleStatusFilter(status)}
+                    onKeyDown={handleKeyDown}
+                    className={`py-3 px-1 border-b-2 font-medium text-sm focus:outline-none transition-colors duration-200 ${
+                      isActive
+                        ? ""
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                    style={isActive ? { borderBottomColor: statusColor, color: statusColor } : undefined}
+                  >
+                    {status}
+                  </button>
+                );
+              })}
+            </nav>
+            {/* Screen reader announcements */}
+            <div aria-live="polite" aria-atomic="true" className="sr-only">
+              {statusFilter.length === 0 
+                ? "Showing all projects" 
+                : `Showing projects with ${statusFilter[0]} status`}
+            </div>
+          </div>
         </div>
       )}
 

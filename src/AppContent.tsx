@@ -7,7 +7,8 @@ import type { ContactData } from './features/estimating/components/VendorManagem
 // Importing Supabase operations and realtime manager
 import { dbOperations, realtimeManager } from './shared/services/supabase';
 import { getDefaultAPMFields } from './shared/utils/bidVendorDefaults';
-import { LoadingProvider, useLoading } from './shared/contexts/LoadingContext';
+import { useLoading } from './shared/contexts/LoadingContext';
+import LottieLoader from './shared/components/ui/LottieLoader';
 
 // Import the new routing structure
 import AppRoutes from './routes';
@@ -60,7 +61,7 @@ const AppContentInternal: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const { isAppLoading, setAppLoading } = useLoading();
+  const { isAppLoading, setAppLoading, isGlobalLoading } = useLoading();
 
   // Load initial data from Supabase
   useEffect(() => {
@@ -500,13 +501,15 @@ const AppContentInternal: React.FC = () => {
     // Real-time subscription will handle UI updates automatically
   };
 
-  // Show loading state
-  if (isAppLoading) {
+  // Show unified loading state for both auth and app loading
+  if (isGlobalLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 font-sans flex items-center justify-center">
+      <div className="min-h-screen bg-white font-sans flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#d4af37] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your projects...</p>
+          <LottieLoader size="lg" />
+          {/* <p className="mt-4 text-gray-600">
+            {isAppLoading ? 'Loading your projects...' : 'Loading...'}
+          </p> */}
         </div>
       </div>
     );
@@ -515,7 +518,7 @@ const AppContentInternal: React.FC = () => {
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 font-sans flex items-center justify-center">
+      <div className="min-h-screen bg-white font-sans flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Something went wrong</h2>
@@ -559,13 +562,5 @@ const AppContentInternal: React.FC = () => {
   );
 };
 
-// Wrapper component that provides the LoadingContext
-const AppContent: React.FC = () => {
-  return (
-    <LoadingProvider>
-      <AppContentInternal />
-    </LoadingProvider>
-  );
-};
-
-export default AppContent;
+// Export the internal component directly since LoadingProvider is now at App level
+export default AppContentInternal;

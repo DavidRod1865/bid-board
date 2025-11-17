@@ -3,7 +3,6 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 // Shared components
-import AnalyticsPage from '../shared/components/AnalyticsPage';
 import ProjectDetailWrapper from '../features/estimating/components/ProjectManagement/ProjectDetailWrapper';
 
 // Estimating team components
@@ -158,8 +157,6 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             bidVendors={bidVendors.filter(bv => bids.find(b => b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold))}
             vendors={vendors}
             users={users}
-            projectNotes={projectNotes}
-            handleStatusChange={handleStatusChange}
             isLoading={isLoading}
           />
         } 
@@ -322,10 +319,6 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         } 
       />
       
-      <Route 
-        path="/analytics" 
-        element={<AnalyticsPage />} 
-      />
 
       {/* Catch-all route */}
       <Route 

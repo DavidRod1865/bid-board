@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { DocumentIcon } from '@heroicons/react/24/outline';
+import NoDataFound from '../../../shared/components/ui/NoDataFound';
 import type { User, Bid, BidVendor, Vendor, ProjectNote } from '../../../shared/types';
 import BidTable from '../components/BidPricing/BidTable';
 import PageHeader from '../../../shared/components/ui/PageHeader';
@@ -317,17 +317,17 @@ const Dashboard: React.FC<DashboardProps> = ({
             showStatusFilter={true}
             showDateFilter={true}
             actionButton={{
-              label: "Create New Bid",
+              label: "New",
               onClick: handleNewProject,
               color: "green"
             }}
             secondaryActionButton={{
-              label: "Copy Project",
+              label: "Copy",
               onClick: handleCopyProject,
               color: "blue"
             }}
             tertiaryActionButton={{
-              label: isEmailingReport ? "Sending..." : "Email Report",
+              label: isEmailingReport ? "Sending..." : "Email",
               onClick: handleWeeklyCostsReportClick,
               color: "yellow",
               disabled: isEmailingReport
@@ -336,7 +336,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               selectedCount: selectedBids.size,
               actions: [
                 { label: "Move to On-Hold", onClick: handleBulkOnHold, color: "yellow" },
-                { label: "Move to Archive", onClick: handleBulkArchive, color: "orange" },
+                { label: "Move to Completed", onClick: handleBulkArchive, color: "orange" },
                 { label: "Send to APM", onClick: handleBulkSendToAPM, color: "blue" }
               ],
               onDelete: handleBulkDelete
@@ -346,19 +346,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <div className="flex-1 overflow-auto">
           {!isLoading && estimatingBids.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <DocumentIcon className="mx-auto h-24 w-24" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No estimating projects yet</h3>
-              <p className="text-gray-600 mb-4">Get started by creating your first estimating project</p>
-              <button
-                onClick={handleNewProject}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-              >
-                Create Project
-              </button>
-            </div>
+            <NoDataFound 
+              onAddNew={handleNewProject}
+              actionLabel="Create Project"
+            />
           ) : (
             <BidTable 
               bids={filteredBids} 

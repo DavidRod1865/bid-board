@@ -214,7 +214,7 @@ const OnHold: React.FC<OnHoldProps> = ({ bids = [], projectNotes = [] }) => {
               selectedCount: selectedBids.size,
               actions: [
                 { label: "Move to Active", onClick: handleBulkMoveToActive, color: "blue" },
-                { label: "Move to Archive", onClick: handleBulkArchive, color: "orange" },
+                { label: "Move to Completed", onClick: handleBulkArchive, color: "orange" },
                 { label: "Send to APM", onClick: handleBulkSendToAPM, color: "blue" }
               ],
               onDelete: handleBulkDelete
@@ -253,11 +253,7 @@ const OnHold: React.FC<OnHoldProps> = ({ bids = [], projectNotes = [] }) => {
             }}
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
             isLoading={false}
-            emptyMessage={
-              searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
-                ? 'No matching on-hold bids'
-                : 'No on-hold bids'
-            }
+            emptyMessage="No projects found"
             emptyIcon={PauseIcon}
             getRowClassName={getRowClassName}
             getRowStyle={getRowStyle}

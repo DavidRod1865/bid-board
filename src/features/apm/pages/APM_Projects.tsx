@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { DocumentIcon } from '@heroicons/react/24/outline';
+import NoDataFound from '../../../shared/components/ui/NoDataFound';
 import type { User, Bid, BidVendor, Vendor, ProjectNote } from '../../../shared/types';
 import BidTable from '../../estimating/components/BidPricing/BidTable';
 import PageHeader from '../../../shared/components/ui/PageHeader';
@@ -160,7 +160,7 @@ const APMProjects: React.FC<APMProjectsProps> = ({
     try {
       await onAddProject(projectData);
       setIsAddModalOpen(false);
-      showSuccess('APM Project Added', `Successfully added ${projectData.title || projectData.project_name} to APM projects`);
+      showSuccess('Project Added', `Successfully added ${projectData.title || projectData.project_name} to projects`);
     } catch (error) {
       showError('Add Failed', error instanceof Error ? error.message : 'Failed to add project. Please try again.');
     } finally {
@@ -177,7 +177,7 @@ const APMProjects: React.FC<APMProjectsProps> = ({
     try {
       await onAddProjectWithVendors(projectData, vendorIds);
       setIsAddModalOpen(false);
-      showSuccess('APM Project Added', `Successfully added ${projectData.title || projectData.project_name} to APM projects with ${vendorIds.length} vendor${vendorIds.length !== 1 ? 's' : ''}`);
+      showSuccess('Project Added', `Successfully added ${projectData.title || projectData.project_name} to projects with ${vendorIds.length} vendor${vendorIds.length !== 1 ? 's' : ''}`);
     } catch (error) {
       showError('Add Failed', error instanceof Error ? error.message : 'Failed to add project. Please try again.');
     } finally {
@@ -196,7 +196,7 @@ const APMProjects: React.FC<APMProjectsProps> = ({
       const apmProjectData = { ...newProjectData, department: 'APM' };
       await onCopyProject(originalProjectId, apmProjectData);
       setIsCopyModalOpen(false);
-      showSuccess('APM Project Copied', `Successfully copied project as ${newProjectData.title || newProjectData.project_name} to APM projects`);
+      showSuccess('Project Copied', `Successfully copied project as ${newProjectData.title || newProjectData.project_name} to projects`);
     } catch (error) {
       showError('Copy Failed', error instanceof Error ? error.message : 'Failed to copy project. Please try again.');
     } finally {
@@ -249,15 +249,15 @@ const APMProjects: React.FC<APMProjectsProps> = ({
             showStatusFilter={true}
             showDateFilter={true}
             actionButton={{
-              label: "Create New Project",
+              label: "New",
               onClick: handleNewProject,
               color: "green"
             }}
             bulkActions={{
               selectedCount: selectedBids.size,
               actions: [
-                { label: "Move Project to On-Hold", onClick: handleBulkOnHold, color: "yellow" },
-                { label: "Move Project to Archive", onClick: handleBulkArchive, color: "orange" }
+                { label: "Move to Closeouts", onClick: handleBulkOnHold, color: "yellow" },
+                { label: "Move to Completed", onClick: handleBulkArchive, color: "orange" }
               ],
               onDelete: handleBulkDelete
             }}
@@ -266,19 +266,10 @@ const APMProjects: React.FC<APMProjectsProps> = ({
         
         <div className="flex-1 overflow-auto">
           {!isLoading && apmBids.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <DocumentIcon className="mx-auto h-24 w-24" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
-              <p className="text-gray-600 mb-4">Get started by adding your first project!</p>
-              <button
-                onClick={handleNewProject}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-              >
-                Add your first Project
-              </button>
-            </div>
+            <NoDataFound 
+              onAddNew={handleNewProject}
+              actionLabel="Add Project"
+            />
           ) : (
             <BidTable 
               bids={filteredBids} 

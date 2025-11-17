@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from "react";
+import NoDataFound from "../../../shared/components/ui/NoDataFound";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../../shared/components/ui/Sidebar";
 import PageHeader from "../../../shared/components/ui/PageHeader";
-import type { BidVendor, Vendor, VendorWithContact, Bid, User, ProjectNote } from "../../../shared/types";
+import type { BidVendor, Vendor, VendorWithContact, Bid, User } from "../../../shared/types";
 import { getFollowUpUrgency } from "../../../shared/utils/phaseFollowUpUtils";
 
 interface APMDashboardProps {
@@ -10,8 +11,6 @@ interface APMDashboardProps {
   bidVendors: BidVendor[];
   vendors: VendorWithContact[];
   users: User[];
-  projectNotes: ProjectNote[];
-  handleStatusChange: (bidId: number, newStatus: string) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -112,8 +111,6 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
   bidVendors,
   vendors,
   users,
-  projectNotes: _projectNotes,
-  handleStatusChange: _handleStatusChange,
   isLoading = false
 }) => {
   const navigate = useNavigate();
@@ -431,7 +428,7 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
           </div>
         )}
 
-        <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="flex-1 overflow-auto bg-gray-50 mt-3">
           {/* Urgency Stats */}
           <div className="bg-gray-50 border-b border-gray-200 px-6 pb-4">
             <div className="flex gap-2 text-sm">
@@ -510,12 +507,7 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
           {/* Individual Tasks Table */}
           <div>
             {filteredTasks.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No tasks found</p>
-                <p className="text-gray-400 text-sm mt-2">
-                  Try adjusting your filters or check back later
-                </p>
-              </div>
+              <NoDataFound />
             ) : (
               <div className="bg-gray-50 border border-gray-200">
                 {/* Table Header */}
@@ -523,9 +515,9 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                   <div className="grid grid-cols-7 gap-4 px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
                     <button
                       onClick={() => handleSort("project_name")}
-                      className="col-span-1 text-left hover:text-gray-700 flex items-center gap-1"
+                      className="col-span-1 text-left hover:text-gray-700 flex items-center gap-1 font-semibold"
                     >
-                      Project Name
+                      PROJECT NAME
                       {sortField === "project_name" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}
@@ -534,9 +526,9 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                     </button>
                     <button
                       onClick={() => handleSort("gc")}
-                      className="col-span-1 hover:text-gray-700 flex items-center gap-1 justify-center"
+                      className="col-span-1 hover:text-gray-700 flex items-center gap-1 justify-center font-semibold"
                     >
-                      General Contractor
+                      GENERAL CONTRACTOR
                       {sortField === "gc" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}
@@ -545,9 +537,9 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                     </button>
                     <button
                       onClick={() => handleSort("vendor")}
-                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1 font-semibold"
                     >
-                      Vendor
+                      VENDOR
                       {sortField === "vendor" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}
@@ -556,9 +548,9 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                     </button>
                     <button
                       onClick={() => handleSort("phase")}
-                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1 font-semibold"
                     >
-                      Phase
+                      BUYOUT PHASE
                       {sortField === "phase" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}
@@ -567,21 +559,21 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                     </button>
                     <button
                       onClick={() => handleSort("follow_up_date")}
-                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1 font-semibold"
                     >
-                      Follow Up On
+                      FOLLOW UP
                       {sortField === "follow_up_date" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}
                         </span>
                       )}
                     </button>
-                    <div className="col-span-1 text-left">Notes</div>
+                    <div className="col-span-1 text-left font-bold">Notes</div>
                     <button
                       onClick={() => handleSort("assigned_user")}
-                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1"
+                      className="col-span-1 hover:text-gray-700 flex justify-center gap-1 font-semibold"
                     >
-                      Assigned User
+                      ASSIGNED TO
                       {sortField === "assigned_user" && (
                         <span className="text-blue-500">
                           {sortDirection === "asc" ? "↑" : "↓"}

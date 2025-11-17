@@ -9,6 +9,49 @@
   font-family: 'Roboto', sans-serif;
 }
 
+/* View-specific sidebar background colors */
+.sidebar-bg-estimating {
+  background-color: #f1f5f9; /* Noticeable blue background - slate-100 */
+}
+
+.sidebar-bg-apm {
+  background-color: #f0fdf4; /* Noticeable green background - green-50 */
+}
+
+/* 3D perspective for animations */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+/* Remove focus rings globally while maintaining accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Ensure all interactive elements have no visible focus ring */
+*:focus {
+  outline: none;
+}
+
+/* Maintain keyboard navigation accessibility with invisible focus indicators */
+button:focus,
+[role="tab"]:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

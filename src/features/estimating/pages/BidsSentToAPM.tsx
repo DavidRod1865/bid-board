@@ -234,11 +234,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
             }}
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
             isLoading={false}
-            emptyMessage={
-              searchTerm || statusFilter.length > 0 || dateRange.startDate || dateRange.endDate
-                ? 'No matching sent bids'
-                : 'No bids sent to APM'
-            }
+            emptyMessage="No projects found"
             emptyIcon={PaperAirplaneIcon}
             getRowClassName={getRowClassName}
             getRowStyle={getRowStyle}

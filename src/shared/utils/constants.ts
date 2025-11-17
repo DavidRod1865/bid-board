@@ -2,10 +2,8 @@
 
 export const BID_STATUSES = [
   "New",
-  "Gathering Costs",
-  "Pending Pricing", 
-  "Sent to GC",
-  "On-Hold",
+  "Pending",
+  "Completed",
   "Won Bid",
   "Lost Bid"
 ] as const;
@@ -29,16 +27,14 @@ export const BRAND_COLORS = {
 } as const;
 
 export const STATUS_COLORS = {
-  "won bid": "#28a745",
-  "won": "#28a745",
-  "lost bid": "#dc3545", 
-  "lost": "#dc3545",
-  "gathering costs": "#007bff",
-  "pending pricing": "#ffc107",
-  "bidding": "#ffc107",
-  "sent to gc": "#17a2b8",
-  "on-hold": "#fd7e14",
-  "default": "#B6A6CA"
+  "new": "#3b82f6",         // Blue for new bids
+  "pending": "#f59e0b",     // Amber for pending work
+  "completed": "#10b981",   // Green for completed work
+  "won bid": "#059669",     // Darker green for won bids
+  "won": "#059669",
+  "lost bid": "#dc2626",    // Red for lost bids
+  "lost": "#dc2626",
+  "default": "#6b7280"      // Gray for default/unknown
 } as const;
 
 export const VENDOR_STATUS_COLORS = {

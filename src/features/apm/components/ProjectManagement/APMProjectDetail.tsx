@@ -36,7 +36,15 @@ import {
   TrashIcon,
   CheckIcon,
   XMarkIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../../../shared/components/ui/dropdown-menu";
 import { Checkbox } from "../../../../shared/components/ui/checkbox";
 
 interface APMProjectDetailProps {
@@ -136,11 +144,10 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           table: 'bid_vendors',
           filter: `bid_id=eq.${bid.id}`
         },
-        (payload: { eventType: string; new?: unknown; old?: unknown }) => {
+        (_payload: { eventType: string; new?: unknown; old?: unknown }) => {
           // Since we're receiving bid_vendors via props, the parent component
           // should handle the real-time updates. This subscription ensures
           // immediate feedback for any changes made within this component.
-          console.log('Bid vendor change detected:', payload);
         }
       )
       .on(
@@ -151,8 +158,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           table: 'project_notes',
           filter: `bid_id=eq.${bid.id}`
         },
-        (payload: { eventType: string; new?: unknown; old?: unknown }) => {
-          console.log('Project note change detected:', payload);
+        (_payload: { eventType: string; new?: unknown; old?: unknown }) => {
         }
       )
       .subscribe();
@@ -551,64 +557,70 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                 {/* APM State Action Buttons - context dependent based on current APM project state */}
                 {selectedVendorIds.size === 0 && !isEditing && (
                   <>
-                    {/* APM Active Project Buttons */}
+                    {/* APM Active Project Actions */}
                     {isAPMActive && (
-                      <>
-                        <button
-                          onClick={handleMoveToOnHold}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                        >
-                          <PauseCircleIcon className="w-5 h-5 mr-2" />
-                          Move to On-Hold
-                        </button>
-                        <button
-                          onClick={handleArchiveProject}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                        >
-                          <ArchiveBoxIcon className="w-5 h-5 mr-2" />
-                          Move to Archive
-                        </button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center px-4 h-10 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Actions
+                            <ChevronDownIcon className="w-4 h-4 ml-2" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
+                            <PauseCircleIcon className="w-4 h-4 mr-2" />
+                            Move to Closeouts
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleArchiveProject} className="cursor-pointer">
+                            <ArchiveBoxIcon className="w-4 h-4 mr-2" />
+                            Move to Completed
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
 
-                    {/* APM On-Hold Project Buttons */}
+                    {/* APM On-Hold Project Actions */}
                     {isAPMOnHold && (
-                      <>
-                        <button
-                          onClick={handleMoveToActive}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        >
-                          <PlayIcon className="w-5 h-5 mr-2" />
-                          Move to Active
-                        </button>
-                        <button
-                          onClick={handleArchiveProject}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                        >
-                          <ArchiveBoxIcon className="w-5 h-5 mr-2" />
-                          Move to Archive
-                        </button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center px-4 h-10 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Actions
+                            <ChevronDownIcon className="w-4 h-4 ml-2" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleMoveToActive} className="cursor-pointer">
+                            <PlayIcon className="w-4 h-4 mr-2" />
+                            Move to Active
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleArchiveProject} className="cursor-pointer">
+                            <ArchiveBoxIcon className="w-4 h-4 mr-2" />
+                            Move to Completed
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
 
-                    {/* APM Archived Project Buttons */}
+                    {/* APM Archived Project Actions */}
                     {isAPMArchived && (
-                      <>
-                        <button
-                          onClick={handleMoveToActive}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        >
-                          <PlayIcon className="w-5 h-5 mr-2" />
-                          Move to Active
-                        </button>
-                        <button
-                          onClick={handleMoveToOnHold}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                        >
-                          <PauseCircleIcon className="w-5 h-5 mr-2" />
-                          Move to On-Hold
-                        </button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center px-4 h-10 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Actions
+                            <ChevronDownIcon className="w-4 h-4 ml-2" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleMoveToActive} className="cursor-pointer">
+                            <PlayIcon className="w-4 h-4 mr-2" />
+                            Move to Active
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
+                            <PauseCircleIcon className="w-4 h-4 mr-2" />
+                            Move to Closeouts
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </>
                 )}

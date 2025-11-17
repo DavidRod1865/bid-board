@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Bid, User, ProjectNote, Vendor, BidVendor } from "../../../../shared/types";
+import type {
+  Bid,
+  User,
+  ProjectNote,
+  Vendor,
+  BidVendor,
+} from "../../../../shared/types";
 import Sidebar from "../../../../shared/components/ui/Sidebar";
 import AlertDialog from "../../../../shared/components/ui/AlertDialog";
 import StatusBadge from "../../../../shared/components/ui/StatusBadge";
@@ -30,7 +36,15 @@ import {
   TrashIcon,
   CheckIcon,
   XMarkIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../../../shared/components/ui/dropdown-menu";
 
 interface ProjectDetailProps {
   bid: Bid;
@@ -40,8 +54,14 @@ interface ProjectDetailProps {
   users: User[];
   onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   onDeleteBid: (bidId: number) => Promise<void>;
-  onAddBidVendor: (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => Promise<void>;
-  onUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
+  onAddBidVendor: (
+    bidId: number,
+    vendorData: Omit<BidVendor, "id" | "bid_id">
+  ) => Promise<void>;
+  onUpdateBidVendor: (
+    bidVendorId: number,
+    vendorData: Partial<BidVendor>
+  ) => Promise<void>;
   onRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
 }
 
@@ -75,8 +95,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Data comes from props - create filtered/derived state
-  const projectVendors = bidVendors.filter(bv => bv.bid_id === bid.id);
-  const filteredProjectNotes = projectNotes.filter(note => note.bid_id === bid.id);
+  const projectVendors = bidVendors.filter((bv) => bv.bid_id === bid.id);
+  const filteredProjectNotes = projectNotes.filter(
+    (note) => note.bid_id === bid.id
+  );
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Sidebar state
@@ -366,22 +388,22 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     if (isActive) {
       return {
         section: "Active Bids",
-        path: "/"
+        path: "/",
       };
     } else if (isOnHold) {
       return {
         section: "Bids on Hold",
-        path: "/on-hold"
+        path: "/on-hold",
       };
     } else if (isArchived) {
       return {
         section: "Archived Bids",
-        path: "/archives"
+        path: "/archives",
       };
     }
     return {
       section: "Active Bids", // fallback
-      path: "/"
+      path: "/",
     };
   };
 
@@ -467,36 +489,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
-
-                {/* Status Badge */}
-                {isEditing ? (
-                  <div className="relative">
-                    <select
-                      value={formData.status}
-                      onChange={(e) =>
-                        setFormData({ ...formData, status: e.target.value })
-                      }
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    >
-                      {BID_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                    <StatusBadge
-                      status={formData.status}
-                      variant="badge"
-                      className="w-32 cursor-pointer"
-                    />
-                  </div>
-                ) : (
-                  <StatusBadge
-                    status={bid.status}
-                    variant="badge"
-                    className="w-32"
-                  />
-                )}
               </div>
 
               {/* Action Buttons */}
@@ -515,64 +507,70 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 {/* State Action Buttons - context dependent based on current project state */}
                 {selectedVendorIds.length === 0 && !isEditing && (
                   <>
-                    {/* Active Project Buttons */}
+                    {/* Active Project Actions */}
                     {isActive && (
-                      <>
-                        <button
-                          onClick={handleMoveToOnHold}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                        >
-                          <PauseCircleIcon className="w-5 h-5 mr-2" />
-                          Move to On-Hold
-                        </button>
-                        <button
-                          onClick={handleArchiveProject}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                        >
-                          <ArchiveBoxIcon className="w-5 h-5 mr-2" />
-                          Move to Archive
-                        </button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center px-4 h-10 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Actions
+                            <ChevronDownIcon className="w-4 h-4 ml-2" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
+                            <PauseCircleIcon className="w-4 h-4 mr-2" />
+                            Move to On-Hold
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleArchiveProject} className="cursor-pointer">
+                            <ArchiveBoxIcon className="w-4 h-4 mr-2" />
+                            Move to Completed
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
 
-                    {/* On-Hold Project Buttons */}
+                    {/* On-Hold Project Actions */}
                     {isOnHold && (
-                      <>
-                        <button
-                          onClick={handleMoveToActive}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        >
-                          <PlayIcon className="w-5 h-5 mr-2" />
-                          Move to Active
-                        </button>
-                        <button
-                          onClick={handleArchiveProject}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                        >
-                          <ArchiveBoxIcon className="w-5 h-5 mr-2" />
-                          Move to Archive
-                        </button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center px-4 h-10 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Actions
+                            <ChevronDownIcon className="w-4 h-4 ml-2" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleMoveToActive} className="cursor-pointer">
+                            <PlayIcon className="w-4 h-4 mr-2" />
+                            Move to Active
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleArchiveProject} className="cursor-pointer">
+                            <ArchiveBoxIcon className="w-4 h-4 mr-2" />
+                            Move to Completed
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
 
-                    {/* Archived Project Buttons */}
+                    {/* Archived Project Actions */}
                     {isArchived && (
-                      <>
-                        <button
-                          onClick={handleMoveToActive}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                        >
-                          <PlayIcon className="w-5 h-5 mr-2" />
-                          Move to Active
-                        </button>
-                        <button
-                          onClick={handleMoveToOnHold}
-                          className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                        >
-                          <PauseCircleIcon className="w-5 h-5 mr-2" />
-                          Move to On-Hold
-                        </button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center px-4 h-10 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Actions
+                            <ChevronDownIcon className="w-4 h-4 ml-2" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleMoveToActive} className="cursor-pointer">
+                            <PlayIcon className="w-4 h-4 mr-2" />
+                            Move to Active
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
+                            <PauseCircleIcon className="w-4 h-4 mr-2" />
+                            Move to On-Hold
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </>
                 )}
@@ -607,109 +605,165 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             {/* Project Info Section */}
             <div className="mb-4">
               {/* Project Info Cards Flex Layout */}
-              <div className="flex gap-4 mb-4">
-                {/* Project Details Card - Address, GC, File Location */}
-                <div className="bg-gray-50 rounded-lg p-4 border flex-1 border-gray-200 flex-grow">
-                  <div className="space-y-3 text-md">
-                    <div>
-                      <span className="text-gray-600 block mb-1">Address:</span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={formData.project_address}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              project_address: e.target.value,
-                            })
-                          }
-                          className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                          placeholder="Project address..."
-                        />
-                      ) : (
-                        <span className="text-gray-900 text-lg font-medium">
-                          {bid.project_address || "Not specified"}
-                        </span>
-                      )}
+              <div className="flex justify-between flex-2 mb-4">
+                {/* Project Details Card - Address, GC, File Location, Description */}
+                {/* Project Name */}
+                <div className="flex flex-col flex-1">
+                  {/* Status Badge */}
+                  {isEditing ? (
+                    <div className="relative">
+                      <select
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value })
+                        }
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      >
+                        {BID_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                      <StatusBadge
+                        status={formData.status}
+                        variant="badge"
+                        className="w-32 cursor-pointer"
+                      />
                     </div>
-                    <div>
-                      <span className="text-gray-600 block mb-1">
-                        General Contractor:
-                      </span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={formData.general_contractor}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              general_contractor: e.target.value,
-                            })
-                          }
-                          className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                          placeholder="General contractor..."
-                        />
-                      ) : (
-                        <span className="text-gray-900 text-lg font-medium">
-                          {bid.general_contractor || "Not assigned"}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-gray-600 block mb-1">
-                        File Location:
-                      </span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={formData.file_location}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              file_location: e.target.value,
-                            })
-                          }
-                          className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                          placeholder="File location..."
-                        />
-                      ) : (
-                        <span className="text-gray-900 text-lg font-medium">
-                          {bid.file_location || "Not specified"}
-                        </span>
-                      )}
-                    </div>
+                  ) : (
+                    <StatusBadge
+                      status={bid.status}
+                      variant="badge"
+                      className="w-32"
+                    />
+                  )}
+                  
+                  <span className="text-gray-600 text-sm font-medium mt-2">
+                    Project Details:
+                  </span>
 
-                    {/* Project Description */}
-                    {(bid.project_description || isEditing) && (
-                      <div>
-                        <span className="text-gray-600 block mb-1">
-                          Description:
-                        </span>
-                        {isEditing ? (
-                          <textarea
-                            value={formData.project_description}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                project_description: e.target.value,
-                              })
-                            }
-                            className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                            rows={3}
-                            placeholder="Enter project description..."
-                          />
-                        ) : (
-                          <span className="text-gray-900 text-lg font-medium">
-                            {bid.project_description}
-                          </span>
-                        )}
-                      </div>
+                  <div className="text-2xl font-bold text-gray-900 mt-1">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.project_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            project_name: e.target.value,
+                          })
+                        }
+                        className="border border-gray-300 rounded px-2 py-1 text-2xl w-full"
+                        placeholder="Project name..."
+                      />
+                    ) : (
+                      <span>{bid.project_name}</span>
                     )}
                   </div>
+
+                  {/* Address */}
+                  <div>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.project_address}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            project_address: e.target.value,
+                          })
+                        }
+                        className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
+                        placeholder="Project address..."
+                      />
+                    ) : (
+                      <span className="text-gray-900 text-lg font-medium">
+                        {bid.project_address || "Address Not Specified"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* General Contractor */}
+                  <div>
+                    <span className="text-gray-600 text-lg font-medium">
+                      General Contractor:
+                    </span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.general_contractor}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            general_contractor: e.target.value,
+                          })
+                        }
+                        className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
+                        placeholder="General contractor..."
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-medium text-lg ml-2">
+                        {bid.general_contractor || "Not assigned"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* File Location */}
+                  <div>
+                    <span className="text-gray-600 text-sm font-medium">
+                      File Storage Location:
+                    </span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.file_location}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            file_location: e.target.value,
+                          })
+                        }
+                        className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
+                        placeholder="File location..."
+                      />
+                    ) : (
+                      <span className="text-gray-900 text-sm font-medium ml-1">
+                        {bid.file_location || "Not specified"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Project Description */}
+                  {(bid.project_description || isEditing) && (
+                    <div>
+                      <span className="text-gray-600 block mb-1">
+                        Description:
+                      </span>
+                      {isEditing ? (
+                        <textarea
+                          value={formData.project_description}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              project_description: e.target.value,
+                            })
+                          }
+                          className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
+                          rows={3}
+                          placeholder="Enter project description..."
+                        />
+                      ) : (
+                        <span className="text-gray-900 text-lg font-medium">
+                          {bid.project_description}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Right Column - Due Date and Vendor Costs */}
-                <div className="flex flex-1 flex-col gap-4 w-64">
+                <div className="flex flex-col flex-1 gap-4">
                   {/* Due Date Card */}
                   <div className="bg-yellow-50 rounded-lg p-4 border border-blue-200 flex flex-col items-center justify-center text-center h-[50%]">
                     <div className="text-yellow-600 text-md font-medium">
@@ -739,12 +793,17 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     <div className="text-3xl font-bold text-green-700 mb-2">
                       {(() => {
                         const totalVendorCosts = projectVendors
+                          .filter((bv) => bv.status == "yes bid")
                           .filter(
                             (bv) =>
                               bv.cost_amount !== null &&
                               bv.cost_amount !== undefined
                           )
-                          .reduce((sum, bv) => sum + parseFloat(String(bv.cost_amount || 0)), 0);
+                          .reduce(
+                            (sum, bv) =>
+                              sum + parseFloat(String(bv.cost_amount || 0)),
+                            0
+                          );
 
                         return new Intl.NumberFormat("en-US", {
                           style: "currency",
@@ -756,12 +815,14 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     </div>
                     <div className="text-green-600 text-md font-medium">
                       {(() => {
-                        const respondedVendors = projectVendors.filter(
-                          (bv) =>
-                            bv.response_received_date !== null ||
-                            (bv.cost_amount !== null &&
-                              bv.cost_amount !== undefined)
-                        ).length;
+                        const respondedVendors = projectVendors
+                          .filter((bv) => bv.status == "yes bid")
+                          .filter(
+                            (bv) =>
+                              bv.response_received_date !== null ||
+                              (bv.cost_amount !== null &&
+                                bv.cost_amount !== undefined)
+                          ).length;
                         const totalVendors = projectVendors.length;
                         return `${respondedVendors}/${totalVendors} responses`;
                       })()}

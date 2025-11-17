@@ -1,27 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  FolderIcon,
-  ArchiveBoxIcon,
-  PauseCircleIcon,
-  UsersIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ArrowLeftIcon,
-  CheckIcon,
-  XMarkIcon,
-  TrashIcon,
-  RectangleStackIcon,
-  ChevronDownIcon,
-  PencilSquareIcon,
-  PaperAirplaneIcon,
+import { 
+  ArrowRightIcon, 
+  MoonIcon, 
+  QuestionMarkCircleIcon, 
+  Cog6ToothIcon, 
+  ArrowLeftEndOnRectangleIcon 
 } from "@heroicons/react/24/outline";
 import { useAuth0 } from "../../../auth";
 import { ViewToggle } from "./ViewToggle";
 import { useUserProfile } from "../../../contexts/UserContext";
 import type { TeamView } from "../../../contexts/UserContext";
 import UserProfileModal from "../modals/UserProfileModal";
-import withPrideLogo from "../../../assets/With Pride Logo.png";
+import wpbbBlueIcon from "../../../assets/WPBB_blue.png";
+import Folder from "../../../components/Folder";
+import AnimatedUsers from "../../../components/AnimatedUsers";
 
 interface SidebarProps {
   statusFilter: string[];
@@ -35,31 +28,54 @@ interface SidebarProps {
   showViewToggle?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({
-  onEditVendor,
-  onDeleteVendor,
-  onSaveVendor,
-  onCancelVendor,
-  showViewToggle = false,
-  isEditingVendor,
-  isSavingVendor,
-}) => {
+const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem("sidebar-collapsed");
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      // localStorage not available or data corrupted - use default
+      return false;
+    }
+  });
   const { user, logout } = useAuth0();
   const { userProfile, updateProfile, currentView } = useUserProfile();
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  // Save sidebar state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("sidebar-collapsed", JSON.stringify(isCollapsed));
+    } catch {
+      // localStorage not available - state will be session-only
+      console.warn("Could not save sidebar preference to localStorage");
+    }
+  }, [isCollapsed]);
 
   const handleProfileSave = async (name: string, colorPreference: string) => {
     await updateProfile(name, colorPreference);
     setShowProfileModal(false);
-    setShowUserMenu(false);
   };
 
   const displayName = userProfile?.name || user?.name || user?.email || "User";
-  const displayColor = userProfile?.color_preference || "#d4af37";
+  const displayColor = userProfile?.color_preference || "#b8941f";
+
+  const isActive = (path?: string) => {
+    if (!path) return false;
+    if (path === "/estimating" && location.pathname === "/") return true;
+    return location.pathname === path;
+  };
+
+  // Get view-specific accent colors
+  const getViewAccentColor = (isActive: boolean, isHovered: boolean) => {
+    if (isActive || isHovered) {
+      return currentView === "apm" ? "#16a34a" : "#2563eb"; // green-600 or blue-600
+    }
+    return "#6b7280"; // gray-500 for inactive
+  };
 
   // Navigation items based on current view
   const getNavigationItems = (view: TeamView) => {
@@ -67,8 +83,21 @@ const Sidebar: React.FC<SidebarProps> = ({
       return [
         {
           id: "apm-dashboard",
-          label: "Dashboard",
-          icon: <RectangleStackIcon className="w-6 h-6" />,
+          label: "Daily Dashboard",
+          shortLabel: "DAILY",
+          icon: (
+            <div className="w-6 h-6 flex items-center justify-center">
+              <Folder
+                size={0.2}
+                color={getViewAccentColor(
+                  isActive("/apm"),
+                  hoveredItem === "apm-dashboard"
+                )}
+                isActive={isActive("/apm")}
+                isHovered={hoveredItem === "apm-dashboard"}
+              />
+            </div>
+          ),
           path: "/apm",
           onClick: () => navigate("/apm"),
           disabled: false,
@@ -76,33 +105,85 @@ const Sidebar: React.FC<SidebarProps> = ({
         {
           id: "apm-projects",
           label: "Active Projects",
-          icon: <FolderIcon className="w-6 h-6" />,
+          shortLabel: "ACTIVE",
+          icon: (
+            <div className="w-6 h-6 flex items-center justify-center">
+              <Folder
+                size={0.2}
+                color={getViewAccentColor(
+                  isActive("/apm/projects"),
+                  hoveredItem === "apm-projects"
+                )}
+                isActive={isActive("/apm/projects")}
+                isHovered={hoveredItem === "apm-projects"}
+              />
+            </div>
+          ),
           path: "/apm/projects",
           onClick: () => navigate("/apm/projects"),
           disabled: false,
         },
         {
           id: "apm-on-hold",
-          label: "On-Hold Projects",
-          icon: <PauseCircleIcon className="w-6 h-6" />,
+          label: "Pending Closeouts",
+          shortLabel: "CLOSEOUTS",
+          icon: (
+            <div className="w-6 h-6 flex items-center justify-center">
+              <Folder
+                size={0.2}
+                color={getViewAccentColor(
+                  isActive("/apm/on-hold"),
+                  hoveredItem === "apm-on-hold"
+                )}
+                isActive={isActive("/apm/on-hold")}
+                isHovered={hoveredItem === "apm-on-hold"}
+              />
+            </div>
+          ),
           path: "/apm/on-hold",
           onClick: () => navigate("/apm/on-hold"),
           disabled: false,
         },
         {
           id: "apm-archives",
-          label: "Archived Projects",
-          icon: <ArchiveBoxIcon className="w-6 h-6" />,
+          label: "Closed Projects",
+          shortLabel: "COMPLETED",
+          icon: (
+            <div className="w-6 h-6 flex items-center justify-center">
+              <Folder
+                size={0.2}
+                color={getViewAccentColor(
+                  isActive("/apm/archives"),
+                  hoveredItem === "apm-archives"
+                )}
+                isActive={isActive("/apm/archives")}
+                isHovered={hoveredItem === "apm-archives"}
+              />
+            </div>
+          ),
           path: "/apm/archives",
           onClick: () => navigate("/apm/archives"),
           disabled: false,
         },
         {
           id: "apm-vendors",
-          label: "Vendors / Subs",
-          icon: <UsersIcon className="w-6 h-6" />,
-          path: "/apm/vendors",
-          onClick: () => navigate("/apm/vendors"),
+          label: "Contacts",
+          shortLabel: "CONTACTS",
+          icon: (
+            <div className="w-6 h-6 flex items-center justify-center">
+              <AnimatedUsers
+                size={1}
+                color={getViewAccentColor(
+                  isActive("/vendors"),
+                  hoveredItem === "apm-vendors"
+                )}
+                isActive={isActive("/vendors")}
+                isHovered={hoveredItem === "apm-vendors"}
+              />
+            </div>
+          ),
+          path: "/vendors",
+          onClick: () => navigate("/vendors"),
           disabled: false,
         },
       ];
@@ -113,7 +194,20 @@ const Sidebar: React.FC<SidebarProps> = ({
       {
         id: "projects",
         label: "Active Bids",
-        icon: <FolderIcon className="w-6 h-6" />,
+        shortLabel: "ACTIVE",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/estimating"),
+                hoveredItem === "projects"
+              )}
+              isActive={isActive("/estimating")}
+              isHovered={hoveredItem === "projects"}
+            />
+          </div>
+        ),
         path: "/estimating",
         onClick: () => navigate("/estimating"),
         disabled: false,
@@ -121,31 +215,83 @@ const Sidebar: React.FC<SidebarProps> = ({
       {
         id: "on-hold",
         label: "On-Hold Bids",
-        icon: <PauseCircleIcon className="w-6 h-6" />,
+        shortLabel: "HOLD",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/on-hold"),
+                hoveredItem === "on-hold"
+              )}
+              isActive={isActive("/on-hold")}
+              isHovered={hoveredItem === "on-hold"}
+            />
+          </div>
+        ),
         path: "/on-hold",
         onClick: () => navigate("/on-hold"),
         disabled: false,
       },
       {
         id: "sent-to-apm",
-        label: "Sent to APM",
-        icon: <PaperAirplaneIcon className="w-6 h-6" />,
+        label: "Bids to APM",
+        shortLabel: "SENT",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/estimating/bids-sent-to-apm"),
+                hoveredItem === "sent-to-apm"
+              )}
+              isActive={isActive("/estimating/bids-sent-to-apm")}
+              isHovered={hoveredItem === "sent-to-apm"}
+            />
+          </div>
+        ),
         path: "/estimating/bids-sent-to-apm",
         onClick: () => navigate("/estimating/bids-sent-to-apm"),
         disabled: false,
       },
       {
         id: "archives",
-        label: "Archived Bids",
-        icon: <ArchiveBoxIcon className="w-6 h-6" />,
+        label: "Closed Bids",
+        shortLabel: "COMPLETED",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/archives"),
+                hoveredItem === "archives"
+              )}
+              isActive={isActive("/archives")}
+              isHovered={hoveredItem === "archives"}
+            />
+          </div>
+        ),
         path: "/archives",
         onClick: () => navigate("/archives"),
         disabled: false,
       },
       {
         id: "vendors",
-        label: "Vendors / Subs",
-        icon: <UsersIcon className="w-6 h-6" />,
+        label: "Contacts",
+        shortLabel: "CONTACTS",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <AnimatedUsers
+              size={1}
+              color={getViewAccentColor(
+                isActive("/vendors"),
+                hoveredItem === "vendors"
+              )}
+              isActive={isActive("/vendors")}
+              isHovered={hoveredItem === "vendors"}
+            />
+          </div>
+        ),
         path: "/vendors",
         onClick: () => navigate("/vendors"),
         disabled: false,
@@ -155,45 +301,41 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const navigationItems = getNavigationItems(currentView);
 
-  const isActive = (path?: string) => {
-    if (!path) return false;
-    if (path === "/estimating" && location.pathname === "/") return true;
-    return location.pathname === path;
+  // Get view-specific background class
+  const getSidebarBackgroundClass = () => {
+    return currentView === "apm" ? "sidebar-bg-apm" : "sidebar-bg-estimating";
   };
 
   return (
     <div
       className={`${
-        isCollapsed ? "w-16" : "min-w-64 w-64"
-      } bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300`}
+        isCollapsed ? "w-fit items-center" : "min-w-52"
+      } ${getSidebarBackgroundClass()} border-r border-gray-200 flex flex-col transition-all duration-500 ease-in-out`}
     >
+
       {/* Header with logo and toggle button */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        {!isCollapsed && (
-          <div className="flex items-center">
-            <img
-              src={withPrideLogo}
-              alt="With Pride HVAC"
-              className="h-8 w-auto"
-            />
-          </div>
-        )}
-        <button
+      <div
+        className={`flex items-center justify-between p-4 border-b border-gray-200 ${getSidebarBackgroundClass()}`}
+      >
+        <div
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="flex items-center cursor-pointer"
         >
-          {isCollapsed ? (
-            <ChevronRightIcon className="w-6 h-6 text-gray-600 transition-transform duration-200" />
-          ) : (
-            <ChevronLeftIcon className="w-6 h-6 text-gray-600 transition-transform duration-200" />
-          )}
-        </button>
+          <img src={wpbbBlueIcon} alt="With Pride Building Board" className="h-6 w-auto" />
+        </div>
+        {!isCollapsed && (
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="rounded-lg transition-all duration-300 ease-in-out"
+          >
+            <ArrowRightIcon className="w-6 h-6 text-gray-600 transition-transform duration-500 ease-in-out rotate-180" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Items */}
-      <div className="flex-1 py-2 overflow-y-auto">
-        <nav className="space-y-1 px-3">
-
+      <div className="flex-1 py-3 overflow-y-auto">
+        <nav className="space-y px-3">
           {navigationItems.map((item) => {
             const active = isActive(item.path);
 
@@ -202,186 +344,125 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   onClick={item.onClick}
                   disabled={item.disabled}
+                  onMouseEnter={() => setHoveredItem(item.id)}
+                  onMouseLeave={() => setHoveredItem(null)}
                   className={`
-                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200
+                    w-full flex px-3 py-3 rounded-lg text-left transition-all duration-500 ease-in-out
+                    ${
+                      isCollapsed
+                        ? "flex-col items-center gap-1"
+                        : "flex-row items-center gap-3"
+                    }
                     ${
                       active
-                        ? "bg-[#d4af37]/10 text-[#d4af37] border-l-4 border-[#d4af37]"
+                        ? `${
+                            currentView === "apm"
+                              ? "text-green-600"
+                              : "text-blue-600"
+                          } font-medium`
                         : item.disabled
                         ? "text-gray-400 cursor-not-allowed"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-[#d4af37]"
+                        : `text-gray-900 ${
+                            currentView === "apm"
+                              ? "hover:text-green-600"
+                              : "hover:text-blue-600"
+                          }`
                     }
                     ${isCollapsed ? "justify-center" : "justify-start"}
                   `}
                 >
                   <span
                     className={`flex-shrink-0 ${
-                      active ? "text-[#d4af37]" : ""
+                      active
+                        ? currentView === "apm"
+                          ? "text-green-600"
+                          : "text-blue-600"
+                        : ""
                     }`}
                   >
                     {item.icon}
                   </span>
-                  {!isCollapsed && (
-                    <span className="font-medium text-sm">
-                      {item.label}
-                      {item.disabled && " (Coming Soon)"}
-                    </span>
-                  )}
+                  <span
+                    className={`text-xs font-semibold transition-all duration-300 ease-in-out ${
+                      !isCollapsed
+                        ? "opacity-0 scale-95 translate-y-2"
+                        : "opacity-100 scale-100 translate-y-0 delay-200"
+                    } ${!isCollapsed ? "hidden" : "block"} ${
+                      active
+                        ? currentView === "apm"
+                          ? "text-green-600"
+                          : "text-blue-600"
+                        : item.disabled
+                        ? "text-gray-400"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {item.shortLabel}
+                  </span>
+                  <span
+                    className={`font-semibold text-sm transition-all duration-300 ease-in-out ${
+                      isCollapsed
+                        ? "opacity-0 scale-95 -translate-x-2"
+                        : "opacity-100 scale-100 translate-x-0 delay-200"
+                    } ${isCollapsed ? "hidden" : "block"}`}
+                  >
+                    {item.label}
+                    {item.disabled && " (Coming Soon)"}
+                  </span>
                 </button>
               </div>
             );
           })}
         </nav>
+      </div>
 
-        {/* Vendor Detail Actions */}
-        {location.pathname.startsWith("/vendor/") && (
-          <div className="px-3 mt-6 pt-6 border-t border-gray-200">
-            <div className="space-y-1">
-              <button
-                onClick={() => navigate("/vendors")}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-[#d4af37]
-                  ${isCollapsed ? "justify-center" : "justify-start"}
-                `}
-              >
-                <ArrowLeftIcon className="w-6 h-6 flex-shrink-0" />
-                {!isCollapsed && (
-                  <span className="font-medium text-sm">Back to Vendors</span>
-                )}
-              </button>
-
-              {!isEditingVendor ? (
-                <>
-                  <button
-                    onClick={onEditVendor}
-                    className={`
-                      w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-100 hover:text-[#d4af37]
-                      ${isCollapsed ? "justify-center" : "justify-start"}
-                    `}
-                  >
-                    <PencilSquareIcon className="w-6 h-6 flex-shrink-0" />
-                    {!isCollapsed && (
-                      <span className="font-medium text-sm">Edit Vendor</span>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={onSaveVendor}
-                    disabled={isSavingVendor}
-                    className={`
-                      w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-green-600 hover:bg-green-50 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed
-                      ${isCollapsed ? "justify-center" : "justify-start"}
-                    `}
-                  >
-                    <CheckIcon className="w-6 h-6 flex-shrink-0" />
-                    {!isCollapsed && (
-                      <span className="font-medium text-sm">
-                        {isSavingVendor ? "Saving..." : "Save Changes"}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={onCancelVendor}
-                    disabled={isSavingVendor}
-                    className={`
-                      w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700 disabled:opacity-50 disabled:cursor-not-allowed
-                      ${isCollapsed ? "justify-center" : "justify-start"}
-                    `}
-                  >
-                    <XMarkIcon className="w-6 h-6 flex-shrink-0" />
-                    {!isCollapsed && (
-                      <span className="font-medium text-sm">Cancel</span>
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Delete Vendor - Separated at bottom */}
-            {!isEditingVendor && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <button
-                  onClick={onDeleteVendor}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 text-red-600 hover:bg-red-50 hover:text-red-700
-                    ${isCollapsed ? "justify-center" : "justify-start"}
-                  `}
-                >
-                  <TrashIcon className="w-6 h-6 flex-shrink-0" />
-                  {!isCollapsed && (
-                    <span className="font-medium text-sm">Delete Vendor</span>
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+      {/* Action Icons */}
+      <div className={`p-3 w-full border-b border-gray-200 ${getSidebarBackgroundClass()}`}>
+        <div className={`flex ${isCollapsed ? 'flex-col items-center gap-3' : 'flex-row gap-3 justify-center'}`}>
+          {/* Moon Icon */}
+          <button
+            onClick={() => {/* TODO: Dark mode toggle */}}
+            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
+            title="Dark Mode"
+          >
+            <MoonIcon className="w-6 h-6 text-gray-600" />
+          </button>
+          
+          {/* Help Icon */}
+          <button
+            onClick={() => {/* TODO: Help/Documentation */}}
+            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
+            title="Help"
+          >
+            <QuestionMarkCircleIcon className="w-6 h-6 text-gray-600" />
+          </button>
+          
+          {/* Settings Icon */}
+          <button
+            onClick={() => setShowProfileModal(true)}
+            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
+            title="Settings"
+          >
+            <Cog6ToothIcon className="w-6 h-6 text-gray-600" />
+          </button>
+          
+          {/* Logout Icon */}
+          <button
+            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
+            title="Sign Out"
+          >
+            <ArrowLeftEndOnRectangleIcon className="w-6 h-6 text-red-600" />
+          </button>
+        </div>
       </div>
 
       {/* View Toggle at bottom */}
       {showViewToggle && (
-        <div className="px-2 py-3 border-t border-gray-200 bg-gray-50">
+        <div className={`px-2 py-3 ${getSidebarBackgroundClass()}`}>
           <ViewToggle isCollapsed={isCollapsed} />
         </div>
       )}
-
-      {/* User Menu at bottom */}
-      <div className="p-3 border-t border-gray-200 bg-gray-50">
-        <div className="relative">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-100 transition-colors ${
-              isCollapsed ? "justify-center" : "justify-start"
-            }`}
-          >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0"
-              style={{ backgroundColor: displayColor }}
-            >
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            {!isCollapsed && (
-              <>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {displayName}
-                  </p>
-                </div>
-                <ChevronDownIcon
-                  className={`w-6 h-6 text-gray-600 transition-transform duration-200 ${
-                    showUserMenu ? "transform rotate-180" : ""
-                  }`}
-                />
-              </>
-            )}
-          </button>
-
-          {showUserMenu && !isCollapsed && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-              <button
-                onClick={() => {
-                  setShowProfileModal(true);
-                  setShowUserMenu(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Edit Profile
-              </button>
-              <button
-                onClick={() =>
-                  logout({ logoutParams: { returnTo: window.location.origin } })
-                }
-                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* User Profile Modal */}
       <UserProfileModal
