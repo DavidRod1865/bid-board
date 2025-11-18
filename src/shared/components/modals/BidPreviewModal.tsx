@@ -11,7 +11,7 @@ interface BidPreviewModalProps {
   bid?: Bid;
   vendor?: Vendor;
   bidVendor?: BidVendor;
-  eventType: 'bid_due' | 'vendor_due';
+  eventType: 'bid_due' | 'vendor_due' | 'apm_task';
 }
 
 const BidPreviewModal: React.FC<BidPreviewModalProps> = ({
@@ -27,7 +27,12 @@ const BidPreviewModal: React.FC<BidPreviewModalProps> = ({
   if (!bid) return null;
 
   const handleGoToProject = () => {
-    navigate(`/project/${bid.id}`);
+    // Navigate to appropriate project detail based on event type
+    if (eventType === 'apm_task') {
+      navigate(`/apm/project/${bid.id}`);
+    } else {
+      navigate(`/project/${bid.id}`);
+    }
     onClose();
   };
 
@@ -55,7 +60,11 @@ const BidPreviewModal: React.FC<BidPreviewModalProps> = ({
     <DialogModal
       isOpen={isOpen}
       onClose={onClose}
-      title={eventType === 'bid_due' ? 'Bid Due Date' : 'Vendor Cost Due'}
+      title={
+        eventType === 'bid_due' ? 'Bid Due Date' : 
+        eventType === 'vendor_due' ? 'Vendor Cost Due' : 
+        'APM Follow-up Task'
+      }
       size="lg"
       footer={
         <div className="flex items-center justify-end gap-3">

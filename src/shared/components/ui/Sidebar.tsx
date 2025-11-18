@@ -15,6 +15,7 @@ import UserProfileModal from "../modals/UserProfileModal";
 import wpbbBlueIcon from "../../../assets/WPBB_blue.png";
 import Folder from "../../../components/Folder";
 import AnimatedUsers from "../../../components/AnimatedUsers";
+import AnimatedCalendar from "../../../components/AnimatedCalendar";
 
 interface SidebarProps {
   statusFilter: string[];
@@ -54,6 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
       console.warn("Could not save sidebar preference to localStorage");
     }
   }, [isCollapsed]);
+
 
   const handleProfileSave = async (name: string, colorPreference: string) => {
     await updateProfile(name, colorPreference);
@@ -166,6 +168,27 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           disabled: false,
         },
         {
+          id: "apm-calendar",
+          label: "Calendar",
+          shortLabel: "CALENDAR",
+          icon: (
+            <div className="w-6 h-6 flex items-center justify-center">
+              <AnimatedCalendar
+                size={1}
+                color={getViewAccentColor(
+                  isActive("/calendar"),
+                  hoveredItem === "apm-calendar"
+                )}
+                isActive={isActive("/calendar")}
+                isHovered={hoveredItem === "apm-calendar"}
+              />
+            </div>
+          ),
+          path: "/calendar",
+          onClick: () => navigate("/calendar"),
+          disabled: false,
+        },
+        {
           id: "apm-vendors",
           label: "Contacts",
           shortLabel: "CONTACTS",
@@ -189,8 +212,8 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
       ];
     }
 
-    // Default to estimating view
-    return [
+    // Default to estimating view - build base items first
+    const baseItems = [
       {
         id: "projects",
         label: "Active Bids",
@@ -276,6 +299,27 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
         disabled: false,
       },
       {
+        id: "calendar",
+        label: "Calendar",
+        shortLabel: "CALENDAR",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <AnimatedCalendar
+              size={1}
+              color={getViewAccentColor(
+                isActive("/calendar"),
+                hoveredItem === "calendar"
+              )}
+              isActive={isActive("/calendar")}
+              isHovered={hoveredItem === "calendar"}
+            />
+          </div>
+        ),
+        path: "/calendar",
+        onClick: () => navigate("/calendar"),
+        disabled: false,
+      },
+      {
         id: "vendors",
         label: "Contacts",
         shortLabel: "CONTACTS",
@@ -297,6 +341,8 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
         disabled: false,
       },
     ];
+
+    return baseItems;
   };
 
   const navigationItems = getNavigationItems(currentView);

@@ -293,6 +293,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             bids={bids}
             bidVendors={bidVendors}
             vendors={vendors}
+            users={users}
           />
         } 
       />
