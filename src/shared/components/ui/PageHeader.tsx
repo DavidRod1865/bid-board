@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { DateRangePicker } from "react-date-range";
 import type { RangeKeyDict } from "react-date-range";
-import { 
-  TrashIcon, 
-  PlusIcon, 
-  DocumentDuplicateIcon, 
+import {
+  TrashIcon,
+  PlusIcon,
+  DocumentDuplicateIcon,
   EnvelopeIcon,
   ChevronDownIcon,
   PauseIcon,
   ArchiveBoxIcon,
-  PaperAirplaneIcon 
+  PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import { Input } from "./FormField";
 import { Button } from "./Button";
@@ -236,7 +236,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           )}
 
           {/* Reset Button */}
-          <Button className="bg-gray-500 text-white hover:bg-gray-600" size="default" onClick={handleReset}>
+          <Button
+            className="bg-gray-500 text-white hover:bg-gray-600"
+            size="default"
+            onClick={handleReset}
+          >
             Reset
           </Button>
         </div>
@@ -249,9 +253,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({
       <div className="px-6 pt-4 pb-0">
         <div className="flex items-center justify-between">
           <div className="items-center">
-            <h1 className="text-2xl h-10 font-bold text-gray-900">{title}</h1> 
+            <h1 className="text-2xl h-10 font-bold text-gray-900">{title}</h1>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex gap-2 flex-shrink-0">
             {/* Regular Action Buttons - show when no bulk actions are active */}
@@ -312,7 +316,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                     disabled={tertiaryActionButton.disabled}
                     className={`
                   inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
-                  ${tertiaryActionButton.disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                  ${
+                    tertiaryActionButton.disabled
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }
                   ${
                     tertiaryActionButton.color === "green"
                       ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
@@ -326,6 +334,23 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                   >
                     <EnvelopeIcon className="w-5 h-5 mr-2" />
                     {tertiaryActionButton.label}
+                  </button>
+                )}
+
+                {/* Overdue Items Filter */}
+                {overdueCount > 0 && (
+                  <button
+                    onClick={() => setOverdueFilter(!overdueFilter)}
+                    className={`
+                px-3 py-2 text-sm border rounded-md font-medium transition-all duration-200
+                ${
+                  overdueFilter
+                    ? "bg-red-600 text-white border-red-600 hover:bg-red-800"
+                    : "bg-red-500 text-white border-red-500 hover:bg-red-600"
+                }
+              `}
+                  >
+                    {overdueCount} Overdue Items
                   </button>
                 )}
               </>
@@ -344,9 +369,15 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                   <DropdownMenuContent align="end" className="w-48">
                     {bulkActions.actions.map((action, index) => {
                       const getActionIcon = (label: string) => {
-                        if (label.toLowerCase().includes('hold')) return <PauseIcon className="w-4 h-4" />;
-                        if (label.toLowerCase().includes('archive')) return <ArchiveBoxIcon className="w-4 h-4" />;
-                        if (label.toLowerCase().includes('apm') || label.toLowerCase().includes('send')) return <PaperAirplaneIcon className="w-4 h-4" />;
+                        if (label.toLowerCase().includes("hold"))
+                          return <PauseIcon className="w-4 h-4" />;
+                        if (label.toLowerCase().includes("archive"))
+                          return <ArchiveBoxIcon className="w-4 h-4" />;
+                        if (
+                          label.toLowerCase().includes("apm") ||
+                          label.toLowerCase().includes("send")
+                        )
+                          return <PaperAirplaneIcon className="w-4 h-4" />;
                         return <DocumentDuplicateIcon className="w-4 h-4" />;
                       };
 
@@ -361,11 +392,13 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                         </DropdownMenuItem>
                       );
                     })}
-                    
+
                     {/* Separator before delete if delete action exists and there are other actions */}
                     {bulkActions.onDelete && (
                       <>
-                        {bulkActions.actions.length > 0 && <DropdownMenuSeparator />}
+                        {bulkActions.actions.length > 0 && (
+                          <DropdownMenuSeparator />
+                        )}
                         <DropdownMenuItem
                           onClick={bulkActions.onDelete}
                           variant="destructive"
@@ -381,30 +414,13 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               </div>
             )}
           </div>
-
-          {/* Overdue Items Filter */}
-          {overdueCount > 0 && (
-            <button
-              onClick={() => setOverdueFilter(!overdueFilter)}
-              className={`
-                px-3 py-2 text-sm border rounded-md font-medium transition-all duration-200
-                ${
-                  overdueFilter
-                    ? "bg-red-600 text-white border-red-600 hover:bg-red-800"
-                    : "bg-red-500 text-white border-red-500 hover:bg-red-600"
-                }
-              `}
-            >
-              {overdueCount} Overdue Items
-            </button>
-          )}
         </div>
 
         {/* Bottom Row: Status Tab Filters */}
         {showStatusFilter && (
           <div className="border-b border-gray-200 bg-gray-50 -mx-6 px-6">
-            <nav 
-              role="tablist" 
+            <nav
+              role="tablist"
               aria-label="Filter projects by status"
               className="-mb-px flex space-x-8"
             >
@@ -423,14 +439,16 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               >
                 All
               </button>
-              
+
               {BID_STATUSES.map((status) => (
                 <StatusBadge
                   key={status}
-                  id={`status-tab-${status.toLowerCase().replace(/\s+/g, '-')}`}
+                  id={`status-tab-${status.toLowerCase().replace(/\s+/g, "-")}`}
                   status={status}
                   variant="tab"
-                  isActive={statusFilter.length === 1 && statusFilter[0] === status}
+                  isActive={
+                    statusFilter.length === 1 && statusFilter[0] === status
+                  }
                   ariaControls="projects-table"
                   onClick={() => handleStatusFilter(status)}
                 />
@@ -438,8 +456,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             </nav>
             {/* Screen reader announcements */}
             <div aria-live="polite" aria-atomic="true" className="sr-only">
-              {statusFilter.length === 0 
-                ? "Showing all projects" 
+              {statusFilter.length === 0
+                ? "Showing all projects"
                 : `Showing projects with ${statusFilter[0]} status`}
             </div>
           </div>

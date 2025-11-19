@@ -548,27 +548,32 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors, users })
         ) : (
           /* APM Phase Directory */
           <div className=" flex items-center gap-2 mb-6">
-            <div className="text-sm text-gray-500 font-medium">APM Follow-up Directory:</div>
+            <div className="text-sm text-gray-500 font-medium">Follow-up Directory:</div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Buy Number |</span>
+                <span className="text-sm text-gray-600">Buy Number</span>
               </div>
+              <span className="text-sm text-gray-600">|</span>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Purchase Order |</span>
+                <span className="text-sm text-gray-600">Purchase Order</span>
               </div>
+              <span className="text-sm text-gray-600">|</span>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Submittals |</span>
+                <span className="text-sm text-gray-600">Submittals</span>
               </div>
+              <span className="text-sm text-gray-600">|</span>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Revised Plans |</span>
+                <span className="text-sm text-gray-600">Revised Plans</span>
               </div>
+              <span className="text-sm text-gray-600">|</span>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Equipment Release |</span>
+                <span className="text-sm text-gray-600">Equipment Release</span>
               </div>
+              <span className="text-sm text-gray-600">|</span>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                 <span className="text-sm text-gray-600">Closeouts</span>
