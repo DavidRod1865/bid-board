@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import type { Bid, ProjectNote } from "../../../../shared/types";
 import { DataTable } from "../../../../shared/components/ui/data-table";
 import { createBidColumns } from "../../../../shared/services/table-columns/bid-columns";
@@ -44,6 +45,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   );
   
   const { isOperationLoading, setOperationLoading } = useLoading();
+  const navigate = useNavigate();
 
   const handleStatusChange = useCallback(async (bidId: number, newStatus: string) => {
     if (!onStatusChange) return;
@@ -170,6 +172,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       initialSorting={useAPMRouting ? [{ id: "project", desc: false }] : [{ id: "due_date", desc: false }]}
       rowSelection={rowSelection}
       onRowSelectionChange={handleRowSelectionChange}
+      onRowClick={(bid) => navigate(useAPMRouting ? `/apm/project/${bid.id}` : `/project/${bid.id}`)}
       isLoading={isLoading}
       emptyMessage="No projects found"
       getRowClassName={getRowClassName}
