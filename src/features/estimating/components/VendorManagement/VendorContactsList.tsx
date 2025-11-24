@@ -9,6 +9,7 @@ import DialogModal from '../../../../shared/components/ui/DialogModal';
 import VendorContactForm from './VendorContactForm';
 import AlertDialog from '../../../../shared/components/ui/AlertDialog';
 import { Button } from "../../../../shared/components/ui/Button";
+import { useDynamicPageSize } from '../../../../shared/hooks/useDynamicPageSize';
 
 interface VendorContactsListProps {
   contacts: VendorContact[];
@@ -41,6 +42,19 @@ const VendorContactsList: React.FC<VendorContactsListProps> = ({
   const [editingContact, setEditingContact] = useState<VendorContact | null>(null);
   const [deletingContact, setDeletingContact] = useState<VendorContact | null>(null);
   const [operationLoading, setOperationLoading] = useState(false);
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'vendor-contacts-page-size',
+    rowHeight: 50, // Compact rows for contact list
+    reservedHeight: 200, // Minimal space in slideout/modal context
+    minPageSize: 5,
+    maxPageSize: 20 // Smaller range since typically fewer contacts
+  });
 
   const handleAddContact = async (contactData: Omit<VendorContact, 'id' | 'created_at' | 'updated_at'>) => {
     setOperationLoading(true);
@@ -213,7 +227,10 @@ const VendorContactsList: React.FC<VendorContactsListProps> = ({
           columns={columns}
           data={sortedContacts}
           isLoading={isLoading}
-          pageSize={10}
+          pageSize={pageSize}
+          enablePageSizeSelector={true}
+          availablePageSizes={availablePageSizes}
+          onPageSizeChange={setManualPageSize}
           emptyMessage="No contacts found"
         />
       )}

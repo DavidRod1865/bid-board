@@ -8,6 +8,8 @@ export interface User {
   role?: string;
   created_at?: string;
   updated_at?: string;
+  invitation_sent_at?: string;
+  invited_by?: string; // Admin user ID who sent invite
 }
 
 // Vendor Type ENUM matching database

@@ -9,6 +9,7 @@ import CopyProjectModal from '../../../shared/components/modals/CopyProjectModal
 import AlertDialog from '../../../shared/components/ui/AlertDialog';
 import { Toaster } from '../../../shared/components/ui/sonner';
 import { useToast } from '../../../shared/hooks/useToast';
+import { useDynamicPageSize } from '../../../shared/hooks/useDynamicPageSize';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
 import { isDateInRange, getBidUrgency } from '../../../shared/utils/formatters';
@@ -71,6 +72,17 @@ const APMProjects: React.FC<APMProjectsProps> = ({
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError } = useToast();
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'apm-projects-page-size',
+    rowHeight: 65, // Same as estimating for consistency
+    reservedHeight: 460 // Same as estimating dashboard
+  });
 
   // Use filtered bids passed from routes (already filtered for APM active projects)
   const apmBids = useMemo(() => {
@@ -280,6 +292,10 @@ const APMProjects: React.FC<APMProjectsProps> = ({
               selectedBids={selectedBids}
               onBidSelect={handleBidSelect}
               useAPMRouting={true}
+              pageSize={pageSize}
+              enablePageSizeSelector={true}
+              availablePageSizes={availablePageSizes}
+              onPageSizeChange={setManualPageSize}
             />
           )}
         </div>

@@ -4,6 +4,7 @@ import { Button } from "../../../../shared/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardAction, CardContent } from "../../../../shared/components/ui/CardComponent";
 import { DataTable } from "../../../../shared/components/ui/data-table";
 import { createBidVendorColumns } from "../../../../shared/services/table-columns/bid-vendor-columns";
+import { useDynamicPageSize } from "../../../../shared/hooks/useDynamicPageSize";
 
 interface BidVendorWithVendor extends BidVendor {
   vendor?: Vendor;
@@ -32,6 +33,17 @@ const VendorTable: React.FC<VendorTableProps> = ({
   onSelectionChange,
 }) => {
   const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'vendor-table-page-size',
+    rowHeight: 55, // Compact for table within project view
+    reservedHeight: 300 // Less space needed in component view
+  });
 
   // Transform data to include vendor information
   const vendorsWithData = useMemo(() => {
@@ -159,27 +171,7 @@ const VendorTable: React.FC<VendorTableProps> = ({
   if (hideActions) {
     // Return table without Card wrapper for project detail
     return (
-      <DataTable
-        columns={columns}
-        data={vendorsWithData}
-        enableRowSelection={true}
-        rowSelection={rowSelection}
-        onRowSelectionChange={handleRowSelectionChange}
-        getRowClassName={getRowClassName}
-        pageSize={15}
-        initialSorting={[{ id: "due_date", desc: false }]}
-        emptyMessage="No vendors assigned to this project yet."
-      />
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Project Vendors</CardTitle>
-        <CardAction>{tableActions}</CardAction>
-      </CardHeader>
-      <CardContent>
+      <div className="h-full flex flex-col">
         <DataTable
           columns={columns}
           data={vendorsWithData}
@@ -187,7 +179,35 @@ const VendorTable: React.FC<VendorTableProps> = ({
           rowSelection={rowSelection}
           onRowSelectionChange={handleRowSelectionChange}
           getRowClassName={getRowClassName}
-          pageSize={15}
+          pageSize={pageSize}
+          enablePageSizeSelector={true}
+          availablePageSizes={availablePageSizes}
+          onPageSizeChange={setManualPageSize}
+          initialSorting={[{ id: "due_date", desc: false }]}
+          emptyMessage="No vendors assigned to this project yet."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <Card className="flex flex-col h-full">
+      <CardHeader>
+        <CardTitle>Project Vendors</CardTitle>
+        <CardAction>{tableActions}</CardAction>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col overflow-hidden">
+        <DataTable
+          columns={columns}
+          data={vendorsWithData}
+          enableRowSelection={true}
+          rowSelection={rowSelection}
+          onRowSelectionChange={handleRowSelectionChange}
+          getRowClassName={getRowClassName}
+          pageSize={pageSize}
+          enablePageSizeSelector={true}
+          availablePageSizes={availablePageSizes}
+          onPageSizeChange={setManualPageSize}
           initialSorting={[{ id: "due_date", desc: false }]}
           emptyMessage="No vendors assigned to this project yet."
         />

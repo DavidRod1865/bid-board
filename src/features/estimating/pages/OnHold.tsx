@@ -8,6 +8,7 @@ import AlertDialog from '../../../shared/components/ui/AlertDialog';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import { createOnHoldColumns } from '../../../shared/services/table-columns/archive-columns';
 // import { useToast } from '../../../shared/hooks/useToast';
+import { useDynamicPageSize } from '../../../shared/hooks/useDynamicPageSize';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
 import { isDateInRange } from '../../../shared/utils/formatters';
@@ -31,6 +32,17 @@ const OnHold: React.FC<OnHoldProps> = ({ bids = [], projectNotes = [] }) => {
   
   
   const navigate = useNavigate();
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'onhold-page-size',
+    rowHeight: 65,
+    reservedHeight: 460
+  });
 
   // Bulk selection hooks
   const {
@@ -255,6 +267,10 @@ const OnHold: React.FC<OnHoldProps> = ({ bids = [], projectNotes = [] }) => {
             isLoading={false}
             emptyMessage="No projects found"
             emptyIcon={PauseIcon}
+            pageSize={pageSize}
+            enablePageSizeSelector={true}
+            availablePageSizes={availablePageSizes}
+            onPageSizeChange={setManualPageSize}
             getRowClassName={getRowClassName}
             getRowStyle={getRowStyle}
           />

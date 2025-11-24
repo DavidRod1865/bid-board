@@ -7,6 +7,7 @@ import BidTable from '../../estimating/components/BidPricing/BidTable';
 // import { useToast } from '../../../shared/hooks/useToast';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
+import { useDynamicPageSize } from '../../../shared/hooks/useDynamicPageSize';
 import { isDateInRange } from '../../../shared/utils/formatters';
 
 interface APMArchivesProps {
@@ -44,6 +45,17 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
 
   // Clear selection when filters change
   useClearSelectionOnFilterChange(clearSelection, [searchTerm, statusFilter.length, dateRange]);
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'apm-archives-page-size',
+    rowHeight: 65,
+    reservedHeight: 460
+  });
 
   // const { showError } = useToast();
 
@@ -171,6 +183,10 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
             selectedBids={selectedBids}
             onBidSelect={handleBidSelect}
             useAPMRouting={true}
+            pageSize={pageSize}
+            enablePageSizeSelector={true}
+            availablePageSizes={availablePageSizes}
+            onPageSizeChange={setManualPageSize}
           />
         </div>
       </div>

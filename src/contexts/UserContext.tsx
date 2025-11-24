@@ -53,6 +53,19 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       let dbUser = users.find(u => u.email === user.email);
       
+      // Check if this is a pending invitation that needs activation
+      if (dbUser && !dbUser.is_active && dbUser.invitation_sent_at) {
+        try {
+          // This user was invited and is logging in for the first time
+          // Activate their account and update their Auth0 ID
+          dbUser = await dbOperations.markUserAsActive(dbUser.id, user.sub);
+          console.log('UserContext: Successfully activated invitation for:', dbUser.email);
+        } catch (activationError) {
+          console.error('UserContext: Failed to activate pending user:', activationError);
+          // Continue with existing user data
+        }
+      }
+      
       if (!dbUser && user.email && user.name) {
         try {
           dbUser = await dbOperations.createOrUpdateUserProfile(user.sub, {

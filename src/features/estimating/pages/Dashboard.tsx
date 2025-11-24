@@ -9,6 +9,7 @@ import CopyProjectModal from '../../../shared/components/modals/CopyProjectModal
 import AlertDialog from '../../../shared/components/ui/AlertDialog';
 import { Toaster } from '../../../shared/components/ui/sonner';
 import { useToast } from '../../../shared/hooks/useToast';
+import { useDynamicPageSize } from '../../../shared/hooks/useDynamicPageSize';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
 import { isDateInRange, getBidUrgency } from '../../../shared/utils/formatters';
@@ -83,6 +84,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isEmailingReport, setIsEmailingReport] = useState(false);
   const [showEmailConfirmModal, setShowEmailConfirmModal] = useState(false);
   const { showSuccess, showError } = useToast();
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'estimating-dashboard-page-size',
+    rowHeight: 65, // Slightly larger for bid table rows
+    reservedHeight: 460 // More reserved space for dashboard header
+  });
 
   // Filter for active bids only (not archived, not on-hold, not sent to APM)
   const estimatingBids = useMemo(() => {
@@ -359,6 +371,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               isLoading={isLoading}
               selectedBids={selectedBids}
               onBidSelect={handleBidSelect}
+              pageSize={pageSize}
+              enablePageSizeSelector={true}
+              availablePageSizes={availablePageSizes}
+              onPageSizeChange={setManualPageSize}
             />
           )}
         </div>

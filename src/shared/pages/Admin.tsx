@@ -19,6 +19,10 @@ import type { User } from "../types";
 import type { AnalyticsFilters, AnalyticsDashboardData } from "../types/analytics";
 import { EnvelopeIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
 import UserEditModal from "../components/modals/UserEditModal";
+import UserInviteModal from "../components/modals/UserInviteModal";
+import { auth0Service } from "../services/auth0Service";
+import { useToast } from "../hooks/useToast";
+import { useDynamicPageSize } from "../hooks/useDynamicPageSize";
 
 // Analytics Components
 import ResponseRateDonutChart from "../components/analytics/ResponseRateDonutChart";
@@ -42,8 +46,22 @@ const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<Record<string, boolean>>({});
+  const [currentUser] = useState<User | undefined>(undefined); // TODO: Get from auth context
+  const { showSuccess, showError } = useToast();
+
+  // Dynamic page size management for user table
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'admin-users-page-size',
+    rowHeight: 70, // Slightly larger for user table rows
+    reservedHeight: 400 // Less reserved space since admin has simpler header
+  });
   
   // Analytics state
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardData>({
@@ -306,6 +324,47 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleUserCreated = (newUser: User) => {
+    // Add new user to local state
+    setUsers(prevUsers => [newUser, ...prevUsers]);
+  };
+
+  // Helper function to determine user status
+  const getUserStatus = (user: User): string => {
+    if (user.is_active) return "Active";
+    
+    if (user.invitation_sent_at) {
+      // Check if invitation is expired (7 days default)
+      const invitationDate = new Date(user.invitation_sent_at);
+      const expiryDate = new Date(invitationDate.getTime() + (7 * 24 * 60 * 60 * 1000));
+      const now = new Date();
+      
+      if (now > expiryDate) {
+        return "Invite Expired";
+      } else {
+        return "Invite Sent";
+      }
+    }
+    
+    return "Inactive";
+  };
+
+  // Helper function to get status style
+  const getStatusStyle = (status: string): string => {
+    switch (status) {
+      case "Active":
+        return "bg-green-100 text-green-800 border-green-200 hover:bg-green-200";
+      case "Invite Sent":
+        return "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200";
+      case "Invite Expired":
+        return "bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200";
+      case "Inactive":
+        return "bg-red-100 text-red-800 border-red-200 hover:bg-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200";
+    }
+  };
+
   const openEditModal = (user: User) => {
     setSelectedUser(user);
     setEditModalOpen(true);
@@ -317,19 +376,61 @@ const Admin: React.FC = () => {
   };
 
   // Get selected user IDs and count
-  const selectedUserIds = Object.keys(selectedUsers).filter(id => selectedUsers[id]);
+  const selectedRowIndices = Object.keys(selectedUsers).filter(id => selectedUsers[id]);
+  const selectedUserIds = selectedRowIndices.map(index => users[parseInt(index)]?.id).filter(Boolean);
   const selectedCount = selectedUserIds.length;
 
   // Bulk action handlers
   const handleBulkPasswordReset = async () => {
     if (selectedCount === 0) return;
     
-    const selectedUserEmails = users
-      .filter(user => selectedUsers[user.id])
-      .map(user => user.email)
-      .join(', ');
+    const selectedUsersData = selectedRowIndices
+      .map(index => users[parseInt(index)])
+      .filter(Boolean);
     
-    alert(`Password reset links sent to: ${selectedUserEmails}`);
+    const confirmReset = window.confirm(
+      `Send password reset emails to ${selectedCount} user(s)?`
+    );
+    
+    if (!confirmReset) return;
+    
+    try {
+      // Send password reset emails to all selected users
+      const emailPromises = selectedUsersData.map(async (user) => {
+        try {
+          await auth0Service.sendPasswordResetEmail(user.email);
+          return { email: user.email, success: true };
+        } catch (error) {
+          console.error(`Failed to send reset email to ${user.email}:`, error);
+          return { email: user.email, success: false };
+        }
+      });
+      
+      const results = await Promise.all(emailPromises);
+      const successful = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+      
+      if (successful.length > 0) {
+        showSuccess(
+          'Password Resets Sent', 
+          `Password reset emails sent to ${successful.length} user(s)`
+        );
+      }
+      
+      if (failed.length > 0) {
+        showError(
+          'Some Resets Failed', 
+          `Failed to send emails to ${failed.length} user(s): ${failed.map(f => f.email).join(', ')}`
+        );
+      }
+      
+      // Clear selection
+      setSelectedUsers({});
+      
+    } catch (error) {
+      console.error('Bulk password reset error:', error);
+      showError('Reset Failed', 'Failed to send password reset emails. Please try again.');
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -377,32 +478,19 @@ const Admin: React.FC = () => {
       accessorKey: "is_active",
       header: () => <div className="text-center">Status</div>,
       meta: {
-        width: "w-[10%]",
+        width: "w-[12%]",
       },
       cell: ({ row }) => {
-        const isActive = row.getValue("is_active") as boolean;
-
-        // Role-specific Color Styles
-        const getActiveStyle = (role: string) => {
-          switch (role) {
-            case "Active":
-              return "bg-green-100 text-green-800 border-green-200 hover:bg-green-200";
-            case "Inactive":
-              return "bg-red-100 text-red-800 border-red-200 hover:bg-red-200";
-            default:
-              return "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200";
-          }
-        };
+        const user = row.original;
+        const status = getUserStatus(user);
 
         return (
           <div className="flex justify-center">
             <Badge
               variant={"outline"}
-              className={`uppercase font-medium transition-colors w-24 ${getActiveStyle(
-                isActive ? "Active" : "Inactive"
-              )}`}
+              className={`uppercase font-medium transition-colors w-28 text-xs ${getStatusStyle(status)}`}
             >
-              {isActive ? "Active" : "Inactive"}
+              {status}
             </Badge>
           </div>
         );
@@ -502,9 +590,36 @@ const Admin: React.FC = () => {
       },
       cell: ({ row }) => {
         const user = row.original;
+        const status = getUserStatus(user);
 
-        const handleResetPassword = () => {
-          alert(`Password reset link sent to ${user.email}`);
+        const handleResetPassword = async () => {
+          try {
+            await auth0Service.sendPasswordResetEmail(user.email);
+            showSuccess('Password Reset Sent', `Password reset link sent to ${user.email}`);
+          } catch (error) {
+            console.error('Failed to send password reset:', error);
+            showError('Reset Failed', 'Failed to send password reset email. Please try again.');
+          }
+        };
+
+        const handleResendInvitation = async () => {
+          try {
+            // For pending invitations, also send password reset email
+            await auth0Service.sendPasswordResetEmail(user.email);
+            
+            // Update invitation timestamp in Supabase
+            await dbOperations.resendUserInvitation(user.id);
+            
+            showSuccess('Invitation Resent', `New invitation sent to ${user.email}`);
+            
+            // Refresh users list to show updated timestamp
+            const updatedUsers = await dbOperations.getUsers();
+            setUsers(updatedUsers);
+            
+          } catch (error) {
+            console.error('Failed to resend invitation:', error);
+            showError('Resend Failed', 'Failed to resend invitation. Please try again.');
+          }
         };
 
         return (
@@ -514,11 +629,19 @@ const Admin: React.FC = () => {
               className="text-blue-600 hover:text-blue-800 h-5 w-5 cursor-pointer transition-colors"
               title="Edit User"
             />
-            <EnvelopeIcon
-              onClick={handleResetPassword}
-              className="text-green-600 hover:text-green-800 h-5 w-5 cursor-pointer transition-colors"
-              title="Reset Password"
-            />
+            {status === "Active" ? (
+              <EnvelopeIcon
+                onClick={handleResetPassword}
+                className="text-green-600 hover:text-green-800 h-5 w-5 cursor-pointer transition-colors"
+                title="Reset Password"
+              />
+            ) : (status === "Invite Sent" || status === "Invite Expired") ? (
+              <EnvelopeIcon
+                onClick={handleResendInvitation}
+                className="text-orange-600 hover:text-orange-800 h-5 w-5 cursor-pointer transition-colors"
+                title="Resend Invitation"
+              />
+            ) : null}
           </div>
         );
       },
@@ -606,7 +729,7 @@ const Admin: React.FC = () => {
 
                   {/* Add User Button */}
                   <button
-                    onClick={() => {/* TODO: Open add user modal */}}
+                    onClick={() => setInviteModalOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
                   >
                     <PlusIcon className="w-3 h-3" />
@@ -712,7 +835,10 @@ const Admin: React.FC = () => {
                 enableRowSelection={true}
                 rowSelection={selectedUsers}
                 onRowSelectionChange={setSelectedUsers}
-                pageSize={20}
+                pageSize={pageSize}
+                enablePageSizeSelector={true}
+                availablePageSizes={availablePageSizes}
+                onPageSizeChange={setManualPageSize}
                 emptyMessage="No users found"
               />
             </>
@@ -727,6 +853,15 @@ const Admin: React.FC = () => {
         user={selectedUser}
         onUpdateUser={handleUpdateUser}
         onDeleteUser={handleDeleteUser}
+      />
+
+      {/* User Invite Modal */}
+      <UserInviteModal
+        isOpen={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        onUserCreated={handleUserCreated}
+        existingUsers={users}
+        currentUser={currentUser}
       />
     </div>
   );

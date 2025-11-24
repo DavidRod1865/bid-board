@@ -7,6 +7,7 @@ import PageHeader from '../../../shared/components/ui/PageHeader';
 import AlertDialog from '../../../shared/components/ui/AlertDialog';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import { createSentToAPMColumns } from '../../../shared/services/table-columns/sent-to-apm-columns';
+import { useDynamicPageSize } from '../../../shared/hooks/useDynamicPageSize';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
 import { isDateInRange } from '../../../shared/utils/formatters';
@@ -30,6 +31,17 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
   
   
   const navigate = useNavigate();
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'sent-to-apm-page-size',
+    rowHeight: 65,
+    reservedHeight: 460
+  });
 
   // Bulk selection hooks
   const {
@@ -235,6 +247,10 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
             onRowClick={(bid) => navigate(`/project/${bid.id}`)}
             isLoading={false}
             emptyMessage="No projects found"
+            pageSize={pageSize}
+            enablePageSizeSelector={true}
+            availablePageSizes={availablePageSizes}
+            onPageSizeChange={setManualPageSize}
             emptyIcon={PaperAirplaneIcon}
             getRowClassName={getRowClassName}
             getRowStyle={getRowStyle}

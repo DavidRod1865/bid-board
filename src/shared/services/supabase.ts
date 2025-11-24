@@ -34,6 +34,14 @@ export const supabaseService = supabaseServiceKey ?
     auth: {
       autoRefreshToken: false,
       persistSession: false
+    },
+    db: {
+      schema: 'public'
+    },
+    global: {
+      headers: {
+        'x-client-info': 'supabase-service-client'
+      }
     }
   }) : null
 
@@ -1312,12 +1320,164 @@ export const dbOperations = {
   },
 
   async deleteUser(userId: string) {
-    const { error } = await supabase
+    // First get the user to find their Auth0 ID
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('auth0_id, email')
+      .eq('id', userId)
+      .single()
+
+    if (fetchError) {
+      console.error('Supabase: Error fetching user for deletion:', fetchError);
+      throw fetchError;
+    }
+
+    // Delete from Supabase first
+    const { error: deleteError } = await supabase
       .from('users')
       .delete()
       .eq('id', userId)
 
-    if (error) throw error
+    if (deleteError) {
+      console.error('Supabase: Error deleting user from database:', deleteError);
+      throw deleteError;
+    }
+
+    // Then try to delete from Auth0 if auth0_id exists
+    if (user?.auth0_id) {
+      try {
+        const { auth0Service } = await import('./auth0Service');
+        await auth0Service.deleteUser(user.auth0_id);
+        console.log('Successfully deleted user from both Supabase and Auth0:', user.email);
+      } catch (auth0Error) {
+        console.warn('User deleted from Supabase but failed to delete from Auth0:', auth0Error);
+        // Don't throw error here - the main deletion from Supabase succeeded
+        // This prevents the UI from showing an error when the primary deletion worked
+      }
+    } else {
+      console.log('User deleted from Supabase (no Auth0 ID found):', user?.email);
+    }
+  },
+
+  // New user invitation functions
+  async createPendingUser(userData: {
+    auth0_id: string;
+    email: string;
+    name: string;
+    color_preference?: string;
+    is_active?: boolean;
+    role?: string;
+    invitation_sent_at?: string;
+    invited_by?: string | null;
+  }) {
+    // Generate a UUID for the user
+    const userId = crypto.randomUUID();
+    
+    const userToInsert = {
+      id: userId,
+      auth0_id: userData.auth0_id,
+      email: userData.email,
+      name: userData.name,
+      color_preference: userData.color_preference || '#3b82f6',
+      is_active: userData.is_active || false,
+      role: userData.role,
+      invitation_sent_at: userData.invitation_sent_at,
+      invited_by: userData.invited_by,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Try with service role client first (bypasses RLS)
+    if (supabaseService) {
+      const { data: serviceData, error: serviceError } = await supabaseService
+        .from('users')
+        .insert(userToInsert)
+        .select('*')
+        .single()
+
+      if (!serviceError && serviceData) {
+        return serviceData;
+      }
+      
+      if (serviceError) {
+        console.error('Supabase: Service role pending user creation failed:', serviceError);
+      }
+    }
+
+    // Fallback: Create with anon key
+    const { data, error } = await supabase
+      .from('users')
+      .insert(userToInsert)
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Supabase: Error creating pending user:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  async markUserAsActive(userId: string, auth0Id?: string) {
+    const updates: any = {
+      is_active: true,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Update auth0_id if provided and clear invitation fields
+    if (auth0Id) {
+      updates.auth0_id = auth0Id;
+      updates.invitation_sent_at = null;
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Supabase: Error activating user:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  async resendUserInvitation(userId: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        invitation_sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Supabase: Error updating invitation timestamp:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  async findUserByEmail(email: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single()
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+      console.error('Supabase: Error finding user by email:', error);
+      throw error;
+    }
+    
+    return data;
   },
 
   async createOrUpdateUserProfile(_auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {

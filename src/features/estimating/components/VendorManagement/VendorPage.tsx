@@ -140,31 +140,27 @@ const VendorPage: React.FC<VendorPageProps> = ({
 
   return (
     <>
-      <div className="flex h-screen">
+      <div className="flex h-screen bg-gray-50">
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
           showViewToggle={true}
         />
 
-        <div className="flex-1 bg-gray-50 flex flex-col">
-          <div className="flex-1 overflow-auto mx-auto w-full">
-            <VendorList
-              vendors={vendors}
-              onUpdateVendor={async (vendorId, updates) => {
-                await onEditVendor?.(vendorId, updates);
-              }}
-              onDeleteVendor={onDeleteVendor}
-              onAddVendor={handleAddVendorClick}
-              isLoading={globalLoading}
-              isOperationLoading={isOperationLoading(ADD_OPERATION) || isOperationLoading(DELETE_OPERATION) || isOperationLoading(BULK_DELETE_OPERATION)}
-              selectedVendors={selectedVendors}
-              onVendorSelect={handleVendorSelect}
-              onBulkDelete={handleBulkDelete}
-              onVendorUpdated={onVendorUpdated}
-            />
-          </div>
-        </div>
+        <VendorList
+          vendors={vendors}
+          onUpdateVendor={async (vendorId, updates) => {
+            await onEditVendor?.(vendorId, updates);
+          }}
+          onDeleteVendor={onDeleteVendor}
+          onAddVendor={handleAddVendorClick}
+          isLoading={globalLoading}
+          isOperationLoading={isOperationLoading(ADD_OPERATION) || isOperationLoading(DELETE_OPERATION) || isOperationLoading(BULK_DELETE_OPERATION)}
+          selectedVendors={selectedVendors}
+          onVendorSelect={handleVendorSelect}
+          onBulkDelete={handleBulkDelete}
+          onVendorUpdated={onVendorUpdated}
+        />
       </div>
 
       <AddVendorModal

@@ -5,6 +5,7 @@ import PageHeader from "../../../../shared/components/ui/PageHeader";
 import { DataTable } from "../../../../shared/components/ui/data-table";
 import { createVendorColumns } from "../../../../shared/services/table-columns/vendor-columns";
 import { ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useDynamicPageSize } from "../../../../shared/hooks/useDynamicPageSize";
 import VendorSlideOut from './VendorSlideOut';
 
 interface VendorListProps {
@@ -41,6 +42,17 @@ const VendorList: React.FC<VendorListProps> = ({
   // Slide-out state
   const [selectedVendor, setSelectedVendor] = useState<VendorWithContact | null>(null);
   const [isSlideOutOpen, setIsSlideOutOpen] = useState(false);
+
+  // Dynamic page size management
+  const { 
+    pageSize, 
+    availablePageSizes, 
+    setManualPageSize 
+  } = useDynamicPageSize({
+    storageKey: 'vendor-list-page-size',
+    rowHeight: 60, // Slightly smaller for vendor rows
+    reservedHeight: 500 // More space for vendor filters
+  });
 
   const handleVendorClick = (vendor: VendorWithContact) => {
     setSelectedVendor(vendor);
@@ -344,7 +356,7 @@ const VendorList: React.FC<VendorListProps> = ({
         </div>
       </div>
 
-      <div className={`flex-1 overflow-auto pt-0 ${isOperationLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className={`flex-1 overflow-hidden ${isOperationLoading ? 'opacity-50 pointer-events-none' : ''}`}>
         <DataTable
           columns={columns}
           data={filteredVendors}
@@ -353,8 +365,11 @@ const VendorList: React.FC<VendorListProps> = ({
           onRowSelectionChange={handleRowSelectionChange}
           onRowClick={handleVendorClick}
           isLoading={isLoading}
-          pageSize={15}
-          emptyMessage="No projects found"
+          pageSize={pageSize}
+          enablePageSizeSelector={true}
+          availablePageSizes={availablePageSizes}
+          onPageSizeChange={setManualPageSize}
+          emptyMessage="No vendors found"
         />
 
         {/* Empty State Actions */}

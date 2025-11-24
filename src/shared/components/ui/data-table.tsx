@@ -11,7 +11,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
 } from "@tanstack/table-core"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import NoDataFound from "./NoDataFound"
 
 interface DataTableProps<TData, TValue> {
@@ -37,6 +37,10 @@ interface DataTableProps<TData, TValue> {
   enableSorting?: boolean
   // Page size for pagination
   pageSize?: number
+  // Dynamic page size controls
+  enablePageSizeSelector?: boolean
+  availablePageSizes?: number[]
+  onPageSizeChange?: (size: number) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -52,6 +56,9 @@ export function DataTable<TData, TValue>({
   initialSorting = [],
   enableSorting = true,
   pageSize = 10,
+  enablePageSizeSelector = false,
+  availablePageSizes = [10, 15, 20, 25, 30, 50],
+  onPageSizeChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -133,8 +140,19 @@ export function DataTable<TData, TValue>({
       columnFilters,
       columnVisibility,
       rowSelection,
+      pagination: {
+        pageIndex: 0,
+        pageSize,
+      },
     },
   })
+
+  // Update table page size when pageSize prop changes
+  useEffect(() => {
+    if (table && pageSize !== table.getState().pagination.pageSize) {
+      table.setPageSize(pageSize)
+    }
+  }, [pageSize, table])
 
   const handleRowClick = (row: TData, event: React.MouseEvent) => {
     const target = event.target as HTMLElement
@@ -232,7 +250,7 @@ export function DataTable<TData, TValue>({
       </div>
       
       {/* Pagination Controls */}
-      {table.getPageCount() > 1 && (
+      {(table.getPageCount() > 1 || enablePageSizeSelector) && (
         <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
             <span className="hidden sm:inline">
@@ -244,6 +262,29 @@ export function DataTable<TData, TValue>({
           </div>
           
           <div className="flex items-center gap-3 order-1 sm:order-2">
+            {/* Page Size Selector */}
+            {enablePageSizeSelector && onPageSizeChange && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 whitespace-nowrap">Show:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    const newPageSize = Number(e.target.value)
+                    table.setPageSize(newPageSize)
+                    onPageSizeChange(newPageSize)
+                  }}
+                  className="text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {availablePageSizes.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => table.previousPage()}

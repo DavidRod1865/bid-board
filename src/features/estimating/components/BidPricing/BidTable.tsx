@@ -27,6 +27,10 @@ interface ProjectTableProps {
   useAPMRouting?: boolean;
   // Page size prop
   pageSize?: number;
+  // Dynamic page size controls
+  enablePageSizeSelector?: boolean;
+  availablePageSizes?: number[];
+  onPageSizeChange?: (size: number | null) => void;
 }
 
 const ProjectTable: React.FC<ProjectTableProps> = ({
@@ -39,6 +43,9 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   onBidSelect,
   useAPMRouting = false,
   pageSize = 10,
+  enablePageSizeSelector = false,
+  availablePageSizes = [10, 15, 20, 25, 30, 50],
+  onPageSizeChange,
 }) => {
   const [statusErrors, setStatusErrors] = useState<Map<number, string>>(
     new Map()
@@ -178,6 +185,9 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       getRowClassName={getRowClassName}
       getRowStyle={getRowStyle}
       pageSize={pageSize}
+      enablePageSizeSelector={enablePageSizeSelector}
+      availablePageSizes={availablePageSizes}
+      onPageSizeChange={onPageSizeChange}
     />
   );
 };
