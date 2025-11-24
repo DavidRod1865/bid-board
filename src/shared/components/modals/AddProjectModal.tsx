@@ -146,7 +146,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       apm_archived: false,
       apm_archived_at: null,
       gc_system: null, // Default GC system
-      added_to_procore: false // Default Procore status
+      added_to_procore: false, // Default Procore status
+      made_by_apm: false // Mark projects created by Estimating as not APM-created
     };
 
     try {

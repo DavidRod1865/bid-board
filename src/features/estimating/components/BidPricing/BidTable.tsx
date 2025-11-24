@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import type { Bid, ProjectNote } from "../../../../shared/types";
 import { DataTable } from "../../../../shared/components/ui/data-table";
 import { createBidColumns } from "../../../../shared/services/table-columns/bid-columns";
@@ -20,11 +19,13 @@ interface ProjectTableProps {
   projectNotes?: ProjectNote[];
   onStatusChange?: (bidId: number, newStatus: string) => Promise<void>;
   isLoading?: boolean;
-  // Bulk selection props
+  // Bulk selection props (back to original Set + individual callback pattern)
   selectedBids?: Set<number>;
   onBidSelect?: (bidId: number, selected: boolean) => void;
   // APM routing props
   useAPMRouting?: boolean;
+  // Page size prop
+  pageSize?: number;
 }
 
 const ProjectTable: React.FC<ProjectTableProps> = ({
@@ -36,11 +37,12 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   selectedBids = new Set(),
   onBidSelect,
   useAPMRouting = false,
+  pageSize = 10,
 }) => {
   const [statusErrors, setStatusErrors] = useState<Map<number, string>>(
     new Map()
   );
-  const navigate = useNavigate();
+  
   const { isOperationLoading, setOperationLoading } = useLoading();
 
   const handleStatusChange = useCallback(async (bidId: number, newStatus: string) => {
@@ -88,7 +90,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     });
   }, [bidVendors, projectNotes, handleStatusChange, statusErrors, isOperationLoading, useAPMRouting]);
 
-  // Convert Set to TanStack Table row selection format
+  // Convert Set to TanStack Table row selection format (same as OnHold)
   const rowSelection = useMemo(() => {
     const selection: Record<string, boolean> = {};
     bids.forEach((bid, index) => {
@@ -102,6 +104,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   const handleRowSelectionChange = (selection: Record<string, boolean>) => {
     if (!onBidSelect) return;
 
+    // Exact same pattern as OnHold page
     const newSelectedIds = new Set<number>();
     Object.entries(selection).forEach(([index, isSelected]) => {
       if (isSelected) {
@@ -112,7 +115,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       }
     });
 
-    // Call onBidSelect for each change
+    // Call handleBidSelect for each change (same as OnHold)
     bids.forEach((bid) => {
       const wasSelected = selectedBids.has(bid.id);
       const isSelected = newSelectedIds.has(bid.id);
@@ -167,11 +170,11 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       initialSorting={useAPMRouting ? [{ id: "project", desc: false }] : [{ id: "due_date", desc: false }]}
       rowSelection={rowSelection}
       onRowSelectionChange={handleRowSelectionChange}
-      onRowClick={(bid) => navigate(useAPMRouting ? `/apm/project/${bid.id}` : `/project/${bid.id}`)}
       isLoading={isLoading}
       emptyMessage="No projects found"
       getRowClassName={getRowClassName}
       getRowStyle={getRowStyle}
+      pageSize={pageSize}
     />
   );
 };

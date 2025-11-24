@@ -73,7 +73,11 @@ const VendorForm: React.FC<VendorFormProps> = ({
     if (validateForm()) {
       onSubmit({
         ...formData,
-        primary_contact_id: null  // Will be set later when contact management is used
+        primary_contact_id: null,  // Will be set later when contact management is used
+        insurance_file_path: null,
+        insurance_file_name: null,
+        insurance_file_size: null,
+        insurance_file_uploaded_at: null
       });
     }
   };

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   ArrowRightIcon, 
-  MoonIcon, 
   QuestionMarkCircleIcon, 
   Cog6ToothIcon, 
   ArrowLeftEndOnRectangleIcon 
@@ -16,6 +15,8 @@ import wpbbBlueIcon from "../../../assets/WPBB_blue.png";
 import Folder from "../../../components/Folder";
 import AnimatedUsers from "../../../components/AnimatedUsers";
 import AnimatedCalendar from "../../../components/AnimatedCalendar";
+import AnimatedAdmin from "../../../components/AnimatedAdmin";
+
 
 interface SidebarProps {
   statusFilter: string[];
@@ -27,6 +28,17 @@ interface SidebarProps {
   isEditingVendor?: boolean;
   isSavingVendor?: boolean;
   showViewToggle?: boolean;
+}
+
+interface NavigationItem {
+  id: string;
+  label: string;
+  shortLabel: string;
+  icon: React.ReactElement | null;
+  path: string | null;
+  onClick: () => void;
+  disabled: boolean;
+  isDivider?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
@@ -79,10 +91,284 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
     return "#6b7280"; // gray-500 for inactive
   };
 
+  // Helper function to get Estimating-only navigation items
+  const getEstimatingItems = (): NavigationItem[] => {
+    return [
+      {
+        id: "dashboard",
+        label: "Daily Dashboard",
+        shortLabel: "DAILY",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/estimating"),
+                hoveredItem === "dashboard"
+              )}
+              isActive={isActive("/estimating")}
+              isHovered={hoveredItem === "dashboard"}
+            />
+          </div>
+        ),
+        path: "/estimating",
+        onClick: () => navigate("/estimating"),
+        disabled: false,
+      },
+      {
+        id: "on-hold",
+        label: "Bids On Hold",
+        shortLabel: "ON HOLD",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/on-hold"),
+                hoveredItem === "on-hold"
+              )}
+              isActive={isActive("/on-hold")}
+              isHovered={hoveredItem === "on-hold"}
+            />
+          </div>
+        ),
+        path: "/on-hold",
+        onClick: () => navigate("/on-hold"),
+        disabled: false,
+      },
+      {
+        id: "sent-to-apm",
+        label: "Bids Sent to APM",
+        shortLabel: "SENT",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/estimating/bids-sent-to-apm"),
+                hoveredItem === "sent-to-apm"
+              )}
+              isActive={isActive("/estimating/bids-sent-to-apm")}
+              isHovered={hoveredItem === "sent-to-apm"}
+            />
+          </div>
+        ),
+        path: "/estimating/bids-sent-to-apm",
+        onClick: () => navigate("/estimating/bids-sent-to-apm"),
+        disabled: false,
+      },
+      {
+        id: "archives",
+        label: "Closed Bids",
+        shortLabel: "COMPLETED",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/archives"),
+                hoveredItem === "archives"
+              )}
+              isActive={isActive("/archives")}
+              isHovered={hoveredItem === "archives"}
+            />
+          </div>
+        ),
+        path: "/archives",
+        onClick: () => navigate("/archives"),
+        disabled: false,
+      },
+      {
+        id: "calendar",
+        label: "Calendar",
+        shortLabel: "CALENDAR",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <AnimatedCalendar
+              size={1}
+              color={getViewAccentColor(
+                isActive("/calendar"),
+                hoveredItem === "calendar"
+              )}
+              isActive={isActive("/calendar")}
+              isHovered={hoveredItem === "calendar"}
+            />
+          </div>
+        ),
+        path: "/calendar",
+        onClick: () => navigate("/calendar"),
+        disabled: false,
+      },
+      {
+        id: "vendors",
+        label: "Contacts",
+        shortLabel: "CONTACTS",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <AnimatedUsers
+              size={1}
+              color={getViewAccentColor(
+                isActive("/vendors"),
+                hoveredItem === "vendors"
+              )}
+              isActive={isActive("/vendors")}
+              isHovered={hoveredItem === "vendors"}
+            />
+          </div>
+        ),
+        path: "/vendors",
+        onClick: () => navigate("/vendors"),
+        disabled: false,
+      }
+    ];
+  };
+
+  // Helper function to get APM-only navigation items  
+  const getAPMItems = (): NavigationItem[] => {
+    return [
+      {
+        id: "apm-dashboard",
+        label: "Daily Dashboard",
+        shortLabel: "DAILY",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/apm"),
+                hoveredItem === "apm-dashboard"
+              )}
+              isActive={isActive("/apm")}
+              isHovered={hoveredItem === "apm-dashboard"}
+            />
+          </div>
+        ),
+        path: "/apm",
+        onClick: () => navigate("/apm"),
+        disabled: false,
+      },
+      {
+        id: "apm-projects",
+        label: "Active Projects",
+        shortLabel: "ACTIVE",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/apm/projects"),
+                hoveredItem === "apm-projects"
+              )}
+              isActive={isActive("/apm/projects")}
+              isHovered={hoveredItem === "apm-projects"}
+            />
+          </div>
+        ),
+        path: "/apm/projects",
+        onClick: () => navigate("/apm/projects"),
+        disabled: false,
+      },
+      {
+        id: "apm-on-hold",
+        label: "Pending Closeouts",
+        shortLabel: "CLOSEOUTS",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/apm/on-hold"),
+                hoveredItem === "apm-on-hold"
+              )}
+              isActive={isActive("/apm/on-hold")}
+              isHovered={hoveredItem === "apm-on-hold"}
+            />
+          </div>
+        ),
+        path: "/apm/on-hold",
+        onClick: () => navigate("/apm/on-hold"),
+        disabled: false,
+      },
+      {
+        id: "apm-archives",
+        label: "Closed Projects",
+        shortLabel: "COMPLETED",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <Folder
+              size={0.2}
+              color={getViewAccentColor(
+                isActive("/apm/archives"),
+                hoveredItem === "apm-archives"
+              )}
+              isActive={isActive("/apm/archives")}
+              isHovered={hoveredItem === "apm-archives"}
+            />
+          </div>
+        ),
+        path: "/apm/archives",
+        onClick: () => navigate("/apm/archives"),
+        disabled: false,
+      },
+      {
+        id: "apm-calendar",
+        label: "Calendar",
+        shortLabel: "CALENDAR",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <AnimatedCalendar
+              size={1}
+              color={getViewAccentColor(
+                isActive("/calendar"),
+                hoveredItem === "apm-calendar"
+              )}
+              isActive={isActive("/calendar")}
+              isHovered={hoveredItem === "apm-calendar"}
+            />
+          </div>
+        ),
+        path: "/calendar",
+        onClick: () => navigate("/calendar"),
+        disabled: false,
+      },
+      {
+        id: "apm-vendors",
+        label: "Contacts",
+        shortLabel: "CONTACTS",
+        icon: (
+          <div className="w-6 h-6 flex items-center justify-center">
+            <AnimatedUsers
+              size={1}
+              color={getViewAccentColor(
+                isActive("/vendors"),
+                hoveredItem === "apm-vendors"
+              )}
+              isActive={isActive("/vendors")}
+              isHovered={hoveredItem === "apm-vendors"}
+            />
+          </div>
+        ),
+        path: "/vendors",
+        onClick: () => navigate("/vendors"),
+        disabled: false,
+      }
+    ];
+  };
+
   // Navigation items based on current view
-  const getNavigationItems = (view: TeamView) => {
+  const getNavigationItems = (view: TeamView): NavigationItem[] => {
+    const userRole = userProfile?.role;
+    
+    // If user has a specific role (not Admin), only show their role's items
+    if (userRole === 'Estimating') {
+      return getEstimatingItems();
+    } else if (userRole === 'APM') {
+      return getAPMItems();
+    }
+    
+    // Admin users see items based on current view, including admin button
     if (view === "apm") {
-      return [
+      const apmItems: NavigationItem[] = [
         {
           id: "apm-dashboard",
           label: "Daily Dashboard",
@@ -210,10 +496,49 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           disabled: false,
         },
       ];
+      
+      // Add admin section if user is Admin
+      if (userRole === 'Admin') {
+        apmItems.push(
+          {
+            id: "divider-apm-admin",
+            label: "",
+            shortLabel: "",
+            icon: <div></div>,
+            path: "",
+            onClick: () => {},
+            disabled: false,
+            isDivider: true,
+          } as NavigationItem,
+          {
+            id: "admin-apm",
+            label: "Admin",
+            shortLabel: "ADMIN",
+            icon: (
+              <div className="w-6 h-6 flex items-center justify-center">
+                <AnimatedAdmin
+                  size={1}
+                  color={getViewAccentColor(
+                    isActive("/admin"),
+                    hoveredItem === "admin-apm"
+                  )}
+                  isActive={isActive("/admin")}
+                  isHovered={hoveredItem === "admin-apm"}
+                />
+              </div>
+            ),
+            path: "/admin",
+            onClick: () => navigate("/admin"),
+            disabled: false,
+          }
+        );
+      }
+      
+      return apmItems;
     }
 
     // Default to estimating view - build base items first
-    const baseItems = [
+    const baseItems: NavigationItem[] = [
       {
         id: "projects",
         label: "Active Bids",
@@ -339,8 +664,45 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
         path: "/vendors",
         onClick: () => navigate("/vendors"),
         disabled: false,
-      },
+      }
     ];
+
+    // Add admin section if user is Admin
+    if (userRole === 'Admin') {
+      baseItems.push(
+        {
+          id: "divider-2",
+          label: "",
+          shortLabel: "",
+          icon: <div></div>,
+          path: "",
+          onClick: () => {},
+          disabled: false,
+          isDivider: true,
+        } as NavigationItem,
+        {
+          id: "admin",
+          label: "Admin",
+          shortLabel: "ADMIN",
+          icon: (
+            <div className="w-6 h-6 flex items-center justify-center">
+              <AnimatedAdmin
+                size={1}
+                color={getViewAccentColor(
+                  isActive("/admin"),
+                  hoveredItem === "admin"
+                )}
+                isActive={isActive("/admin")}
+                isHovered={hoveredItem === "admin"}
+              />
+            </div>
+          ),
+          path: "/admin",
+          onClick: () => navigate("/admin"),
+          disabled: false,
+        }
+      );
+    }
 
     return baseItems;
   };
@@ -367,7 +729,11 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="flex items-center cursor-pointer"
         >
-          <img src={wpbbBlueIcon} alt="With Pride Building Board" className="h-6 w-auto" />
+          <img 
+            src={wpbbBlueIcon} 
+            alt="With Pride Building Board" 
+            className="h-6 w-auto" 
+          />
         </div>
         {!isCollapsed && (
           <button
@@ -383,7 +749,16 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
       <div className="flex-1 py-3 overflow-y-auto">
         <nav className="space-y px-3">
           {navigationItems.map((item) => {
-            const active = isActive(item.path);
+            const active = isActive(item.path ?? undefined);
+
+            // Handle divider items
+            if (item.isDivider) {
+              return (
+                <div key={item.id} className="w-full my-2">
+                  <div className="border-t border-gray-200"></div>
+                </div>
+              );
+            }
 
             return (
               <div key={item.id}>
@@ -465,37 +840,28 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
       {/* Action Icons */}
       <div className={`p-3 w-full border-b border-gray-200 ${getSidebarBackgroundClass()}`}>
         <div className={`flex ${isCollapsed ? 'flex-col items-center gap-3' : 'flex-row gap-3 justify-center'}`}>
-          {/* Moon Icon */}
-          <button
-            onClick={() => {/* TODO: Dark mode toggle */}}
-            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
-            title="Dark Mode"
-          >
-            <MoonIcon className="w-6 h-6 text-gray-600" />
-          </button>
-          
           {/* Help Icon */}
           <button
             onClick={() => {/* TODO: Help/Documentation */}}
-            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
+            className="p-2 rounded-lg transition-all duration-300 ease-in-out cursor-pointer hover:bg-gray-100 text-gray-600"
             title="Help"
           >
-            <QuestionMarkCircleIcon className="w-6 h-6 text-gray-600" />
+            <QuestionMarkCircleIcon className="w-6 h-6" />
           </button>
           
           {/* Settings Icon */}
           <button
             onClick={() => setShowProfileModal(true)}
-            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
+            className="p-2 rounded-lg transition-all duration-300 ease-in-out cursor-pointer hover:bg-gray-100 text-gray-600"
             title="Settings"
           >
-            <Cog6ToothIcon className="w-6 h-6 text-gray-600" />
+            <Cog6ToothIcon className="w-6 h-6" />
           </button>
           
           {/* Logout Icon */}
           <button
             onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-            className="p-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-100 cursor-pointer"
+            className="p-2 rounded-lg transition-all duration-300 ease-in-out cursor-pointer hover:bg-gray-100"
             title="Sign Out"
           >
             <ArrowLeftEndOnRectangleIcon className="w-6 h-6 text-red-600" />
@@ -503,8 +869,8 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
         </div>
       </div>
 
-      {/* View Toggle at bottom */}
-      {showViewToggle && (
+      {/* View Toggle at bottom - only for Admin users */}
+      {showViewToggle && userProfile?.role === 'Admin' && (
         <div className={`px-2 py-3 ${getSidebarBackgroundClass()}`}>
           <ViewToggle isCollapsed={isCollapsed} />
         </div>

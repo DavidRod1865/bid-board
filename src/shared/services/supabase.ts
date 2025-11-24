@@ -770,6 +770,20 @@ export const dbOperations = {
       cleanedUpdates.insurance_expiry_date = null;
     }
     
+    // Handle insurance file metadata fields
+    const allowedFileFields = [
+      'insurance_file_path',
+      'insurance_file_name', 
+      'insurance_file_size',
+      'insurance_file_uploaded_at'
+    ];
+    
+    allowedFileFields.forEach(field => {
+      if (field in cleanedUpdates && cleanedUpdates[field] === '') {
+        cleanedUpdates[field] = null;
+      }
+    });
+    
     const { data, error } = await supabase
       .from('vendors')
       .update(cleanedUpdates)
@@ -786,12 +800,31 @@ export const dbOperations = {
   },
 
   async deleteVendor(id: number) {
+    // Get vendor data first to clean up associated files
+    const { data: vendor } = await supabase
+      .from('vendors')
+      .select('insurance_file_path')
+      .eq('id', id)
+      .single();
+
     const { error } = await supabase
       .from('vendors')
       .delete()
       .eq('id', id)
 
     if (error) throw error
+
+    // Clean up insurance file if it exists
+    if (vendor?.insurance_file_path) {
+      try {
+        await supabase.storage
+          .from('vendor-insurance-files')
+          .remove([vendor.insurance_file_path]);
+      } catch (fileError) {
+        // Log error but don't fail the vendor deletion
+        console.warn('Failed to delete vendor insurance file:', fileError);
+      }
+    }
 
     // Log activity (skip for now to avoid auth issues)
     // await this.logActivity('deleted_vendor', 'vendor', id)
@@ -1263,7 +1296,7 @@ export const dbOperations = {
     return data
   },
 
-  async updateUserProfile(userId: string, updates: { name?: string; color_preference?: string }) {
+  async updateUserProfile(userId: string, updates: { name?: string; email?: string; role?: string; is_active?: boolean; color_preference?: string }) {
     const { data, error } = await supabase
       .from('users')
       .update({
@@ -1276,6 +1309,15 @@ export const dbOperations = {
 
     if (error) throw error
     return data
+  },
+
+  async deleteUser(userId: string) {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId)
+
+    if (error) throw error
   },
 
   async createOrUpdateUserProfile(_auth0UserId: string, userData: { email: string; name: string; color_preference?: string }) {
@@ -1407,6 +1449,241 @@ export const dbOperations = {
     } catch (err) {
       console.error('Supabase: Database connection test error:', err);
       return { success: false, error: err };
+    }
+  },
+
+  // Helper function to convert filters to date range
+  getDateRangeFromFilters(filters = {}) {
+    const typedFilters = filters as {
+      filterType?: string;
+      timeframe?: string;
+      selectedMonth?: string;
+      startDate?: string;
+      endDate?: string;
+    };
+
+    let startDate: string | null = null;
+    let endDate: string | null = null;
+
+    switch (typedFilters.filterType) {
+      case 'month':
+        if (typedFilters.selectedMonth) {
+          const [year, month] = typedFilters.selectedMonth.split('-');
+          startDate = `${year}-${month}-01`;
+          // Last day of the month
+          const nextMonth = new Date(parseInt(year), parseInt(month), 0);
+          endDate = `${year}-${month}-${String(nextMonth.getDate()).padStart(2, '0')}`;
+        }
+        break;
+      
+      case 'custom':
+        startDate = typedFilters.startDate || null;
+        endDate = typedFilters.endDate || null;
+        break;
+      
+      case 'quick':
+      default:
+        const now = new Date();
+        const cutoffDate = new Date();
+        
+        switch (typedFilters.timeframe) {
+          case '30days':
+            cutoffDate.setDate(now.getDate() - 30);
+            startDate = cutoffDate.toISOString().split('T')[0];
+            endDate = now.toISOString().split('T')[0];
+            break;
+          case '90days':
+            cutoffDate.setDate(now.getDate() - 90);
+            startDate = cutoffDate.toISOString().split('T')[0];
+            endDate = now.toISOString().split('T')[0];
+            break;
+          case '12months':
+            cutoffDate.setFullYear(now.getFullYear() - 1);
+            startDate = cutoffDate.toISOString().split('T')[0];
+            endDate = now.toISOString().split('T')[0];
+            break;
+          case 'all':
+            // No date filtering for 'all'
+            break;
+        }
+        break;
+    }
+
+    return { startDate, endDate };
+  },
+
+  // Analytics functions
+  async getResponseDistribution(filters = {}) {
+    try {
+      const { startDate, endDate } = this.getDateRangeFromFilters(filters);
+      
+      let query = supabase
+        .from('bid_vendors')
+        .select(`
+          status, 
+          created_at, 
+          response_received_date, 
+          due_date,
+          bids!inner(made_by_apm)
+        `)
+        .eq('bids.made_by_apm', false);
+
+      // Apply date filtering if dates are provided
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate + 'T23:59:59');
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Supabase: Error fetching response distribution:', err);
+      throw err;
+    }
+  },
+
+  async getTrendData(filters = {}) {
+    try {
+      const { startDate, endDate } = this.getDateRangeFromFilters(filters);
+      
+      let query = supabase
+        .from('bid_vendors')
+        .select(`
+          status, 
+          created_at, 
+          response_received_date,
+          bids!inner(made_by_apm)
+        `)
+        .eq('bids.made_by_apm', false);
+
+      // Apply date filtering if dates are provided
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate + 'T23:59:59');
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Supabase: Error fetching trend data:', err);
+      throw err;
+    }
+  },
+
+  async getVendorPerformanceData(filters = {}) {
+    try {
+      const { startDate, endDate } = this.getDateRangeFromFilters(filters);
+      
+      let query = supabase
+        .from('bid_vendors')
+        .select(`
+          vendor_id,
+          status,
+          created_at,
+          response_received_date,
+          vendors!inner (
+            id,
+            company_name
+          ),
+          bids!inner(made_by_apm)
+        `)
+        .eq('bids.made_by_apm', false);
+
+      // Apply date filtering if dates are provided
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate + 'T23:59:59');
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Supabase: Error fetching vendor performance data:', err);
+      throw err;
+    }
+  },
+
+  async getTimeDistributionData(filters = {}) {
+    try {
+      const { startDate, endDate } = this.getDateRangeFromFilters(filters);
+      
+      // Use same base query as other functions for consistency
+      let query = supabase
+        .from('bid_vendors')
+        .select(`
+          created_at, 
+          response_received_date,
+          status,
+          bids!inner(made_by_apm)
+        `)
+        .eq('bids.made_by_apm', false);
+
+      // Apply date filtering if dates are provided
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate + 'T23:59:59');
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      // Filter only records with response_received_date in processing, not in query
+      // This maintains consistency with count totals
+      const filteredData = data?.filter(item => item.response_received_date) || [];
+      
+      return filteredData;
+    } catch (err) {
+      console.error('Supabase: Error fetching time distribution data:', err);
+      throw err;
+    }
+  },
+
+  // Get bids data for KPI calculations (based on bids table, not bid_vendors)
+  async getBidsForKPI(filters = {}) {
+    try {
+      const { startDate, endDate } = this.getDateRangeFromFilters(filters);
+      
+      let query = supabase
+        .from('bids')
+        .select(`
+          id,
+          status,
+          created_at,
+          due_date,
+          made_by_apm
+        `)
+        .eq('made_by_apm', false);
+
+      // Apply date filtering if dates are provided
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate + 'T23:59:59');
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Supabase: Error fetching bids for KPI:', err);
+      throw err;
     }
   }
 }

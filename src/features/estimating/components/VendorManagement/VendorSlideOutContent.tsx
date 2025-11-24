@@ -4,17 +4,28 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../../shared/com
 import { Button } from '../../../../shared/components/ui/Button';
 import { Input, Textarea, Select } from '../../../../shared/components/ui/FormField';
 import AlertDialog from '../../../../shared/components/ui/AlertDialog';
+import FileUpload from '../../../../shared/components/ui/FileUpload';
 import VendorContactsList from './VendorContactsList';
 import { dbOperations } from '../../../../shared/services/supabase';
 import { useToast } from '../../../../shared/hooks/useToast';
 import { formatDate, getInsuranceStatus, getInsuranceStatusStyle } from './vendorUtils';
+import { 
+  uploadInsuranceFile, 
+  downloadInsuranceFile, 
+  deleteInsuranceFile, 
+  replaceInsuranceFile,
+  formatFileSize,
+  validateFile 
+} from '../../../../shared/services/fileStorage';
 import { 
   PencilIcon, 
   CheckIcon, 
   XMarkIcon, 
   TrashIcon,
   CalendarDaysIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  DocumentIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 
 interface VendorSlideOutContentProps {
@@ -37,6 +48,13 @@ const VendorSlideOutContent: React.FC<VendorSlideOutContentProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [contacts, setContacts] = useState<VendorContact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
+  
+  // File upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
   const { showSuccess, showError } = useToast();
 
   const [formData, setFormData] = useState<Partial<Vendor>>({
@@ -49,6 +67,10 @@ const VendorSlideOutContent: React.FC<VendorSlideOutContentProps> = ({
     address: vendor.address || '',
     insurance_expiry_date: vendor.insurance_expiry_date || '',
     insurance_notes: vendor.insurance_notes || '',
+    insurance_file_path: vendor.insurance_file_path || null,
+    insurance_file_name: vendor.insurance_file_name || null,
+    insurance_file_size: vendor.insurance_file_size || null,
+    insurance_file_uploaded_at: vendor.insurance_file_uploaded_at || null,
     notes: vendor.notes || '',
   });
 
@@ -78,11 +100,55 @@ const VendorSlideOutContent: React.FC<VendorSlideOutContentProps> = ({
 
   const handleSave = async () => {
     setIsLoading(true);
+    setFileUploadError(null);
+    
     try {
-      await onUpdate(vendor.id, formData);
+      let updatedFormData = { ...formData };
+      
+      // Handle file upload if a new file was selected
+      if (selectedFile) {
+        setIsUploadingFile(true);
+        setUploadProgress(0);
+        
+        try {
+          const fileResult = await (vendor.insurance_file_path 
+            ? replaceInsuranceFile(vendor.id, selectedFile, vendor.insurance_file_path, (progress) => {
+                setUploadProgress(progress);
+              })
+            : uploadInsuranceFile(vendor.id, selectedFile, (progress) => {
+                setUploadProgress(progress);
+              })
+          );
+          
+          // Update form data with file information
+          updatedFormData = {
+            ...updatedFormData,
+            insurance_file_path: fileResult.filePath,
+            insurance_file_name: fileResult.fileName,
+            insurance_file_size: fileResult.fileSize,
+            insurance_file_uploaded_at: fileResult.uploadedAt,
+          };
+          
+          setUploadProgress(100);
+        } catch (fileError) {
+          const fileErrorMessage = fileError instanceof Error ? fileError.message : 'File upload failed';
+          setFileUploadError(fileErrorMessage);
+          throw new Error(`File upload failed: ${fileErrorMessage}`);
+        } finally {
+          setIsUploadingFile(false);
+        }
+      }
+      
+      // Update vendor with all form data (including file metadata if uploaded)
+      await onUpdate(vendor.id, updatedFormData);
+      
+      // Reset file upload state
+      setSelectedFile(null);
+      setFileUploadError(null);
+      setUploadProgress(0);
       
       setIsEditing(false);
-      showSuccess('Success', 'Vendor updated successfully');
+      showSuccess('Success', selectedFile ? 'Vendor and insurance file updated successfully' : 'Vendor updated successfully');
       
       onVendorUpdated?.();
       
@@ -91,6 +157,7 @@ const VendorSlideOutContent: React.FC<VendorSlideOutContentProps> = ({
       showError('Error', `Failed to update vendor: ${errorMessage}`);
     } finally {
       setIsLoading(false);
+      setIsUploadingFile(false);
     }
   };
 
@@ -106,9 +173,95 @@ const VendorSlideOutContent: React.FC<VendorSlideOutContentProps> = ({
       address: vendor.address || '',
       insurance_expiry_date: vendor.insurance_expiry_date || '',
       insurance_notes: vendor.insurance_notes || '',
+      insurance_file_path: vendor.insurance_file_path || null,
+      insurance_file_name: vendor.insurance_file_name || null,
+      insurance_file_size: vendor.insurance_file_size || null,
+      insurance_file_uploaded_at: vendor.insurance_file_uploaded_at || null,
       notes: vendor.notes || '',
     });
+    
+    // Reset file upload state
+    setSelectedFile(null);
+    setFileUploadError(null);
+    setUploadProgress(0);
+    setIsUploadingFile(false);
+    
     setIsEditing(false);
+  };
+
+  // File handling functions
+  const handleFileSelect = (file: File) => {
+    const validation = validateFile(file);
+    if (validation) {
+      setFileUploadError(validation.message);
+      return;
+    }
+    
+    setSelectedFile(file);
+    setFileUploadError(null);
+  };
+
+  const handleFileRemove = () => {
+    setSelectedFile(null);
+    setFileUploadError(null);
+  };
+
+  const handleDownloadFile = async () => {
+    if (!vendor.insurance_file_path || !vendor.insurance_file_name) {
+      showError('Error', 'No insurance file available to download');
+      return;
+    }
+
+    try {
+      const blob = await downloadInsuranceFile(vendor.insurance_file_path);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = vendor.insurance_file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showSuccess('Success', 'Insurance file downloaded successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Download failed';
+      showError('Error', `Failed to download file: ${errorMessage}`);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!vendor.insurance_file_path) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Delete file from storage
+      await deleteInsuranceFile(vendor.insurance_file_path);
+      
+      // Update vendor to remove file references
+      const updatedData = {
+        ...formData,
+        insurance_file_path: null,
+        insurance_file_name: null,
+        insurance_file_size: null,
+        insurance_file_uploaded_at: null,
+      };
+      
+      await onUpdate(vendor.id, updatedData);
+      
+      setFormData(updatedData);
+      showSuccess('Success', 'Insurance file deleted successfully');
+      onVendorUpdated?.();
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Deletion failed';
+      showError('Error', `Failed to delete file: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -335,6 +488,93 @@ const VendorSlideOutContent: React.FC<VendorSlideOutContentProps> = ({
                 </p>
               )}
             </div>
+          </div>
+          
+          {/* Insurance File Section */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Insurance Certificate File
+            </label>
+            
+            {isEditing ? (
+              <div className="space-y-4">
+                <FileUpload
+                  onFileSelect={handleFileSelect}
+                  onFileRemove={handleFileRemove}
+                  selectedFile={selectedFile}
+                  existingFileName={vendor.insurance_file_name}
+                  existingFileSize={vendor.insurance_file_size}
+                  isUploading={isUploadingFile}
+                  uploadProgress={uploadProgress}
+                  error={fileUploadError}
+                  disabled={isLoading}
+                />
+                
+                {vendor.insurance_file_name && !selectedFile && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+                    <DocumentIcon className="h-5 w-5 text-blue-600" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-blue-900 truncate">
+                        Current file: {vendor.insurance_file_name}
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        {vendor.insurance_file_size && formatFileSize(vendor.insurance_file_size)}
+                        {vendor.insurance_file_uploaded_at && ` • Uploaded ${formatDate(vendor.insurance_file_uploaded_at)}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadFile}
+                        className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                      >
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDeleteFile}
+                        className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                        disabled={isLoading}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {vendor.insurance_file_name ? (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <DocumentIcon className="h-5 w-5 text-gray-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {vendor.insurance_file_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {vendor.insurance_file_size && formatFileSize(vendor.insurance_file_size)}
+                        {vendor.insurance_file_uploaded_at && ` • Uploaded ${formatDate(vendor.insurance_file_uploaded_at)}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadFile}
+                      className="flex items-center gap-2"
+                    >
+                      <ArrowDownTrayIcon className="h-4 w-4" />
+                      Download
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded">
+                    No insurance certificate file uploaded
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -16,6 +16,7 @@ interface InputProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  style?: React.CSSProperties;
   min?: string;
   max?: string;
   step?: string;
@@ -69,16 +70,22 @@ export const Input: React.FC<InputProps> = ({
   placeholder,
   disabled = false,
   className = '',
+  style,
   min,
   max,
   step
 }) => {
   const baseClasses = `
-    w-full px-3 py-2 border border-gray-300 rounded-md 
-    focus:outline-none focus:border-[${BRAND_COLORS.primary}] 
+    w-full px-3 py-2 border rounded-md 
+    focus:outline-none 
     text-sm transition-colors
     disabled:bg-gray-100 disabled:cursor-not-allowed
   `;
+  
+  // Use default styling only if no custom className is provided that overrides these styles
+  const defaultStyling = !className.includes('border-') && !className.includes('bg-') && !className.includes('text-') 
+    ? `border-gray-300 focus:border-[${BRAND_COLORS.primary}] bg-white text-gray-900`
+    : '';
   
   return (
     <input
@@ -87,7 +94,8 @@ export const Input: React.FC<InputProps> = ({
       onChange={onChange}
       placeholder={placeholder}
       disabled={disabled}
-      className={`${baseClasses} ${className}`}
+      className={`${baseClasses} ${defaultStyling} ${className}`.trim()}
+      style={style}
       min={min}
       max={max}
       step={step}

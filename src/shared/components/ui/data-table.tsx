@@ -13,7 +13,6 @@ import {
 } from "@tanstack/table-core"
 import { useState } from "react"
 import NoDataFound from "./NoDataFound"
-import { Checkbox } from "./checkbox"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -52,7 +51,7 @@ export function DataTable<TData, TValue>({
   getRowStyle,
   initialSorting = [],
   enableSorting = true,
-  pageSize = 12,
+  pageSize = 10,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -67,24 +66,35 @@ export function DataTable<TData, TValue>({
             width: "w-[2.5%]"
           },
           header: ({ table }: { table: Table<TData> }) => (
-            <Checkbox
-              checked={
-                table.getIsAllPageRowsSelected() ||
-                (table.getIsSomePageRowsSelected() && "indeterminate")
-              }
-              onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            <input
+              type="checkbox"
+              checked={table.getIsAllPageRowsSelected()}
+              ref={(el) => {
+                if (el) el.indeterminate = table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()
+              }}
+              onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)}
               aria-label="Select all"
-              className="h-4 w-4"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
           ),
-          cell: ({ row }: { row: Row<TData> }) => (
-            <Checkbox
-              checked={row.getIsSelected()}
-              onCheckedChange={(value) => row.toggleSelected(!!value)}
-              aria-label="Select row"
-              className="h-4 w-4"
-            />
-          ),
+          cell: ({ row }: { row: Row<TData> }) => {
+            const isSelected = row.getIsSelected();
+            return (
+              <div className="flex items-center justify-center w-full h-full py-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    row.toggleSelected(e.target.checked);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Select row"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+              </div>
+            );
+          },
           enableResizing: true,
           enableSorting: false,
           enableHiding: false,
@@ -103,6 +113,7 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
     getFilteredRowModel: getFilteredRowModel(),
     enableSorting,
+    enableRowSelection,
     initialState: {
       pagination: {
         pageSize,
@@ -127,6 +138,7 @@ export function DataTable<TData, TValue>({
 
   const handleRowClick = (row: TData, event: React.MouseEvent) => {
     const target = event.target as HTMLElement
+    
     // Don't trigger row click if clicking on interactive elements
     if (
       target.tagName === 'INPUT' ||
@@ -157,7 +169,7 @@ export function DataTable<TData, TValue>({
   return (
     <div className="bg-white shadow-sm overflow-hidden flex-1 flex flex-col h-full">
       <div className="overflow-auto flex-1">
-        <table className="w-full table-fixed">
+        <table className="w-full table-fixed min-w-[1200px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>

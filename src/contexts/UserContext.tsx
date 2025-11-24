@@ -165,6 +165,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   };
 
   const switchView = (view: TeamView) => {
+    // Only allow view switching for Admin users
+    if (userProfile?.role !== 'Admin') {
+      console.warn('View switching is only allowed for Admin users');
+      return;
+    }
+    
     setCurrentView(view);
     // Store view preference in localStorage
     if (user?.sub) {
@@ -175,13 +181,23 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   // Set initial view based on role when user profile loads
   useEffect(() => {
     if (userProfile && user?.sub) {
-      // Check if user has a saved view preference
-      const savedView = localStorage.getItem(`user_view_${user.sub}`);
-      if (savedView && (savedView === 'estimating' || savedView === 'apm')) {
-        setCurrentView(savedView);
+      // For non-admin users, enforce their role-specific view
+      if (userProfile.role === 'Estimating') {
+        setCurrentView('estimating');
+      } else if (userProfile.role === 'APM') {
+        setCurrentView('apm');
+      } else if (userProfile.role === 'Admin') {
+        // Admin users can have saved view preference
+        const savedView = localStorage.getItem(`user_view_${user.sub}`);
+        if (savedView && (savedView === 'estimating' || savedView === 'apm')) {
+          setCurrentView(savedView);
+        } else {
+          // Use role-based default
+          setCurrentView(getDefaultView());
+        }
       } else {
-        // Use role-based default
-        setCurrentView(getDefaultView());
+        // Fallback for users without role
+        setCurrentView('estimating');
       }
     }
   }, [userProfile, user?.sub, getDefaultView]);

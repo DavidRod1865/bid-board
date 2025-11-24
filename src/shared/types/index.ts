@@ -4,6 +4,10 @@ export interface User {
   email: string;
   name: string;
   color_preference: string;
+  is_active?: boolean;
+  role?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Vendor Type ENUM matching database
@@ -25,6 +29,10 @@ export interface Vendor {
   vendor_type: VendorType;
   insurance_expiry_date: string | null;
   insurance_notes: string | null;
+  insurance_file_path: string | null;
+  insurance_file_name: string | null;
+  insurance_file_size: number | null;
+  insurance_file_uploaded_at: string | null;
   primary_contact_id: number | null;
   created_at?: string;
   updated_at?: string;

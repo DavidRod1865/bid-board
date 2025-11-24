@@ -20,10 +20,12 @@ import APMProjectDetailWrapper from '../features/apm/components/ProjectManagemen
 import Calendar from '../shared/pages/Calendar';
 import Archives from '../features/estimating/pages/Archives';
 import OnHold from '../features/estimating/pages/OnHold';
+import Admin from '../shared/pages/Admin';
 
 // Types
 import type { User, Bid, Vendor, VendorWithContact, BidVendor, ProjectNote } from '../shared/types';
 import type { ContactData } from '../features/estimating/components/VendorManagement/VendorCreationWizard';
+import { ProtectedRoute } from '../shared/components/RouteProtection';
 
 interface AppRoutesProps {
   // Data props
@@ -152,31 +154,35 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       <Route 
         path="/apm" 
         element={
-          <APMDashboard 
-            bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
-            bidVendors={bidVendors.filter(bv => bids.find(b => b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold))}
-            vendors={vendors}
-            users={users}
-            isLoading={isLoading}
-          />
+          <ProtectedRoute allowedRoles={['Admin', 'APM']}>
+            <APMDashboard 
+              bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
+              bidVendors={bidVendors.filter(bv => bids.find(b => b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold))}
+              vendors={vendors}
+              users={users}
+              isLoading={isLoading}
+            />
+          </ProtectedRoute>
         } 
       />
       
       <Route 
         path="/apm/projects" 
         element={
-          <APMProjects 
-            bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
-            bidVendors={bidVendors}
-            vendors={vendors}
-            projectNotes={projectNotes}
-            handleStatusChange={handleStatusChange}
-            users={users}
-            isLoading={isLoading}
-            onAddProject={handleAddBid}
-            onAddProjectWithVendors={handleAddProjectWithVendors}
-            onCopyProject={handleCopyProject}
-          />
+          <ProtectedRoute allowedRoles={['Admin', 'APM']}>
+            <APMProjects 
+              bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
+              bidVendors={bidVendors}
+              vendors={vendors}
+              projectNotes={projectNotes}
+              handleStatusChange={handleStatusChange}
+              users={users}
+              isLoading={isLoading}
+              onAddProject={handleAddBid}
+              onAddProjectWithVendors={handleAddProjectWithVendors}
+              onCopyProject={handleCopyProject}
+            />
+          </ProtectedRoute>
         } 
       />
       
@@ -228,20 +234,6 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         } 
       />
       
-      <Route 
-        path="/apm/vendors" 
-        element={
-          <VendorPage 
-            vendors={vendors}
-            onAddVendor={async (vendorData, contacts = []) => {
-              await handleAddVendor(vendorData, contacts);
-            }}
-            onEditVendor={handleUpdateVendor}
-            onDeleteVendor={handleDeleteVendor}
-          />
-        } 
-      />
-
       {/* Shared/Legacy Routes (maintaining backward compatibility) */}
       <Route 
         path="/project/:id" 
@@ -320,6 +312,14 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         } 
       />
       
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <Admin />
+          </ProtectedRoute>
+        } 
+      />
 
       {/* Catch-all route */}
       <Route 

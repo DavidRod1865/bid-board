@@ -63,24 +63,26 @@ interface UserIconProps {
   color: string;
 }
 
-const LargeUserIcon: React.FC<UserIconProps> = ({ color }) => (
-  <div className="flex flex-col items-center transition-colors duration-200">
-    {/* Head */}
-    <div className="border-2 border-white rounded-full">
+const LargeUserIcon: React.FC<UserIconProps> = ({ color }) => {
+  return (
+    <div className="flex flex-col items-center transition-colors duration-200">
+      {/* Head */}
+      <div className="border-2 border-white rounded-full">
+        <div
+          className="w-2.5 h-2.5 rounded-full mb-0.2"
+          style={{ backgroundColor: color }}
+        />
+      </div>
+      {/* Body */}
+      <div className="border-2 border-white rounded-t-md">
       <div
-        className="w-2.5 h-2.5 rounded-full mb-0.2"
+        className="w-4 h-3.5 rounded-t-sm"
         style={{ backgroundColor: color }}
       />
+      </div>
     </div>
-    {/* Body */}
-    <div className="border-2 border-white rounded-t-sm">
-    <div
-      className="w-4 h-3.5 rounded-t-sm"
-      style={{ backgroundColor: color }}
-    />
-    </div>
-  </div>
-);
+  );
+};
 
 const SmallUserIcon: React.FC<UserIconProps> = ({ color }) => (
   <div className="flex flex-col items-center transition-colors duration-200 hover:scale-110">
