@@ -412,7 +412,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-100">
         <div className="flex min-h-screen">
           <Sidebar
             statusFilter={statusFilter}
@@ -430,7 +430,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       <div className="flex h-screen">
         <Sidebar
           statusFilter={statusFilter}
@@ -455,7 +455,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
           )}
 
           {/* Custom Page Header with Breadcrumb, Status Badge, and Action Buttons */}
-          <div className="bg-gray-50">
+          <div className="bg-slate-100">
             {/* Header with Breadcrumb, Status Badge, and Action Buttons on same line */}
             <div className="flex justify-between items-center px-6 pt-4 pb-4 border-b border-gray-100">
               <div className="flex items-center gap-4">
@@ -865,8 +865,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                         label: "Notes",
                         count: filteredProjectNotes.length,
                       },
-                      { id: "timeline", label: "Timeline", count: null },
-                      { id: "documents", label: "Documents", count: null },
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -942,7 +940,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               {/* Tab Content */}
               <div className="min-h-96">
                 {activeTab === "vendors" && (
-                  <div className="p-6">
                     <VendorTable
                       projectVendors={projectVendors}
                       getVendorById={getVendorById}
@@ -951,7 +948,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       hideActions={true}
                       onSelectionChange={handleVendorSelectionChange}
                     />
-                  </div>
                 )}
 
                 {activeTab === "notes" && (
@@ -969,60 +965,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                         <p className="text-gray-500">Loading notes...</p>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {activeTab === "timeline" && (
-                  <div className="p-6">
-                    <div className="text-center py-12">
-                      <svg
-                        className="mx-auto h-12 w-12 text-gray-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1}
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <h3 className="mt-4 text-sm font-medium text-gray-900">
-                        Timeline Coming Soon
-                      </h3>
-                      <p className="mt-2 text-sm text-gray-500">
-                        Project timeline and activity log will be available
-                        here.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "documents" && (
-                  <div className="p-6">
-                    <div className="text-center py-12">
-                      <svg
-                        className="mx-auto h-12 w-12 text-gray-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <h3 className="mt-4 text-sm font-medium text-gray-900">
-                        Documents Coming Soon
-                      </h3>
-                      <p className="mt-2 text-sm text-gray-500">
-                        Project documents and file attachments will be available
-                        here.
-                      </p>
-                    </div>
                   </div>
                 )}
               </div>

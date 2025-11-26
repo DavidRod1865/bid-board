@@ -21,12 +21,13 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "../../../../shared/components/ui/breadcrumb";
-import {
-  dbOperations,
-  supabase,
-} from "../../../../shared/services/supabase";
+import { dbOperations, supabase } from "../../../../shared/services/supabase";
 // Real-time updates handled by AppContent
-import { getCurrentPhasesWithSoonestFollowUp, getVendorFollowUpUrgency, getPhaseFollowUpDate } from "../../../../shared/utils/phaseFollowUpUtils";
+import {
+  getCurrentPhasesWithSoonestFollowUp,
+  getVendorFollowUpUrgency,
+  getPhaseFollowUpDate,
+} from "../../../../shared/utils/phaseFollowUpUtils";
 import {
   UserPlusIcon,
   PencilSquareIcon,
@@ -87,12 +88,14 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   // State that's still needed
   const [error, setError] = useState<string | null>(null);
   // const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
+
   // Filter bid vendors for this specific project
-  const projectVendors = bidVendors.filter(bv => bv.bid_id === bid.id);
-  // Filter project notes for this specific project  
-  const filteredProjectNotes = projectNotes.filter(note => note.bid_id === bid.id);
-  
+  const projectVendors = bidVendors.filter((bv) => bv.bid_id === bid.id);
+  // Filter project notes for this specific project
+  const filteredProjectNotes = projectNotes.filter(
+    (note) => note.bid_id === bid.id
+  );
+
   // Set current user from users prop
   useEffect(() => {
     setCurrentUser(users[0] || null);
@@ -135,14 +138,14 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   // Set up real-time subscriptions for bid_vendors changes
   useEffect(() => {
     const channel = supabase
-      .channel('apm_project_detail_bid_vendors')
+      .channel("apm_project_detail_bid_vendors")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'bid_vendors',
-          filter: `bid_id=eq.${bid.id}`
+          event: "*",
+          schema: "public",
+          table: "bid_vendors",
+          filter: `bid_id=eq.${bid.id}`,
         },
         () => {
           // Since we're receiving bid_vendors via props, the parent component
@@ -151,15 +154,14 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
         }
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'project_notes',
-          filter: `bid_id=eq.${bid.id}`
+          event: "*",
+          schema: "public",
+          table: "project_notes",
+          filter: `bid_id=eq.${bid.id}`,
         },
-        () => {
-        }
+        () => {}
       )
       .subscribe();
 
@@ -472,7 +474,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-100">
         <div className="flex min-h-screen">
           <Sidebar
             statusFilter={statusFilter}
@@ -490,7 +492,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       <div className="flex h-screen">
         <Sidebar
           statusFilter={statusFilter}
@@ -515,7 +517,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           )}
 
           {/* Custom Page Header with Breadcrumb, Status Badge, and Action Buttons */}
-          <div className="bg-gray-50">
+          <div className="bg-slate-100">
             {/* Header with Breadcrumb, Status Badge, and Action Buttons on same line */}
             <div className="flex justify-between items-center px-6 pt-4 pb-4 border-b border-gray-100">
               <div className="flex items-center gap-4">
@@ -538,8 +540,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
-
-                {/* Status Badge - Hidden for APM Projects */}
               </div>
 
               {/* Action Buttons */}
@@ -568,16 +568,25 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={handleMoveToOnHold}
+                            className="cursor-pointer"
+                          >
                             <PauseCircleIcon className="w-4 h-4 mr-2" />
                             Move to Closeouts
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleArchiveProject} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={handleArchiveProject}
+                            className="cursor-pointer"
+                          >
                             <ArchiveBoxIcon className="w-4 h-4 mr-2" />
                             Move to Completed
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                          <DropdownMenuItem
+                            onClick={handleDeleteProject}
+                            className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
                             <TrashIcon className="w-4 h-4 mr-2" />
                             Delete Project
                           </DropdownMenuItem>
@@ -595,16 +604,25 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={handleMoveToActive} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={handleMoveToActive}
+                            className="cursor-pointer"
+                          >
                             <PlayIcon className="w-4 h-4 mr-2" />
                             Move to Active
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleArchiveProject} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={handleArchiveProject}
+                            className="cursor-pointer"
+                          >
                             <ArchiveBoxIcon className="w-4 h-4 mr-2" />
                             Move to Completed
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                          <DropdownMenuItem
+                            onClick={handleDeleteProject}
+                            className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
                             <TrashIcon className="w-4 h-4 mr-2" />
                             Delete Project
                           </DropdownMenuItem>
@@ -622,16 +640,25 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={handleMoveToActive} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={handleMoveToActive}
+                            className="cursor-pointer"
+                          >
                             <PlayIcon className="w-4 h-4 mr-2" />
                             Move to Active
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleMoveToOnHold} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={handleMoveToOnHold}
+                            className="cursor-pointer"
+                          >
                             <PauseCircleIcon className="w-4 h-4 mr-2" />
                             Move to Closeouts
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={handleDeleteProject} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
+                          <DropdownMenuItem
+                            onClick={handleDeleteProject}
+                            className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
                             <TrashIcon className="w-4 h-4 mr-2" />
                             Delete Project
                           </DropdownMenuItem>
@@ -672,7 +699,9 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
             <div className="mb-4 space-y-4">
               {/* Project Name */}
               <div>
-                <span className="text-gray-600 text-sm font-medium">Project Details:</span>
+                <span className="text-gray-600 text-sm font-medium">
+                  Project Details:
+                </span>
                 <div className="text-2xl font-bold text-gray-900 mt-1">
                   {isEditing ? (
                     <input
@@ -713,7 +742,9 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                 </div>
 
                 <div>
-                  <span className="text-gray-600 text-lg font-medium">General Contractor:</span>
+                  <span className="text-gray-600 text-lg font-medium">
+                    General Contractor:
+                  </span>
                   {isEditing ? (
                     <input
                       type="text"
@@ -738,7 +769,9 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                 <div className="mt-2 space-y-1">
                   {/* GC System */}
                   <div>
-                    <span className="text-gray-600 text-sm font-medium">GC System: </span>
+                    <span className="text-gray-600 text-sm font-medium">
+                      GC System:{" "}
+                    </span>
                     {isEditing ? (
                       <select
                         value={formData.gc_system || ""}
@@ -746,7 +779,14 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           const value = e.target.value;
                           setFormData({
                             ...formData,
-                            gc_system: value === "" ? null : value as 'Procore' | 'AutoDesk' | 'Email' | 'Other',
+                            gc_system:
+                              value === ""
+                                ? null
+                                : (value as
+                                    | "Procore"
+                                    | "AutoDesk"
+                                    | "Email"
+                                    | "Other"),
                           });
                         }}
                         className="border border-gray-300 rounded px-2 py-1 text-sm ml-1"
@@ -760,16 +800,24 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     ) : (
                       <>
                         {bid.gc_system === "Procore" && (
-                          <span className="text-blue-600 text-sm font-medium">Procore</span>
+                          <span className="text-blue-600 text-sm font-medium">
+                            Procore
+                          </span>
                         )}
                         {bid.gc_system === "AutoDesk" && (
-                          <span className="text-purple-600 text-sm font-medium">AutoDesk</span>
+                          <span className="text-purple-600 text-sm font-medium">
+                            AutoDesk
+                          </span>
                         )}
                         {bid.gc_system === "Email" && (
-                          <span className="text-green-600 text-sm font-medium">Email</span>
+                          <span className="text-green-600 text-sm font-medium">
+                            Email
+                          </span>
                         )}
                         {bid.gc_system === "Other" && (
-                          <span className="text-gray-600 text-sm font-medium">Other</span>
+                          <span className="text-gray-600 text-sm font-medium">
+                            Other
+                          </span>
                         )}
                         {!bid.gc_system && (
                           <span className="text-gray-400 text-sm">N/A</span>
@@ -777,10 +825,12 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                       </>
                     )}
                   </div>
-                  
+
                   {/* Procore Status */}
                   <div className="flex items-center">
-                    <span className="text-gray-600 text-sm font-medium">Procore Status: </span>
+                    <span className="text-gray-600 text-sm font-medium">
+                      Procore Status:{" "}
+                    </span>
                     {isEditing ? (
                       <div className="flex items-center ml-2">
                         <Checkbox
@@ -799,9 +849,13 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     ) : (
                       <>
                         {bid.added_to_procore ? (
-                          <span className="text-green-600 text-sm font-medium ml-1">Added to Procore</span>
+                          <span className="text-green-600 text-sm font-medium ml-1">
+                            Added to Procore
+                          </span>
                         ) : (
-                          <span className="text-red-600 text-sm font-medium ml-1">Not in Procore</span>
+                          <span className="text-red-600 text-sm font-medium ml-1">
+                            Not in Procore
+                          </span>
                         )}
                       </>
                     )}
@@ -838,7 +892,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
             </div>
 
             {/* Three Workflow Progress Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 mb-4">
               {/* Card 1: Overall Progress */}
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <div className="text-blue-600 text-sm font-medium mb-2">
@@ -846,32 +900,37 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                 </div>
                 <div className="text-2xl font-bold text-blue-700 mb-2">
                   {(() => {
-                    const completedVendors = projectVendors.filter(vendor => 
-                      vendor.closeout_received_date !== null
+                    const completedVendors = projectVendors.filter(
+                      (vendor) => vendor.closeout_received_date !== null
                     ).length;
                     const totalVendors = projectVendors.length;
-                    const percentage = totalVendors > 0 ? Math.round((completedVendors / totalVendors) * 100) : 0;
+                    const percentage =
+                      totalVendors > 0
+                        ? Math.round((completedVendors / totalVendors) * 100)
+                        : 0;
                     return `${percentage}%`;
                   })()}
                 </div>
                 <div className="w-full bg-blue-200 rounded-full h-2 mb-1">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
+                  <div
+                    className="bg-blue-600 h-2 rounded-full"
                     style={{
                       width: `${(() => {
-                        const completedVendors = projectVendors.filter(vendor => 
-                          vendor.closeout_received_date !== null
+                        const completedVendors = projectVendors.filter(
+                          (vendor) => vendor.closeout_received_date !== null
                         ).length;
                         const totalVendors = projectVendors.length;
-                        return totalVendors > 0 ? (completedVendors / totalVendors) * 100 : 0;
-                      })()}%`
+                        return totalVendors > 0
+                          ? (completedVendors / totalVendors) * 100
+                          : 0;
+                      })()}%`,
                     }}
                   ></div>
                 </div>
                 <div className="text-blue-600 text-xs">
                   {(() => {
-                    const completedVendors = projectVendors.filter(vendor => 
-                      vendor.closeout_received_date !== null
+                    const completedVendors = projectVendors.filter(
+                      (vendor) => vendor.closeout_received_date !== null
                     ).length;
                     const totalVendors = projectVendors.length;
                     return `${completedVendors}/${totalVendors} vendors completed`;
@@ -890,21 +949,22 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     let overdueCount = 0;
                     let dueTodayCount = 0;
                     let dueSoonCount = 0;
-                    
-                    projectVendors.forEach(vendor => {
+
+                    projectVendors.forEach((vendor) => {
                       if (vendor.closeout_received_date) return; // Skip completed vendors
-                      
+
                       const urgency = getVendorFollowUpUrgency(vendor);
-                      if (urgency.level === 'overdue') {
+                      if (urgency.level === "overdue") {
                         overdueCount++;
-                      } else if (urgency.level === 'due_today') {
+                      } else if (urgency.level === "due_today") {
                         dueTodayCount++;
-                      } else if (urgency.level === 'critical') {
+                      } else if (urgency.level === "critical") {
                         dueSoonCount++; // 1-3 business days = "due soon"
                       }
                     });
-                    
-                    const totalUrgent = overdueCount + dueTodayCount + dueSoonCount;
+
+                    const totalUrgent =
+                      overdueCount + dueTodayCount + dueSoonCount;
                     return totalUrgent;
                   })()}
                 </div>
@@ -914,26 +974,30 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     let overdueCount = 0;
                     let dueTodayCount = 0;
                     let dueSoonCount = 0;
-                    
-                    projectVendors.forEach(vendor => {
+
+                    projectVendors.forEach((vendor) => {
                       if (vendor.closeout_received_date) return; // Skip completed vendors
-                      
+
                       const urgency = getVendorFollowUpUrgency(vendor);
-                      if (urgency.level === 'overdue') {
+                      if (urgency.level === "overdue") {
                         overdueCount++;
-                      } else if (urgency.level === 'due_today') {
+                      } else if (urgency.level === "due_today") {
                         dueTodayCount++;
-                      } else if (urgency.level === 'critical') {
+                      } else if (urgency.level === "critical") {
                         dueSoonCount++; // 1-3 business days = "due soon"
                       }
                     });
-                    
+
                     const parts = [];
                     if (overdueCount > 0) parts.push(`${overdueCount} overdue`);
-                    if (dueTodayCount > 0) parts.push(`${dueTodayCount} due today`);
-                    if (dueSoonCount > 0) parts.push(`${dueSoonCount} due within 4 days`);
-                    
-                    return parts.length > 0 ? parts.join(', ') : 'No urgent follow-ups';
+                    if (dueTodayCount > 0)
+                      parts.push(`${dueTodayCount} due today`);
+                    if (dueSoonCount > 0)
+                      parts.push(`${dueSoonCount} due within 4 days`);
+
+                    return parts.length > 0
+                      ? parts.join(", ")
+                      : "No urgent follow-ups";
                   })()}
                 </div>
               </div>
@@ -942,100 +1006,121 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
               {(() => {
                 // Determine urgency level for card styling
                 const soonestUrgency = (() => {
-                  let mostUrgent = 'normal';
-                  
-                  projectVendors.forEach(vendor => {
+                  let mostUrgent = "normal";
+
+                  projectVendors.forEach((vendor) => {
                     if (vendor.closeout_received_date) return; // Skip completed vendors
-                    
+
                     const urgency = getVendorFollowUpUrgency(vendor);
-                    if (urgency.level === 'overdue' || urgency.level === 'due_today') {
-                      mostUrgent = 'red';
-                    } else if (urgency.level === 'critical' && mostUrgent === 'normal') {
-                      mostUrgent = 'orange';
+                    if (
+                      urgency.level === "overdue" ||
+                      urgency.level === "due_today"
+                    ) {
+                      mostUrgent = "red";
+                    } else if (
+                      urgency.level === "critical" &&
+                      mostUrgent === "normal"
+                    ) {
+                      mostUrgent = "orange";
                     }
                   });
-                  
+
                   return mostUrgent;
                 })();
-                
+
                 // Set card colors based on urgency
-                const cardClasses = soonestUrgency === 'red' 
-                  ? 'bg-red-50 rounded-lg p-4 border border-red-200'
-                  : soonestUrgency === 'orange'
-                  ? 'bg-orange-50 rounded-lg p-4 border border-orange-200'
-                  : 'bg-green-50 rounded-lg p-4 border border-green-200';
-                
-                const titleClasses = soonestUrgency === 'red'
-                  ? 'text-red-600 text-sm font-medium mb-2'
-                  : soonestUrgency === 'orange'
-                  ? 'text-orange-600 text-sm font-medium mb-2'
-                  : 'text-green-600 text-sm font-medium mb-2';
-                
-                const valueClasses = soonestUrgency === 'red'
-                  ? 'text-2xl font-bold text-red-700 mb-2'
-                  : soonestUrgency === 'orange'
-                  ? 'text-2xl font-bold text-orange-700 mb-2'
-                  : 'text-2xl font-bold text-green-700 mb-2';
-                
-                const subtitleClasses = soonestUrgency === 'red'
-                  ? 'text-red-600 text-xs'
-                  : soonestUrgency === 'orange'
-                  ? 'text-orange-600 text-xs'
-                  : 'text-green-600 text-xs';
-                
+                const cardClasses =
+                  soonestUrgency === "red"
+                    ? "bg-red-50 rounded-lg p-4 border border-red-200"
+                    : soonestUrgency === "orange"
+                    ? "bg-orange-50 rounded-lg p-4 border border-orange-200"
+                    : "bg-green-50 rounded-lg p-4 border border-green-200";
+
+                const titleClasses =
+                  soonestUrgency === "red"
+                    ? "text-red-600 text-sm font-medium mb-2"
+                    : soonestUrgency === "orange"
+                    ? "text-orange-600 text-sm font-medium mb-2"
+                    : "text-green-600 text-sm font-medium mb-2";
+
+                const valueClasses =
+                  soonestUrgency === "red"
+                    ? "text-2xl font-bold text-red-700 mb-2"
+                    : soonestUrgency === "orange"
+                    ? "text-2xl font-bold text-orange-700 mb-2"
+                    : "text-2xl font-bold text-green-700 mb-2";
+
+                const subtitleClasses =
+                  soonestUrgency === "red"
+                    ? "text-red-600 text-xs"
+                    : soonestUrgency === "orange"
+                    ? "text-orange-600 text-xs"
+                    : "text-green-600 text-xs";
+
                 return (
                   <div className={cardClasses}>
-                    <div className={titleClasses}>
-                      Next Deadline
-                    </div>
+                    <div className={titleClasses}>Next Deadline</div>
                     <div className={valueClasses}>
                       {(() => {
                         // Get the soonest deadline using exact same logic as vendor table NEXT FOLLOW-UP column
                         const allFollowUpDates: string[] = [];
-                        
-                        projectVendors.forEach(vendor => {
+
+                        projectVendors.forEach((vendor) => {
                           if (vendor.closeout_received_date) return; // Skip completed vendors
-                          
+
                           // Use EXACT same logic as vendor table "Next Follow-up" column
-                          const { soonestDate } = getCurrentPhasesWithSoonestFollowUp(vendor);
+                          const { soonestDate } =
+                            getCurrentPhasesWithSoonestFollowUp(vendor);
                           let followUpDate = soonestDate;
-                          
+
                           // Fallback to getPhaseFollowUpDate if no soonest date (same as table)
                           if (!followUpDate) {
                             followUpDate = getPhaseFollowUpDate(vendor);
                           }
-                          
+
                           if (followUpDate) {
                             allFollowUpDates.push(followUpDate);
                           }
                         });
-                        
+
                         if (allFollowUpDates.length === 0) {
-                          return 'None scheduled';
+                          return "None scheduled";
                         }
-                        
-                        
+
                         // Find the earliest date using safe date comparison (avoiding timezone issues)
-                        const earliestDateStr = allFollowUpDates
-                          .sort((a, b) => {
+                        const earliestDateStr = allFollowUpDates.sort(
+                          (a, b) => {
                             // Parse dates safely without timezone conversion
                             const parseDate = (dateString: string) => {
-                              const dateOnly = dateString.includes('T') ? dateString.split('T')[0] : dateString;
-                              const [year, month, day] = dateOnly.split('-').map(Number);
+                              const dateOnly = dateString.includes("T")
+                                ? dateString.split("T")[0]
+                                : dateString;
+                              const [year, month, day] = dateOnly
+                                .split("-")
+                                .map(Number);
                               return new Date(year, month - 1, day);
                             };
-                            return parseDate(a).getTime() - parseDate(b).getTime();
-                          })[0];
-                        
-                        
+                            return (
+                              parseDate(a).getTime() - parseDate(b).getTime()
+                            );
+                          }
+                        )[0];
+
                         // Format the date safely (same approach as vendor table)
                         const formatDateSafe = (dateString: string): string => {
-                          const dateOnly = dateString.includes('T') ? dateString.split('T')[0] : dateString;
-                          const [year, month, day] = dateOnly.split('-').map(Number);
+                          const dateOnly = dateString.includes("T")
+                            ? dateString.split("T")[0]
+                            : dateString;
+                          const [year, month, day] = dateOnly
+                            .split("-")
+                            .map(Number);
                           const localDate = new Date(year, month - 1, day);
-                          return localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          return localDate.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          });
                         };
-                        
+
                         return formatDateSafe(earliestDateStr);
                       })()}
                     </div>
@@ -1043,45 +1128,57 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                       {(() => {
                         // Get phase and vendor info for the earliest deadline
                         const allFollowUpDates: string[] = [];
-                        
-                        projectVendors.forEach(vendor => {
+
+                        projectVendors.forEach((vendor) => {
                           if (vendor.closeout_received_date) return;
-                          const { soonestDate } = getCurrentPhasesWithSoonestFollowUp(vendor);
+                          const { soonestDate } =
+                            getCurrentPhasesWithSoonestFollowUp(vendor);
                           if (soonestDate) {
                             allFollowUpDates.push(soonestDate);
                           }
                         });
-                        
+
                         if (allFollowUpDates.length === 0) {
-                          return 'No deadlines upcoming';
+                          return "No deadlines upcoming";
                         }
-                        
+
                         // Find the earliest date
-                        const earliestDateStr = allFollowUpDates
-                          .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
-                        
+                        const earliestDateStr = allFollowUpDates.sort(
+                          (a, b) =>
+                            new Date(a).getTime() - new Date(b).getTime()
+                        )[0];
+
                         // Count vendors and phases for that earliest date
-                        const vendorsWithEarliestDate: { vendor: BidVendor; phases: { displayName: string }[] }[] = [];
-                        
-                        projectVendors.forEach(vendor => {
+                        const vendorsWithEarliestDate: {
+                          vendor: BidVendor;
+                          phases: { displayName: string }[];
+                        }[] = [];
+
+                        projectVendors.forEach((vendor) => {
                           if (vendor.closeout_received_date) return;
-                          const { soonestDate, phases } = getCurrentPhasesWithSoonestFollowUp(vendor);
-                          if (soonestDate === earliestDateStr && phases.length > 0) {
+                          const { soonestDate, phases } =
+                            getCurrentPhasesWithSoonestFollowUp(vendor);
+                          if (
+                            soonestDate === earliestDateStr &&
+                            phases.length > 0
+                          ) {
                             vendorsWithEarliestDate.push({ vendor, phases });
                           }
                         });
-                        
+
                         if (vendorsWithEarliestDate.length === 0) {
-                          return 'No deadlines upcoming';
+                          return "No deadlines upcoming";
                         }
-                        
+
                         // Collect unique phase names for the earliest date
                         const phaseNames = new Set<string>();
                         vendorsWithEarliestDate.forEach(({ phases }) => {
-                          phases.forEach(phase => phaseNames.add(phase.displayName));
+                          phases.forEach((phase) =>
+                            phaseNames.add(phase.displayName)
+                          );
                         });
-                        
-                        const phaseText = Array.from(phaseNames).join(', ');
+
+                        const phaseText = Array.from(phaseNames).join(", ");
                         return `${phaseText} (${vendorsWithEarliestDate.length} vendors)`;
                       })()}
                     </div>
@@ -1089,103 +1186,101 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                 );
               })()}
             </div>
-          </div>
 
-          {/* Tabbed Interface */}
-          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-            {/* Tab Navigation */}
-            <div className="border-b border-gray-200">
-              <div className="flex justify-between items-center px-6">
-                <nav className="flex space-x-8">
-                  {[
-                    {
-                      id: "vendors",
-                      label: "Vendors",
-                      count: projectVendors.length,
-                    },
-                    {
-                      id: "notes",
-                      label: "Notes",
-                      count: filteredProjectNotes.length,
-                    },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === tab.id
-                          ? "border-[#d4af37] text-[#d4af37]"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      {tab.label}
-                      {tab.count !== null && (
-                        <span
-                          className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
-                            activeTab === tab.id
-                              ? "bg-[#d4af37] text-white"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {tab.count}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </nav>
-
-                {/* Tab-specific Action Buttons */}
-                <div className="flex gap-2 py-2">
-                  {activeTab === "vendors" && (
-                    <>
-                      {selectedVendorIds.size === 0 ? (
-                        <>
-                          <button
-                            onClick={handleAddVendor}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            {/* Tabbed Interface */}
+            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+              {/* Tab Navigation */}
+              <div className="border-b border-gray-200">
+                <div className="flex justify-between items-center px-6">
+                  <nav className="flex space-x-8">
+                    {[
+                      {
+                        id: "vendors",
+                        label: "Vendors",
+                        count: projectVendors.length,
+                      },
+                      {
+                        id: "notes",
+                        label: "Notes",
+                        count: filteredProjectNotes.length,
+                      },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                          activeTab === tab.id
+                            ? "border-[#d4af37] text-[#d4af37]"
+                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        {tab.label}
+                        {tab.count !== null && (
+                          <span
+                            className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                              activeTab === tab.id
+                                ? "bg-[#d4af37] text-white"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
                           >
-                            <UserPlusIcon className="w-4 h-4 mr-1" />
-                            Add Vendor
-                          </button>
-                          <button
-                            onClick={handleAddNote}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            <PencilSquareIcon className="w-4 h-4 mr-1" />
-                            Add Note
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            handleRemoveVendors(Array.from(selectedVendorIds))
-                          }
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        >
-                          <TrashIcon className="w-4 h-4 mr-1" />
-                          Remove Selected ({selectedVendorIds.size})
-                        </button>
-                      )}
-                    </>
-                  )}
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </nav>
 
-                  {activeTab === "notes" && (
-                    <button
-                      onClick={handleAddNote}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                    >
-                      <PencilSquareIcon className="w-4 h-4 mr-1" />
-                      Add Note
-                    </button>
-                  )}
+                  {/* Tab-specific Action Buttons */}
+                  <div className="flex gap-2 py-2">
+                    {activeTab === "vendors" && (
+                      <>
+                        {selectedVendorIds.size === 0 ? (
+                          <>
+                            <button
+                              onClick={handleAddVendor}
+                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                              <UserPlusIcon className="w-4 h-4 mr-1" />
+                              Add Vendor
+                            </button>
+                            <button
+                              onClick={handleAddNote}
+                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                              <PencilSquareIcon className="w-4 h-4 mr-1" />
+                              Add Note
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              handleRemoveVendors(Array.from(selectedVendorIds))
+                            }
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            <TrashIcon className="w-4 h-4 mr-1" />
+                            Remove Selected ({selectedVendorIds.size})
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === "notes" && (
+                      <button
+                        onClick={handleAddNote}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        <PencilSquareIcon className="w-4 h-4 mr-1" />
+                        Add Note
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Tab Content */}
-            <div className="min-h-96">
-              {activeTab === "vendors" && (
-                <div className="p-6">
+              {/* Tab Content */}
+              <div className="min-h-96">
+                {activeTab === "vendors" && (
                   <APMVendorTable
                     bidVendors={projectVendors}
                     vendors={vendors}
@@ -1196,31 +1291,31 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     onVendorSelect={handleVendorSelectionChange}
                     onBulkVendorSelect={handleBulkVendorSelection}
                   />
-                </div>
-              )}
+                )}
 
-              {activeTab === "notes" && (
-                <div className="p-6">
-                  {currentUser && (
-                    <ProjectNotes
-                      bid={bid}
-                      users={users}
-                      projectNotes={filteredProjectNotes}
-                      setProjectNotes={() => {}} // Read-only for now, notes updated via real-time
-                    />
-                  )}
-                  {!currentUser && (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500">Loading notes...</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                {activeTab === "notes" && (
+                  <div className="p-6">
+                    {currentUser && (
+                      <ProjectNotes
+                        bid={bid}
+                        users={users}
+                        projectNotes={filteredProjectNotes}
+                        setProjectNotes={() => {}} // Read-only for now, notes updated via real-time
+                      />
+                    )}
+                    {!currentUser && (
+                      <div className="text-center py-12">
+                        <p className="text-gray-500">Loading notes...</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-
         </div>
       </div>
+
       {/* Archive Confirmation Modal */}
       <AlertDialog
         isOpen={showArchiveModal}

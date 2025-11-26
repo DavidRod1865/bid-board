@@ -649,16 +649,15 @@ const Admin: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
         showViewToggle={true}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
+      <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
         {/* Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -669,12 +668,11 @@ const Admin: React.FC = () => {
                   Manage system settings, user permissions, and view analytics.
                 </p>
               </div>
-            </div>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-gray-50 border-b border-gray-200">
+        <div className="border-b border-gray-200">
           <div className="px-6">
             <div className="flex items-center justify-between">
               <nav className="-mb-px flex space-x-8">

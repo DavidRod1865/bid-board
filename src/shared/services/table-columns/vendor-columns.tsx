@@ -33,6 +33,20 @@ const getVendorTypeStyle = (type: VendorType) => {
   }
 };
 
+// Helper function for vendor type border color indicators
+export const getVendorTypeBorderColor = (type: VendorType) => {
+  switch (type) {
+    case "Vendor":
+      return "#3b82f6"; // Blue
+    case "Subcontractor":
+      return "#10b981"; // Green
+    case "General Contractor":
+      return "#8b5cf6"; // Purple
+    default:
+      return "#6b7280"; // Gray
+  }
+};
+
 // Helper function to check if insurance is overdue (expired)
 const isInsuranceOverdue = (expiryDate: string | null): boolean => {
   if (!expiryDate) return false;

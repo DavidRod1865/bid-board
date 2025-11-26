@@ -161,7 +161,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
 
   if (error) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-slate-100">
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
@@ -185,7 +185,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
@@ -194,8 +194,12 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
 
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
+          {/* Page Title */}
+          <div className="px-6 pt-4">
+            <h1 className="text-2xl font-bold text-gray-900">Bids Sent to APM</h1>
+          </div>
+          
           <PageHeader
-            title="Bids Sent to APM"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search sent bids..."

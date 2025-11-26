@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
     return [
       {
         id: "dashboard",
-        label: "Daily Dashboard",
+        label: "Follow Ups",
         shortLabel: "DAILY",
         icon: (
           <div className="w-6 h-6 flex items-center justify-center">
@@ -228,7 +228,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
     return [
       {
         id: "apm-dashboard",
-        label: "Daily Dashboard",
+        label: "Follow Ups",
         shortLabel: "DAILY",
         icon: (
           <div className="w-6 h-6 flex items-center justify-center">
@@ -371,7 +371,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
       const apmItems: NavigationItem[] = [
         {
           id: "apm-dashboard",
-          label: "Daily Dashboard",
+          label: "Follow Ups",
           shortLabel: "DAILY",
           icon: (
             <div className="w-6 h-6 flex items-center justify-center">
@@ -717,13 +717,13 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
   return (
     <div
       className={`${
-        isCollapsed ? "w-fit items-center" : "min-w-52"
-      } ${getSidebarBackgroundClass()} border-r border-gray-200 flex flex-col transition-all duration-500 ease-in-out`}
+        isCollapsed ? "w-fit items-center" : "min-w-54"
+      } ${getSidebarBackgroundClass()} border-r border-gray-300 flex flex-col transition-all duration-500 ease-in-out`}
     >
 
       {/* Header with logo and toggle button */}
       <div
-        className={`flex items-center justify-between p-4 border-b border-gray-200 ${getSidebarBackgroundClass()}`}
+        className={`flex items-center justify-between p-4 border-b border-gray-300 ${getSidebarBackgroundClass()}`}
       >
         <div
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -755,7 +755,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             if (item.isDivider) {
               return (
                 <div key={item.id} className="w-full my-2">
-                  <div className="border-t border-gray-200"></div>
+                  <div className="border-t border-gray-300"></div>
                 </div>
               );
             }
@@ -838,7 +838,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
       </div>
 
       {/* Action Icons */}
-      <div className={`p-3 w-full border-b border-gray-200 ${getSidebarBackgroundClass()}`}>
+      <div className={`p-3 w-full border-b border-gray-300 ${getSidebarBackgroundClass()}`}>
         <div className={`flex ${isCollapsed ? 'flex-col items-center gap-3' : 'flex-row gap-3 justify-center'}`}>
           {/* Help Icon */}
           <button

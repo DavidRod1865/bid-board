@@ -472,7 +472,7 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors, users })
   const handleStatusFilter = () => {};
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}

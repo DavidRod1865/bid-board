@@ -178,7 +178,7 @@ const Archives: React.FC<ArchivesProps> = ({ bids = [], projectNotes = [] }) => 
 
   if (error) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-slate-100">
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
@@ -202,7 +202,7 @@ const Archives: React.FC<ArchivesProps> = ({ bids = [], projectNotes = [] }) => 
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
@@ -211,8 +211,12 @@ const Archives: React.FC<ArchivesProps> = ({ bids = [], projectNotes = [] }) => 
 
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
+          {/* Page Title */}
+          <div className="px-6 pt-4">
+            <h1 className="text-2xl font-bold text-gray-900">Archived Bids</h1>
+          </div>
+          
           <PageHeader
-            title="Archived Bids"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search archived bids..."

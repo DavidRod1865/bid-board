@@ -388,7 +388,7 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="h-screen flex bg-gray-50">
+      <div className="h-screen flex bg-slate-100">
         <Sidebar statusFilter={[]} setStatusFilter={() => {}} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -401,7 +401,7 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
   }
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-slate-100">
       <Sidebar
         statusFilter={[]}
         setStatusFilter={() => {}}
@@ -410,8 +410,13 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
 
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
+          {/* Page Title */}
+          <div className="px-6 pt-4">
+            <h1 className="text-2xl font-bold text-gray-900">APM Follow Ups</h1>
+          </div>
+          
+          <div className="flex items-center">
           <PageHeader
-            title="Dashboard"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search projects..."
@@ -420,7 +425,6 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
             showStatusFilter={false}
             showDateFilter={true}
           />
-        </div>
 
         {error && (
           <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -428,9 +432,8 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
           </div>
         )}
 
-        <div className="flex-1 overflow-auto bg-gray-50 mt-3">
-          {/* Urgency Stats */}
-          <div className="bg-gray-50 border-b border-gray-200 px-6 pb-4">
+        {/* Urgency Stats */}
+          <div>
             <div className="flex gap-2 text-sm">
               <span className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-red-500 rounded"></div>
@@ -446,9 +449,12 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
               </span>
             </div>
           </div>
+          </div>
+        </div>
 
+        <div className="flex-1 overflow-auto bg-slate-100">
           {/* Tab Navigation */}
-          <div className="bg-gray-50 border-b border-gray-200">
+          <div className="bg-slate-100 border-b border-gray-200">
             <div className="px-6">
               <nav className="-mb-px flex space-x-8">
                 <button
@@ -509,9 +515,9 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
             {filteredTasks.length === 0 ? (
               <NoDataFound />
             ) : (
-              <div className="bg-gray-50 border border-gray-200">
+              <div className="bg-slate-100 border border-gray-200">
                 {/* Table Header */}
-                <div className="border-b border-gray-200 bg-gray-50">
+                <div className="border-b border-gray-200 bg-slate-100">
                   <div className="grid grid-cols-7 gap-4 px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
                     <button
                       onClick={() => handleSort("project_name")}
@@ -591,13 +597,22 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                       null
                     );
 
-                    return (
+                    return (< div key={task.id} className="flex">
+                    
+                      <div className={`w-1 h-100% ${
+                              task.urgency.level === "overdue"
+                                ? "text-red-400 border-2 border-red-400"
+                                : task.urgency.level === "due_today"
+                                ? "text-red-700 border-2 border-red-700"
+                                : task.urgency.level === "critical"
+                                ? "text-yellow-600 border-2 border-yellow-6 00"
+                                : "text-gray-600 border-2 border-gray-600"}`}/>
                       <div
                         key={task.id}
                         onClick={() =>
                           navigate(`/apm/project/${task.project.id}`)
                         }
-                        className={`w-full border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${urgencyClasses}`}
+                        className={`w-full border-b border-gray-100 bg-white hover:bg-gray-50 cursor-pointer ${urgencyClasses}`}
                       >
                         <div className="grid grid-cols-7 gap-4 px-6 py-4 items-center w-full">
                           {/* Project Name */}
@@ -699,6 +714,7 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                           </div>
                         </div>
                       </div>
+                    </div>
                     );
                   })}
                 </div>

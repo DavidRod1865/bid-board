@@ -305,7 +305,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
@@ -314,8 +314,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
+          {/* Page Title */}
+          <div className="px-6 pt-4">
+            <h1 className="text-2xl font-bold text-gray-900">Active Bids</h1>
+          </div>
+          
           <PageHeader
-            title="Active Bids"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search projects..."

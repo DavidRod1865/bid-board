@@ -26,7 +26,6 @@ import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
 interface PageHeaderProps {
-  title: string;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   searchPlaceholder?: string;
@@ -70,7 +69,6 @@ interface PageHeaderProps {
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({
-  title,
   searchTerm,
   setSearchTerm,
   searchPlaceholder = "Search...",
@@ -174,89 +172,80 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   };
 
   return (
-    <div className="bg-gray-50">
-      {/* Top Row: Search, Date Picker, Reset */}
+    <div className="bg-slate-100">
+      {/* Single Row: Search, Date Picker, Reset, and Action Buttons */}
       <div className="px-6 py-4">
-        <div className="flex gap-3">
-          {/* Search Field */}
-          <Input
-            type="text"
-            placeholder={searchPlaceholder}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 min-w-64 max-w-96 text-gray-500"
-          />
+        <div className="flex items-center justify-between gap-4">
+          {/* Left Side: Search, Date Picker, Reset */}
+          <div className="flex gap-3">
+            {/* Search Field */}
+            <Input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="min-w-72 py-2 text-sm text-gray-500 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
+            />
 
-          {/* Date Picker */}
-          {showDateFilter && (
-            <div className="relative" ref={datePickerRef}>
-              <button
-                onClick={() => setShowDatePicker(!showDatePicker)}
-                className="w-52 px-3 py-2 text-sm text-gray-500 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
-              >
-                {formatDateRange()}
-              </button>
+            {/* Date Picker */}
+            {showDateFilter && (
+              <div className="relative" ref={datePickerRef}>
+                <button
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="w-52 px-3 py-2 text-sm text-gray-500 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
+                >
+                  {formatDateRange()}
+                </button>
 
-              {showDatePicker && (
-                <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg">
-                  <DateRangePicker
-                    ranges={[
-                      {
-                        startDate: dateRange.startDate || new Date(),
-                        endDate: dateRange.endDate || new Date(),
-                        key: "selection",
-                      },
-                    ]}
-                    onChange={handleDateRangeChange}
-                    moveRangeOnFirstSelection={false}
-                    months={1}
-                    direction="horizontal"
-                    rangeColors={["#d4af37"]}
-                  />
-                  <div className="p-3 border-t border-gray-200 flex justify-end gap-2">
-                    <button
-                      onClick={() => {
-                        setDateRange({ startDate: null, endDate: null });
-                        setShowDatePicker(false);
-                      }}
-                      className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      onClick={() => setShowDatePicker(false)}
-                      className="px-3 py-1 text-sm bg-[#d4af37] text-white rounded hover:bg-[#c19b26]"
-                    >
-                      Apply
-                    </button>
+                {showDatePicker && (
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-gray-300 rounded shadow-lg">
+                    <DateRangePicker
+                      ranges={[
+                        {
+                          startDate: dateRange.startDate || new Date(),
+                          endDate: dateRange.endDate || new Date(),
+                          key: "selection",
+                        },
+                      ]}
+                      onChange={handleDateRangeChange}
+                      moveRangeOnFirstSelection={false}
+                      months={1}
+                      direction="horizontal"
+                      rangeColors={["#d4af37"]}
+                    />
+                    <div className="p-3 border-t border-gray-200 flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setDateRange({ startDate: null, endDate: null });
+                          setShowDatePicker(false);
+                        }}
+                        className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        onClick={() => setShowDatePicker(false)}
+                        className="px-3 py-1 text-sm bg-[#d4af37] text-white rounded hover:bg-[#c19b26]"
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
 
-          {/* Reset Button */}
-          <Button
-            className="bg-gray-500 text-white hover:bg-gray-600"
-            size="default"
-            onClick={handleReset}
-          >
-            Reset
-          </Button>
-        </div>
-      </div>
-
-      {/* Full-width line */}
-      <div className="border-b border-gray-200"></div>
-
-      {/* Main Header: Title, Action Buttons, Bulk Actions, Overdue Filter, Status Tabs */}
-      <div className="px-6 pt-4 pb-0">
-        <div className="flex items-center justify-between">
-          <div className="items-center">
-            <h1 className="text-2xl h-10 font-bold text-gray-900">{title}</h1>
+            {/* Reset Button */}
+            <Button
+              className="bg-gray-500 text-white hover:bg-gray-600"
+              size="default"
+              onClick={handleReset}
+            >
+              Reset
+            </Button>
           </div>
 
-          {/* Action Buttons */}
+          {/* Right Side: Action Buttons */}
           <div className="flex gap-2 flex-shrink-0">
             {/* Regular Action Buttons - show when no bulk actions are active */}
             {!(bulkActions && bulkActions.selectedCount > 0) && (
@@ -415,10 +404,12 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             )}
           </div>
         </div>
+      </div>
 
-        {/* Bottom Row: Status Tab Filters */}
-        {showStatusFilter && (
-          <div className="border-b border-gray-200 bg-gray-50 -mx-6 px-6">
+      {/* Status Tab Filters Row */}
+      {showStatusFilter && (
+        <div className="border-b border-gray-200 bg-slate-100">
+          <div className="px-6">
             <nav
               role="tablist"
               aria-label="Filter projects by status"
@@ -461,8 +452,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                 : `Showing projects with ${statusFilter[0]} status`}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -219,7 +219,7 @@ const APMProjects: React.FC<APMProjectsProps> = ({
   // Show loading state if data is being fetched
   if (isLoading && (!bids || bids.length === 0)) {
     return (
-      <div className="flex h-screen">
+      <div className="flex h-screen bg-slate-100">
         <Sidebar
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
@@ -237,7 +237,7 @@ const APMProjects: React.FC<APMProjectsProps> = ({
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
@@ -246,8 +246,12 @@ const APMProjects: React.FC<APMProjectsProps> = ({
       
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
+          {/* Page Title */}
+          <div className="px-6 pt-4">
+            <h1 className="text-2xl font-bold text-gray-900">Active Projects</h1>
+          </div>
+          
           <PageHeader
-            title="Active Projects"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search projects..."

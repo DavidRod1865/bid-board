@@ -120,7 +120,7 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
 
   if (error) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-slate-100">
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
@@ -144,7 +144,7 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
@@ -153,8 +153,12 @@ const APMArchives: React.FC<APMArchivesProps> = ({ bids = [], projectNotes = [] 
       
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
+          {/* Page Title */}
+          <div className="px-6 pt-4">
+            <h1 className="text-2xl font-bold text-gray-900">Archived Projects</h1>
+          </div>
+          
           <PageHeader
-            title="Archived Projects"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search archived projects..."

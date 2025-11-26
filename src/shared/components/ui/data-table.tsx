@@ -31,6 +31,7 @@ interface DataTableProps<TData, TValue> {
   // Custom row styling
   getRowClassName?: (row: TData) => string
   getRowStyle?: (row: TData) => React.CSSProperties
+  getRowBorderColor?: (row: TData) => string
   // Initial sorting
   initialSorting?: SortingState
   // Disable sorting
@@ -53,9 +54,10 @@ export function DataTable<TData, TValue>({
   isLoading = false,
   getRowClassName,
   getRowStyle,
+  getRowBorderColor,
   initialSorting = [],
   enableSorting = true,
-  pageSize = 10,
+  pageSize = 50,
   enablePageSizeSelector = false,
   availablePageSizes = [10, 15, 20, 25, 30, 50],
   onPageSizeChange,
@@ -70,7 +72,7 @@ export function DataTable<TData, TValue>({
         {
           id: "select",
           meta: {
-            width: "w-[2.5%]"
+            width: "w-[2.5%]",
           },
           header: ({ table }: { table: Table<TData> }) => (
             <input
@@ -81,7 +83,7 @@ export function DataTable<TData, TValue>({
               }}
               onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)}
               aria-label="Select all"
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
             />
           ),
           cell: ({ row }: { row: Row<TData> }) => {
@@ -97,7 +99,7 @@ export function DataTable<TData, TValue>({
                   }}
                   onClick={(e) => e.stopPropagation()}
                   aria-label="Select row"
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="h-4 w-4 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 cursor-pointer"
                 />
               </div>
             );
@@ -176,7 +178,7 @@ export function DataTable<TData, TValue>({
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
+      <div className="bg-slate-100 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
         <div className="flex justify-center items-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
@@ -185,10 +187,10 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className="bg-white shadow-sm overflow-hidden flex-1 flex flex-col h-full">
-      <div className="overflow-auto flex-1">
+    <div className="bg-slate-100 shadow-sm overflow-hidden flex-1 flex flex-col h-full">
+      <div className="overflow-x-auto overflow-y-auto flex-1">
         <table className="w-full table-fixed min-w-[1200px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-slate-100 border-b-2 border-gray-200">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -211,30 +213,38 @@ export function DataTable<TData, TValue>({
           </thead>
           <tbody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <tr
+              table.getRowModel().rows.map((row) => {
+                const borderColor = getRowBorderColor ? getRowBorderColor(row.original) : '';
+                return (
+                  <tr
                   key={row.id}
-                  className={`border-b border-gray-200 transition-all hover:bg-gray-50 cursor-pointer ${
+                  className={`relative bg-white border-b border-gray-200 transition-all hover:bg-gray-50 cursor-pointer ${
                     getRowClassName ? getRowClassName(row.original) : ''
-                  }`}
-                  style={getRowStyle ? getRowStyle(row.original) : {}}
-                  onClick={(e) => handleRowClick(row.original, e)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td 
-                      key={cell.id} 
-                      className={`px-2 py-3 ${
-                        cell.column.columnDef.meta?.width || ''
-                      }`}
+                    }`}
+                    style={getRowStyle ? getRowStyle(row.original) : {}}
+                    onClick={(e) => handleRowClick(row.original, e)}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))
+                    {borderColor && (
+                      <div 
+                        className={`absolute left-0 top-0 bottom-0 w-1 ${borderColor}`}
+                      />
+                    )}
+                    {row.getVisibleCells().map((cell) => (
+                      <td 
+                        key={cell.id} 
+                        className={`px-2 py-3 ${
+                          cell.column.columnDef.meta?.width || ''
+                        }`}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td

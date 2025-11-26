@@ -120,7 +120,7 @@ const APMOnHold: React.FC<APMOnHoldProps> = ({ bids = [], projectNotes = [] }) =
 
   if (error) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-slate-100">
         <Sidebar
           statusFilter={[]}
           setStatusFilter={handleStatusFilter}
@@ -144,7 +144,7 @@ const APMOnHold: React.FC<APMOnHoldProps> = ({ bids = [], projectNotes = [] }) =
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-100">
       <Sidebar
         statusFilter={[]}
         setStatusFilter={handleStatusFilter}
@@ -153,8 +153,12 @@ const APMOnHold: React.FC<APMOnHoldProps> = ({ bids = [], projectNotes = [] }) =
       
       <div className="flex-1 flex flex-col mx-auto w-full">
         <div className="flex-shrink-0">
+          {/* Page Title */}
+          <div className="px-6 pt-4">
+            <h1 className="text-2xl font-bold text-gray-900">On-Hold Projects</h1>
+          </div>
+          
           <PageHeader
-            title="On-Hold Projects"
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             searchPlaceholder="Search on-hold projects..."

@@ -322,7 +322,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 {/* Actions */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button 
-                    className="text-blue-600 hover:text-blue-900"
+                    className="bg-gray-50 px-3 py-1 rounded text-black hover:bg-gray-200"
                     onClick={() => handleUpdateVendor(vendor)}
                   >
                     Edit
