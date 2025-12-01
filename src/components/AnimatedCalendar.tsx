@@ -81,7 +81,7 @@ const AnimatedCalendar: React.FC<AnimatedCalendarProps> = ({
         >
           {/* Main calendar rectangle */}
           <div 
-            className="w-6 h-6 rounded border-2 border-white transition-colors duration-200"
+            className="w-6 h-6 rounded border-2 border-slate-200 transition-colors duration-200"
             style={{ 
               backgroundColor: color
             }}

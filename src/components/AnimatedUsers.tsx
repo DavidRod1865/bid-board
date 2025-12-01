@@ -67,14 +67,14 @@ const LargeUserIcon: React.FC<UserIconProps> = ({ color }) => {
   return (
     <div className="flex flex-col items-center transition-colors duration-200">
       {/* Head */}
-      <div className="border-2 border-white rounded-full">
+      <div className="border-2 border-slate-200 rounded-full">
         <div
           className="w-2.5 h-2.5 rounded-full mb-0.2"
           style={{ backgroundColor: color }}
         />
       </div>
       {/* Body */}
-      <div className="border-2 border-white rounded-t-md">
+      <div className="border-2 border-slate-200 rounded-t-md">
       <div
         className="w-4 h-3.5 rounded-t-sm"
         style={{ backgroundColor: color }}

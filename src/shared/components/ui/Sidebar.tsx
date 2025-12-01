@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { 
   ArrowRightIcon, 
   QuestionMarkCircleIcon, 
@@ -16,6 +16,7 @@ import Folder from "../../../components/Folder";
 import AnimatedUsers from "../../../components/AnimatedUsers";
 import AnimatedCalendar from "../../../components/AnimatedCalendar";
 import AnimatedAdmin from "../../../components/AnimatedAdmin";
+import { Link } from "react-router-dom";
 
 
 interface SidebarProps {
@@ -36,13 +37,11 @@ interface NavigationItem {
   shortLabel: string;
   icon: React.ReactElement | null;
   path: string | null;
-  onClick: () => void;
   disabled: boolean;
   isDivider?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
-  const navigate = useNavigate();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
@@ -112,7 +111,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/estimating",
-        onClick: () => navigate("/estimating"),
         disabled: false,
       },
       {
@@ -133,7 +131,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/on-hold",
-        onClick: () => navigate("/on-hold"),
         disabled: false,
       },
       {
@@ -154,7 +151,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/estimating/bids-sent-to-apm",
-        onClick: () => navigate("/estimating/bids-sent-to-apm"),
         disabled: false,
       },
       {
@@ -175,7 +171,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/archives",
-        onClick: () => navigate("/archives"),
         disabled: false,
       },
       {
@@ -196,7 +191,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/calendar",
-        onClick: () => navigate("/calendar"),
         disabled: false,
       },
       {
@@ -217,7 +211,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/vendors",
-        onClick: () => navigate("/vendors"),
         disabled: false,
       }
     ];
@@ -244,7 +237,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/apm",
-        onClick: () => navigate("/apm"),
         disabled: false,
       },
       {
@@ -265,7 +257,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/apm/projects",
-        onClick: () => navigate("/apm/projects"),
         disabled: false,
       },
       {
@@ -286,7 +277,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/apm/on-hold",
-        onClick: () => navigate("/apm/on-hold"),
         disabled: false,
       },
       {
@@ -307,7 +297,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/apm/archives",
-        onClick: () => navigate("/apm/archives"),
         disabled: false,
       },
       {
@@ -328,7 +317,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/calendar",
-        onClick: () => navigate("/calendar"),
         disabled: false,
       },
       {
@@ -349,7 +337,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/vendors",
-        onClick: () => navigate("/vendors"),
         disabled: false,
       }
     ];
@@ -387,7 +374,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             </div>
           ),
           path: "/apm",
-          onClick: () => navigate("/apm"),
           disabled: false,
         },
         {
@@ -408,7 +394,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             </div>
           ),
           path: "/apm/projects",
-          onClick: () => navigate("/apm/projects"),
           disabled: false,
         },
         {
@@ -429,7 +414,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             </div>
           ),
           path: "/apm/on-hold",
-          onClick: () => navigate("/apm/on-hold"),
           disabled: false,
         },
         {
@@ -450,7 +434,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             </div>
           ),
           path: "/apm/archives",
-          onClick: () => navigate("/apm/archives"),
           disabled: false,
         },
         {
@@ -471,7 +454,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             </div>
           ),
           path: "/calendar",
-          onClick: () => navigate("/calendar"),
           disabled: false,
         },
         {
@@ -492,7 +474,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             </div>
           ),
           path: "/vendors",
-          onClick: () => navigate("/vendors"),
           disabled: false,
         },
       ];
@@ -506,7 +487,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             shortLabel: "",
             icon: <div></div>,
             path: "",
-            onClick: () => {},
             disabled: false,
             isDivider: true,
           } as NavigationItem,
@@ -528,7 +508,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
               </div>
             ),
             path: "/admin",
-            onClick: () => navigate("/admin"),
             disabled: false,
           }
         );
@@ -557,7 +536,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/estimating",
-        onClick: () => navigate("/estimating"),
         disabled: false,
       },
       {
@@ -578,7 +556,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/on-hold",
-        onClick: () => navigate("/on-hold"),
         disabled: false,
       },
       {
@@ -599,7 +576,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/estimating/bids-sent-to-apm",
-        onClick: () => navigate("/estimating/bids-sent-to-apm"),
         disabled: false,
       },
       {
@@ -620,7 +596,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/archives",
-        onClick: () => navigate("/archives"),
         disabled: false,
       },
       {
@@ -641,7 +616,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/calendar",
-        onClick: () => navigate("/calendar"),
         disabled: false,
       },
       {
@@ -662,7 +636,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           </div>
         ),
         path: "/vendors",
-        onClick: () => navigate("/vendors"),
         disabled: false,
       }
     ];
@@ -676,7 +649,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
           shortLabel: "",
           icon: <div></div>,
           path: "",
-          onClick: () => {},
           disabled: false,
           isDivider: true,
         } as NavigationItem,
@@ -698,7 +670,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
             </div>
           ),
           path: "/admin",
-          onClick: () => navigate("/admin"),
           disabled: false,
         }
       );
@@ -760,11 +731,54 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
               );
             }
 
+            // Handle disabled items as divs (non-clickable)
+            if (item.disabled) {
+              return (
+                <div key={item.id}>
+                  <div
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    className={`
+                      w-full flex px-3 py-3 rounded-lg text-left transition-all duration-500 ease-in-out
+                      ${
+                        isCollapsed
+                          ? "flex-col items-center gap-1"
+                          : "flex-row items-center gap-3"
+                      }
+                      text-gray-400 cursor-not-allowed
+                      ${isCollapsed ? "justify-center" : "justify-start"}
+                    `}
+                  >
+                    <span className="flex-shrink-0">
+                      {item.icon}
+                    </span>
+                    <span
+                      className={`text-xs font-semibold transition-all duration-300 ease-in-out ${
+                        !isCollapsed
+                          ? "opacity-0 scale-95 translate-y-2"
+                          : "opacity-100 scale-100 translate-y-0 delay-200"
+                      } ${!isCollapsed ? "hidden" : "block"} text-gray-400`}
+                    >
+                      {item.shortLabel}
+                    </span>
+                    <span
+                      className={`font-semibold text-sm transition-all duration-300 ease-in-out ${
+                        isCollapsed
+                          ? "opacity-0 scale-95 -translate-x-2"
+                          : "opacity-100 scale-100 translate-x-0 delay-200"
+                      } ${isCollapsed ? "hidden" : "block"}`}
+                    >
+                      {item.label} (Coming Soon)
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div key={item.id}>
-                <button
-                  onClick={item.onClick}
-                  disabled={item.disabled}
+                <Link
+                  to={item.path || "/"}
                   onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={`
@@ -781,8 +795,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
                               ? "text-green-600"
                               : "text-blue-600"
                           } font-medium`
-                        : item.disabled
-                        ? "text-gray-400 cursor-not-allowed"
                         : `text-gray-900 ${
                             currentView === "apm"
                               ? "hover:text-green-600"
@@ -813,8 +825,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
                         ? currentView === "apm"
                           ? "text-green-600"
                           : "text-blue-600"
-                        : item.disabled
-                        ? "text-gray-400"
                         : "text-gray-500"
                     }`}
                   >
@@ -828,9 +838,8 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
                     } ${isCollapsed ? "hidden" : "block"}`}
                   >
                     {item.label}
-                    {item.disabled && " (Coming Soon)"}
                   </span>
-                </button>
+                </Link>
               </div>
             );
           })}
