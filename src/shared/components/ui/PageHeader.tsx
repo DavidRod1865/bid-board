@@ -5,7 +5,7 @@ import {
   TrashIcon,
   PlusIcon,
   DocumentDuplicateIcon,
-  EnvelopeIcon,
+  ArrowDownTrayIcon,
   ChevronDownIcon,
   PauseIcon,
   ArchiveBoxIcon,
@@ -57,6 +57,11 @@ interface PageHeaderProps {
     color?: "green" | "blue" | "yellow";
     disabled?: boolean;
   };
+  exportButton?: {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  };
   bulkActions?: {
     selectedCount: number;
     actions: Array<{
@@ -85,6 +90,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   actionButton,
   secondaryActionButton,
   tertiaryActionButton,
+  exportButton,
   bulkActions,
 }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -177,7 +183,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
       <div className="px-6 py-4">
         <div className="flex items-center justify-between gap-4">
           {/* Left Side: Search, Date Picker, Reset */}
-          <div className="flex gap-3">
+          <div className="flex items-center gap-2">
             {/* Search Field */}
             <Input
               type="text"
@@ -192,7 +198,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               <div className="relative" ref={datePickerRef}>
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="w-52 px-3 py-2 text-sm text-gray-500 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
+                  className="w-56 px-3 py-2 text-sm text-gray-400 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
                 >
                   {formatDateRange()}
                 </button>
@@ -214,21 +220,23 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                       rangeColors={["#d4af37"]}
                     />
                     <div className="p-3 border-t border-gray-200 flex justify-end gap-2">
-                      <button
+                      <Button
+                        size="default"
                         onClick={() => {
                           setDateRange({ startDate: null, endDate: null });
                           setShowDatePicker(false);
                         }}
-                        className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                        className="px-3 py-1 text-sm text-white hover:bg-gray-500 bg-gray-400"
                       >
                         Clear
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => setShowDatePicker(false)}
-                        className="px-3 py-1 text-sm bg-[#d4af37] text-white rounded hover:bg-[#c19b26]"
+                        size="default"
+                        className="px-3 py-1 text-sm bg-[#d4af37] text-white hover:bg-[#c19b26]"
                       >
                         Apply
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -252,10 +260,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               <>
                 {/* Action Button */}
                 {actionButton && (
-                  <button
+                  <Button
                     onClick={actionButton.onClick}
+                    size="default"
                     className={`
-                  inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
+                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
                   ${
                     actionButton.color === "green"
                       ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
@@ -269,15 +278,16 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                   >
                     <PlusIcon className="w-5 h-5 mr-2" />
                     {actionButton.label}
-                  </button>
+                  </Button>
                 )}
 
                 {/* Secondary Action Button */}
                 {secondaryActionButton && (
-                  <button
+                  <Button
                     onClick={secondaryActionButton.onClick}
+                    size="default"
                     className={`
-                  inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
+                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
                   ${
                     secondaryActionButton.color === "green"
                       ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
@@ -295,16 +305,17 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                       <PlusIcon className="w-5 h-5 mr-2" />
                     )}
                     {secondaryActionButton.label}
-                  </button>
+                  </Button>
                 )}
 
                 {/* Tertiary Action Button */}
                 {tertiaryActionButton && (
-                  <button
+                  <Button
                     onClick={tertiaryActionButton.onClick}
+                    size="default"
                     disabled={tertiaryActionButton.disabled}
                     className={`
-                  inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
+                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
                   ${
                     tertiaryActionButton.disabled
                       ? "opacity-50 cursor-not-allowed"
@@ -321,17 +332,38 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                   }
                     `}
                   >
-                    <EnvelopeIcon className="w-5 h-5 mr-2" />
+                    <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
                     {tertiaryActionButton.label}
-                  </button>
+                  </Button>
+                )}
+
+                {/* Export Button */}
+                {exportButton && (
+                  <Button
+                    onClick={exportButton.onClick}
+                    size="default"
+                    disabled={exportButton.disabled}
+                    className={`
+                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500
+                  ${
+                    exportButton.disabled
+                      ? "bg-yellow-300 cursor-not-allowed"
+                      : "bg-yellow-500 hover:bg-yellow-600"
+                  }
+                    `}
+                  >
+                    <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+                    {exportButton.label}
+                  </Button>
                 )}
 
                 {/* Overdue Items Filter */}
                 {overdueCount > 0 && (
-                  <button
+                  <Button
                     onClick={() => setOverdueFilter(!overdueFilter)}
+                    size="default"
                     className={`
-                px-3 py-2 text-sm border rounded-md font-medium transition-all duration-200
+                text-sm border rounded-md font-medium transition-all duration-200
                 ${
                   overdueFilter
                     ? "bg-red-600 text-white border-red-600 hover:bg-red-800"
@@ -340,7 +372,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               `}
                   >
                     {overdueCount} Overdue Items
-                  </button>
+                  </Button>
                 )}
               </>
             )}
@@ -350,7 +382,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               <div className="flex gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="inline-flex items-center px-4 h-10 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap">
+                    <button className="inline-flex items-center px-4 h-9 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap">
                       Bulk Actions ({bulkActions.selectedCount})
                       <ChevronDownIcon className="w-4 h-4 ml-2" />
                     </button>

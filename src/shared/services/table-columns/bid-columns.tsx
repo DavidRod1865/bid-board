@@ -346,9 +346,32 @@ export function createBidColumns(
         },
       },
       {
+        id: "project_start_date",
+        accessorKey: "project_start_date",
+        meta: {
+          width: "w-[12%]",
+        },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Start Date" center />
+        ),
+        cell: ({ row }) => {
+          const bid = row.original;
+          return (
+            <div className="flex items-center justify-center text-gray-600 text-sm">
+              {bid.project_start_date ? formatDate(bid.project_start_date) : '-'}
+            </div>
+          );
+        },
+        sortingFn: (rowA, rowB) => {
+          const a = rowA.original.project_start_date ? new Date(rowA.original.project_start_date).getTime() : 0;
+          const b = rowB.original.project_start_date ? new Date(rowB.original.project_start_date).getTime() : 0;
+          return a - b;
+        },
+      },
+      {
         id: "gc_system",
         meta: {
-          width: "w-[15%]",
+          width: "w-[13%]",
         },
         header: () => (
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">

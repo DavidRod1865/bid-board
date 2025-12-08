@@ -103,6 +103,17 @@ export interface Database {
           on_hold: boolean
           on_hold_at: string | null
           on_hold_by: string | null
+          department: string | null
+          sent_to_apm: boolean
+          sent_to_apm_at: string | null
+          apm_on_hold: boolean
+          apm_on_hold_at: string | null
+          apm_archived: boolean
+          apm_archived_at: string | null
+          gc_system: string | null
+          added_to_procore: boolean
+          made_by_apm: boolean
+          project_start_date: string | null
         }
         Insert: {
           id?: number
@@ -129,6 +140,17 @@ export interface Database {
           on_hold?: boolean
           on_hold_at?: string | null
           on_hold_by?: string | null
+          department?: string | null
+          sent_to_apm?: boolean
+          sent_to_apm_at?: string | null
+          apm_on_hold?: boolean
+          apm_on_hold_at?: string | null
+          apm_archived?: boolean
+          apm_archived_at?: string | null
+          gc_system?: string | null
+          added_to_procore?: boolean
+          made_by_apm?: boolean
+          project_start_date?: string | null
         }
         Update: {
           id?: number
@@ -155,6 +177,17 @@ export interface Database {
           on_hold?: boolean
           on_hold_at?: string | null
           on_hold_by?: string | null
+          department?: string | null
+          sent_to_apm?: boolean
+          sent_to_apm_at?: string | null
+          apm_on_hold?: boolean
+          apm_on_hold_at?: string | null
+          apm_archived?: boolean
+          apm_archived_at?: string | null
+          gc_system?: string | null
+          added_to_procore?: boolean
+          made_by_apm?: boolean
+          project_start_date?: string | null
         }
       }
       bid_vendors: {

@@ -92,8 +92,68 @@ export interface Bid {
   apm_archived_at: string | null;
   gc_system: 'Procore' | 'AutoDesk' | 'Email' | 'Other' | null;
   added_to_procore: boolean;
+  made_by_apm: boolean;
+  project_start_date: string | null;
 }
 
+// New normalized table types
+export interface ProjectVendor {
+  id: number;
+  bid_id: number;
+  vendor_id: number;
+  assigned_apm_user: string | null;
+  assigned_date: string | null;
+  is_priority: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorApmPhase {
+  id: number;
+  project_vendor_id: number;
+  phase_type: 'quote_confirmed' | 'buy_number' | 'po' | 'submittals' | 'revised_plans' | 'equipment_release' | 'closeouts' | 'completed';
+  status: 'pending' | 'requested' | 'in_progress' | 'received' | 'approved' | 'on_hold' | 'issue' | 'completed';
+  requested_date: string | null;
+  follow_up_date: string | null;
+  completed_date: string | null;
+  notes: string | null;
+  priority: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorFinancial {
+  id: number;
+  project_vendor_id: number;
+  cost_amount: number | null;
+  final_quote_amount: number | null;
+  final_quote_confirmed_date: string | null;
+  buy_number: string | null;
+  po_number: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorFollowUp {
+  id: number;
+  project_vendor_id: number;
+  phase_type: string;
+  follow_up_date: string;
+  follow_up_count: number;
+  notes: string | null;
+  created_at: string;
+}
+
+// Composite type that combines all normalized data for a project-vendor relationship
+export interface ProjectVendorComplete {
+  project_vendor: ProjectVendor;
+  phases: VendorApmPhase[];
+  financials: VendorFinancial | null;
+  follow_ups: VendorFollowUp[];
+  vendor?: Vendor; // Include vendor details when needed
+}
+
+// Legacy BidVendor type (keeping for backward compatibility during migration)
 export interface BidVendor {
   id: number;
   bid_id: number;

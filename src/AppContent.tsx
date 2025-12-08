@@ -6,12 +6,16 @@ import type { ContactData } from './features/estimating/components/VendorManagem
 
 // Importing Supabase operations and realtime manager
 import { dbOperations, realtimeManager } from './shared/services/supabase';
+import { userCache } from './shared/services/userCache';
 import { getDefaultAPMFields } from './shared/utils/bidVendorDefaults';
 import { useLoading } from './shared/contexts/LoadingContext';
 import LottieLoader from './shared/components/ui/LottieLoader';
 
 // Import the new routing structure
 import AppRoutes from './routes';
+
+// Import the new types
+import type { ProjectVendorComplete } from './shared/types';
 
 // Raw bid data type as received from Supabase
 type RawBidData = {
@@ -45,7 +49,12 @@ type RawBidData = {
   apm_archived_at?: string;
   gc_system?: 'Procore' | 'AutoDesk' | 'Email' | 'Other' | null;
   added_to_procore?: boolean;
+  made_by_apm?: boolean;
+  project_start_date?: string | null;
+  // Legacy structure
   bid_vendors?: Array<BidVendor & { vendors?: { company_name: string; specialty?: string } }>;
+  // New normalized structure
+  project_vendors_complete?: ProjectVendorComplete[];
   created_by_user?: { name: string; email: string };
   assigned_user?: { name: string; email: string };
 };
@@ -70,21 +79,36 @@ const AppContentInternal: React.FC = () => {
         setAppLoading(true);
         setError(null);
         
+        // Feature flag for testing normalized tables
+        const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+        
         // Fetch bids, vendors, users, and project notes in parallel
         const [bidsData, vendorsData, usersData, projectNotesData] = await Promise.all([
-          dbOperations.getBids(),
+          USE_NORMALIZED_TABLES ? dbOperations.getBidsNormalized() : dbOperations.getBids(),
           dbOperations.getVendors(),
-          dbOperations.getUsers(),
+          userCache.getUsers(),
           dbOperations.getAllProjectNotes()
         ]);
 
         // Transform bids data to extract bid_vendors
         // Create a flat array of bid vendors
         const extractedBidVendors: BidVendor[] = [];
-        // Take bidData and extract bid_vendors into extractedBidVendors array
-        const transformedBids = bidsData.map((bid: RawBidData) => {
-          if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
-            // push bid_vendors into extractedBidVendors with bid_id reference
+        
+        // Handle both old and new table structures
+        const transformedBids = bidsData.map((bid: RawBidData): Bid => {
+          if (USE_NORMALIZED_TABLES && bid.project_vendors_complete) {
+            // NEW: Handle normalized structure
+            const bidVendorsFromNormalized = bid.project_vendors_complete.map((pvc) => 
+              dbOperations.normalizedToBidVendor(pvc)
+            );
+            extractedBidVendors.push(...bidVendorsFromNormalized);
+            
+            // Remove normalized data and create proper Bid type
+            const { project_vendors_complete, bid_vendors, ...bidWithoutNested } = bid;
+            return bidWithoutNested as Bid;
+            
+          } else if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
+            // OLD: Handle legacy structure
             extractedBidVendors.push(...bid.bid_vendors.map((bv) => ({
               // Spread existing bid_vendor properties + add bid_id
               ...bv,
@@ -93,8 +117,7 @@ const AppContentInternal: React.FC = () => {
           }
           
           // Return bid without the nested bid_vendors
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { bid_vendors, ...bidWithoutVendors } = bid;
+          const { bid_vendors, project_vendors_complete, ...bidWithoutVendors } = bid;
           return bidWithoutVendors as Bid;
         });
 
@@ -218,7 +241,9 @@ const AppContentInternal: React.FC = () => {
         apm_archived: newBid.apm_archived || false,
         apm_archived_at: newBid.apm_archived_at || null,
         gc_system: newBid.gc_system || null,
-        added_to_procore: newBid.added_to_procore || false
+        added_to_procore: newBid.added_to_procore || false,
+        made_by_apm: newBid.made_by_apm || false,
+        project_start_date: newBid.project_start_date || null
       };
       
       setBids(prev => {
@@ -266,7 +291,9 @@ const AppContentInternal: React.FC = () => {
         apm_archived: newBid.apm_archived || false,
         apm_archived_at: newBid.apm_archived_at || null,
         gc_system: newBid.gc_system || null,
-        added_to_procore: newBid.added_to_procore || false
+        added_to_procore: newBid.added_to_procore || false,
+        made_by_apm: newBid.made_by_apm || false,
+        project_start_date: newBid.project_start_date || null
       };
       
       setBids(prev => {
@@ -314,7 +341,9 @@ const AppContentInternal: React.FC = () => {
         apm_archived: result.project.apm_archived || false,
         apm_archived_at: result.project.apm_archived_at || null,
         gc_system: result.project.gc_system || null,
-        added_to_procore: result.project.added_to_procore || false
+        added_to_procore: result.project.added_to_procore || false,
+        made_by_apm: result.project.made_by_apm || false,
+        project_start_date: result.project.project_start_date || null
       };
       
       setBids(prev => {

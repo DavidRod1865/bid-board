@@ -358,3 +358,11 @@ entrypoint = "./functions/insurance-expiry-report/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/insurance-expiry-report/*.html" ]
+
+[functions.active-project-report]
+enabled = true
+verify_jwt = false
+import_map = "./functions/active-project-report/deno.json"
+entrypoint = "./functions/active-project-report/index.ts"
+# Cron job to run on 1st and 15th of every month at 8 AM
+cron = "0 8 1,15 * *"

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth0 } from '../auth';
 import { dbOperations } from '../shared/services/supabase';
+import { userCache } from '../shared/services/userCache';
 
 interface UserProfile {
   id: string;
@@ -38,7 +39,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<TeamView>('estimating');
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     if (!user?.sub || !isAuthenticated) {
       setUserProfile(null);
       setIsLoading(false);
@@ -48,18 +49,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setError(null);
       
-      // First try to get user from database
-      const users = await dbOperations.getUsers();
-      
-      let dbUser = users.find(u => u.email === user.email);
+      // PERFORMANCE FIX: Use cached user lookup instead of fetching all users
+      let dbUser = user.email ? await userCache.getUserByEmail(user.email) : null;
       
       // Check if this is a pending invitation that needs activation
       if (dbUser && !dbUser.is_active && dbUser.invitation_sent_at) {
         try {
           // This user was invited and is logging in for the first time
           // Activate their account and update their Auth0 ID
-          dbUser = await dbOperations.markUserAsActive(dbUser.id, user.sub);
-          console.log('UserContext: Successfully activated invitation for:', dbUser.email);
+          const activatedUser = await dbOperations.markUserAsActive(dbUser.id, user.sub);
+          dbUser = activatedUser;
+          console.log('UserContext: Successfully activated invitation for:', dbUser?.email);
         } catch (activationError) {
           console.error('UserContext: Failed to activate pending user:', activationError);
           // Continue with existing user data
@@ -80,9 +80,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       }
       
       if (dbUser) {
-        setUserProfile(dbUser);
+        // Convert User to UserProfile format
+        const userProfile: UserProfile = {
+          id: dbUser.id,
+          email: dbUser.email || '',
+          name: dbUser.name || '',
+          color_preference: dbUser.color_preference || '#d4af37',
+          created_at: dbUser.created_at || new Date().toISOString(),
+          updated_at: dbUser.updated_at || new Date().toISOString(),
+          role: dbUser.role as 'Admin' | 'Estimating' | 'APM' | null
+        };
+        
+        setUserProfile(userProfile);
         // Also save to localStorage as backup
-        localStorage.setItem(`user_profile_${user.sub}`, JSON.stringify(dbUser));
+        localStorage.setItem(`user_profile_${user.sub}`, JSON.stringify(userProfile));
         return;
       }
       
@@ -116,7 +127,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.sub, user?.email, user?.name, isAuthenticated]);
 
   const updateProfile = async (name: string, colorPreference: string) => {
     if (!user?.sub || !userProfile) {
@@ -147,6 +158,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       setUserProfile(updatedProfile);
       
+      // Invalidate user cache when profile is updated
+      userCache.invalidateUser(updatedProfile.id, updatedProfile.email);
+      
       // Store in localStorage for persistence across sessions
       localStorage.setItem(`user_profile_${user.sub}`, JSON.stringify(updatedProfile));
     } catch (err) {
@@ -163,7 +177,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     await fetchUserProfile();
   };
 
-  const getDefaultView = (): TeamView => {
+  const getDefaultView = useCallback((): TeamView => {
     if (!userProfile?.role) return 'estimating';
     
     switch (userProfile.role) {
@@ -175,7 +189,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       default:
         return 'estimating'; // Admin defaults to estimating, can switch freely
     }
-  };
+  }, [userProfile?.role]);
 
   const switchView = (view: TeamView) => {
     // Only allow view switching for Admin users

@@ -43,6 +43,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       general_contractor: '',
       project_description: '',
       due_date: '',
+      project_start_date: '',
       status: 'New',
       priority: false,
       file_location: '',
@@ -73,6 +74,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
         general_contractor: project.general_contractor || '',
         project_description: project.project_description || '',
         due_date: '', // Clear due date for new project
+        project_start_date: project.project_start_date || '', // Copy project start date
         status: 'New', // Reset to New status
         priority: project.priority,
         file_location: project.file_location || '',
@@ -118,6 +120,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       ...formData,
       title: formData.project_name, // Set title = project_name
       due_date: new Date(formData.due_date).toISOString(),
+      project_start_date: formData.project_start_date || null, // Convert empty string to null
       created_by: formData.created_by || null, // Convert empty string to null
       assign_to: formData.assign_to || null, // Convert empty string to null
       file_location: formData.file_location || null, // Use form file_location
@@ -128,6 +131,7 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       on_hold: false,
       on_hold_at: null,
       on_hold_by: null,
+      department: 'Estimating', // Default department for copies
       sent_to_apm: false,
       sent_to_apm_at: null,
       apm_on_hold: false,
@@ -135,7 +139,8 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       apm_archived: false,
       apm_archived_at: null,
       gc_system: null, // Default GC system
-      added_to_procore: false // Default Procore status
+      added_to_procore: false, // Default Procore status
+      made_by_apm: false // Copied projects are not made by APM
     };
 
     onCopyProject(selectedProjectId!, projectData);
@@ -258,6 +263,19 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
                 />
                 {errors.due_date && <p className="text-red-600 text-sm mt-1">{errors.due_date}</p>}
               </div>
+            </div>
+
+            {/* Project Start Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Project Start Date
+              </label>
+              <Input
+                type="date"
+                value={formData.project_start_date}
+                onChange={(e) => handleInputChange('project_start_date', e.target.value)}
+                disabled={isLoading}
+              />
             </div>
 
             {/* Status & File Location */}

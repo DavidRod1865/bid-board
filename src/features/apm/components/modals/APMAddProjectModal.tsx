@@ -49,6 +49,7 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
       due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0], // 30 days from now
+      project_start_date: "",
       status: "New",
       priority: false,
       assign_to: null,
@@ -104,6 +105,7 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
       ...formData,
       title: formData.project_name, // Use project_name as the title
       due_date: new Date(formData.due_date).toISOString(),
+      project_start_date: formData.project_start_date || null, // Convert empty string to null
       created_by: formData.created_by || null, // Convert empty string to null
       assign_to: formData.assign_to || null, // Convert empty string to null
       estimated_value: 0, // Add default estimated_value
@@ -282,6 +284,21 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
                 {errors.general_contractor}
               </p>
             )}
+          </div>
+
+          {/* Project Start Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Project Start Date
+            </label>
+            <Input
+              type="date"
+              value={formData.project_start_date}
+              onChange={(e) =>
+                handleInputChange("project_start_date", e.target.value)
+              }
+              disabled={isLoading || isSubmitting}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -13,6 +13,9 @@ import { useDynamicPageSize } from '../../../shared/hooks/useDynamicPageSize';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
 import { isDateInRange, getBidUrgency } from '../../../shared/utils/formatters';
+import { exportAPMProjectsToExcel } from '../../../shared/utils/excelGenerator';
+import { generateEquipmentReleaseReportPDF } from '../../../shared/utils/pdfGenerator';
+import { ActiveProjectReportService } from '../../../shared/services/activeProjectReportService';
 
 interface APMProjectsProps {
   bids: Bid[];
@@ -71,6 +74,8 @@ const APMProjects: React.FC<APMProjectsProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const { showSuccess, showError } = useToast();
 
   // Dynamic page size management
@@ -138,6 +143,68 @@ const APMProjects: React.FC<APMProjectsProps> = ({
 
   const handleNewProject = () => {
     setIsAddModalOpen(true);
+  };
+
+  const handleExportToExcel = () => {
+    setShowExportConfirm(true);
+  };
+
+  const handleGenerateEquipmentReleaseReport = async () => {
+    setIsGeneratingReport(true);
+    try {
+      showSuccess('Report Generation Started', 'Generating Equipment Release Report...');
+      
+      const reportData = await ActiveProjectReportService.getActiveProjectsReport();
+      
+      if (reportData.totalProjects === 0) {
+        showError('No Projects Found', 'No active projects found with start dates within 60 days from now.');
+        return;
+      }
+
+      // Generate the exact same PDF as the email report
+      try {
+        const reportFile = generateEquipmentReleaseReportPDF(reportData);
+        const timestamp = new Date().toISOString().slice(0, 16).replace(/[:-]/g, '').replace('T', '_');
+        const filename = `Equipment_Release_Report_${timestamp}.pdf`;
+        
+        // Download the file
+        const url = URL.createObjectURL(reportFile);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showSuccess(
+          'Equipment Release Report Generated', 
+          `Generated report for ${reportData.totalProjects} projects within 60 days. Check your downloads folder.`
+        );
+      } catch (pdfError) {
+        console.error('PDF generation error:', pdfError);
+        showError('PDF Generation Failed', 'Failed to generate Equipment Release Report. Please try again.');
+        return;
+      }
+      
+    } catch (error) {
+      console.error('Error generating equipment release report:', error);
+      showError(
+        'Report Generation Failed', 
+        error instanceof Error ? error.message : 'Failed to generate report. Please try again.'
+      );
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const confirmExportToExcel = () => {
+    try {
+      exportAPMProjectsToExcel(filteredBids, projectNotes);
+      showSuccess('Export Successful! 📊', `Exported ${filteredBids.length} projects to Excel`);
+    } catch (error) {
+      showError('Export Failed ❌', error instanceof Error ? error.message : 'Failed to export to Excel');
+    }
   };
 
 
@@ -269,6 +336,16 @@ const APMProjects: React.FC<APMProjectsProps> = ({
               onClick: handleNewProject,
               color: "green"
             }}
+            secondaryActionButton={{
+              label: isGeneratingReport ? "Generating..." : "Equipment Release Report",
+              onClick: handleGenerateEquipmentReleaseReport,
+              color: "blue"
+            }}
+            tertiaryActionButton={{
+              label: "Filtered Projects Report",
+              onClick: handleExportToExcel,
+              disabled: filteredBids.length === 0
+            }}
             bulkActions={{
               selectedCount: selectedBids.size,
               actions: [
@@ -340,6 +417,20 @@ const APMProjects: React.FC<APMProjectsProps> = ({
         confirmText={getBulkActionConfirmText(confirmModal.type)}
         cancelText="Cancel"
         variant={confirmModal.type === 'delete' ? 'danger' : 'warning'}
+      />
+
+      {/* Export Confirmation Modal */}
+      <AlertDialog
+        isOpen={showExportConfirm}
+        onClose={() => setShowExportConfirm(false)}
+        onConfirm={confirmExportToExcel}
+        title="Export to Excel"
+        subtitle={`Export ${filteredBids.length} APM projects to Excel`}
+        noteText="This will download an Excel file containing all visible APM projects with current filters applied."
+        confirmText="Export to Excel"
+        cancelText="Cancel"
+        variant="info"
+        cleanStyle={true}
       />
 
       {/* Toast Container */}

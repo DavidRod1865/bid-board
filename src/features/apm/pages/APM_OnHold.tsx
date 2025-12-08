@@ -155,7 +155,7 @@ const APMOnHold: React.FC<APMOnHoldProps> = ({ bids = [], projectNotes = [] }) =
         <div className="flex-shrink-0">
           {/* Page Title */}
           <div className="px-6 pt-4">
-            <h1 className="text-2xl font-bold text-gray-900">On-Hold Projects</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Closeouts</h1>
           </div>
           
           <PageHeader

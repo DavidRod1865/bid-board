@@ -13,14 +13,8 @@ import { useDynamicPageSize } from '../../../shared/hooks/useDynamicPageSize';
 import { useBulkSelection, useClearSelectionOnFilterChange } from '../../../shared/hooks/useBulkSelection';
 import { useBulkActions, getBulkActionConfirmationMessage, getBulkActionConfirmText } from '../../../shared/hooks/useBulkActions';
 import { isDateInRange, getBidUrgency } from '../../../shared/utils/formatters';
-import { 
-  getVendorCostsDueWithinWeek,
-  groupVendorCostsByBidAndDate,
-  generateReportSummary
-} from '../../../shared/utils/reportFilters';
-import { generateWeeklyVendorCostsPDF } from '../../../shared/utils/pdfGenerator';
 import { TableSkeleton } from '../../../shared/components/ui/skeleton';
-import emailService from '../../../shared/services/emailService';
+import { exportEstimatingProjectsToExcel } from '../../../shared/utils/excelGenerator';
 
 interface DashboardProps {
   bids: Bid[];
@@ -81,8 +75,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isEmailingReport, setIsEmailingReport] = useState(false);
-  const [showEmailConfirmModal, setShowEmailConfirmModal] = useState(false);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
   const { showSuccess, showError } = useToast();
 
   // Dynamic page size management
@@ -229,56 +222,19 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  const handleWeeklyCostsReportClick = () => {
-    setShowEmailConfirmModal(true);
+  const handleExportToExcel = () => {
+    setShowExportConfirm(true);
   };
 
-  const handleConfirmEmailReport = async () => {
-    setShowEmailConfirmModal(false);
-    setIsEmailingReport(true);
+  const confirmExportToExcel = () => {
     try {
-      // Filter bid vendors with due dates within 7 days AND all vendors for bids due within 7 days
-      const weeklyDueBidVendors = getVendorCostsDueWithinWeek(bidVendors, bids);
-      
-      if (weeklyDueBidVendors.length === 0) {
-        showError(
-          'No Upcoming Deadlines',
-          'No bids or vendor costs are due within the next 7 days.'
-        );
-        return;
-      }
-
-      // Group the data by bid and due date
-      const reportData = groupVendorCostsByBidAndDate(weeklyDueBidVendors, bids, vendors);
-      
-      // Generate summary statistics
-      const summary = generateReportSummary(reportData);
-      
-      // Generate PDF
-      const pdfBlob = generateWeeklyVendorCostsPDF(reportData, summary);
-      
-      // Send email
-      await emailService.sendWeeklyVendorCostsReport(
-        pdfBlob,
-        summary.totalProjects,
-        summary.totalPendingVendors
-      );
-      
-      showSuccess(
-        'Report Sent Successfully! 📧',
-        `Report includes ${summary.totalProjects} projects with bids and/or vendor costs due within 7 days. ${summary.totalPendingVendors} vendor submissions are pending.`
-      );
+      exportEstimatingProjectsToExcel(filteredBids, projectNotes);
+      showSuccess('Export Successful! 📊', `Exported ${filteredBids.length} projects to Excel`);
     } catch (error) {
-      showError(
-        'Report Failed ❌',
-        error instanceof Error 
-          ? `Failed to send weekly report: ${error.message}`
-          : 'Failed to send weekly report. Please try again.'
-      );
-    } finally {
-      setIsEmailingReport(false);
+      showError('Export Failed ❌', error instanceof Error ? error.message : 'Failed to export to Excel');
     }
   };
+
 
   // Show loading state with skeleton
   if (isLoading && (!bids || bids.length === 0)) {
@@ -342,11 +298,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               onClick: handleCopyProject,
               color: "blue"
             }}
-            tertiaryActionButton={{
-              label: isEmailingReport ? "Sending..." : "Email",
-              onClick: handleWeeklyCostsReportClick,
-              color: "yellow",
-              disabled: isEmailingReport
+            exportButton={{
+              label: "Export",
+              onClick: handleExportToExcel,
+              disabled: filteredBids.length === 0
             }}
             bulkActions={{
               selectedCount: selectedBids.size,
@@ -410,18 +365,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         />
       )}
 
-      {/* Email Report Confirmation Modal */}
-      <AlertDialog
-        isOpen={showEmailConfirmModal}
-        onClose={() => setShowEmailConfirmModal(false)}
-        onConfirm={handleConfirmEmailReport}
-        title="Send Weekly Report"
-        message="This will generate and email a PDF report of all bids due within 7 days and all vendor costs due within 7 days to estimating@withpridehvac.net. Do you want to continue?"
-        confirmText="Send Report"
-        cancelText="Cancel"
-        variant="info"
-      />
-
       {/* Bulk Actions Confirmation Modal */}
       <AlertDialog
         isOpen={confirmModal.isOpen}
@@ -432,6 +375,20 @@ const Dashboard: React.FC<DashboardProps> = ({
         confirmText={getBulkActionConfirmText(confirmModal.type)}
         cancelText="Cancel"
         variant={confirmModal.type === 'delete' ? 'danger' : 'warning'}
+      />
+
+      {/* Export Confirmation Modal */}
+      <AlertDialog
+        isOpen={showExportConfirm}
+        onClose={() => setShowExportConfirm(false)}
+        onConfirm={confirmExportToExcel}
+        title="Export to Excel"
+        subtitle={`Export ${filteredBids.length} active projects to Excel`}
+        noteText="This will download an Excel file containing all visible projects with current filters applied."
+        confirmText="Export to Excel"
+        cancelText="Cancel"
+        variant="info"
+        cleanStyle={true}
       />
 
       {/* Toast Container */}

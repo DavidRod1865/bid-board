@@ -46,6 +46,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       general_contractor: '',
       project_description: '',
       due_date: '',
+      project_start_date: '',
       status: 'New',
       priority: false,
       file_location: '',
@@ -128,6 +129,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       ...formData,
       title: formData.project_name, // Use project_name as the title
       due_date: new Date(formData.due_date).toISOString(),
+      project_start_date: formData.project_start_date || null, // Convert empty string to null
       created_by: formData.created_by || null, // Convert empty string to null
       assign_to: formData.assign_to || null, // Convert empty string to null
       estimated_value: 0, // Add default estimated_value
@@ -147,7 +149,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       apm_archived_at: null,
       gc_system: null, // Default GC system
       added_to_procore: false, // Default Procore status
-      made_by_apm: false // Mark projects created by Estimating as not APM-created
+      made_by_apm: selectedDepartment === 'APM' ? true : false // Mark projects created by APM department
     };
 
     try {
@@ -322,6 +324,18 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
               disabled={isLoading || isSubmitting}
             />
             {errors.due_date && <p className="text-red-600 text-sm mt-1">{errors.due_date}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Project Start Date
+            </label>
+            <Input
+              type="date"
+              value={formData.project_start_date}
+              onChange={(e) => handleInputChange('project_start_date', e.target.value)}
+              disabled={isLoading || isSubmitting}
+            />
           </div>
 
           <div>

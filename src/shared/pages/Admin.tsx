@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { dbOperations } from "../services/supabase";
+import { userCache } from "../services/userCache";
 import type { User } from "../types";
 import type { AnalyticsFilters, AnalyticsDashboardData } from "../types/analytics";
 import { EnvelopeIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
@@ -171,7 +172,7 @@ const Admin: React.FC = () => {
     const fetchUsers = async () => {
       try {
         setIsLoading(true);
-        const usersData = await dbOperations.getUsers();
+        const usersData = await userCache.getUsers();
         setUsers(usersData);
       } catch (error) {
         console.error("Error fetching users:", error);
@@ -613,7 +614,8 @@ const Admin: React.FC = () => {
             showSuccess('Invitation Resent', `New invitation sent to ${user.email}`);
             
             // Refresh users list to show updated timestamp
-            const updatedUsers = await dbOperations.getUsers();
+            userCache.invalidateCache(); // Invalidate cache to force fresh data
+            const updatedUsers = await userCache.getUsers();
             setUsers(updatedUsers);
             
           } catch (error) {

@@ -131,6 +131,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
     file_location: bid.file_location || "",
     gc_system: bid.gc_system,
     added_to_procore: bid.added_to_procore,
+    project_start_date: bid.project_start_date,
   });
 
   // Data is now provided via props from AppContent - no local loading needed
@@ -187,6 +188,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
       file_location: bid.file_location || "",
       gc_system: bid.gc_system,
       added_to_procore: bid.added_to_procore,
+      project_start_date: bid.project_start_date,
     });
   }, [bid]);
 
@@ -227,6 +229,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
       file_location: bid.file_location || "",
       gc_system: bid.gc_system,
       added_to_procore: bid.added_to_procore,
+      project_start_date: bid.project_start_date,
     });
     setIsEditing(false);
   };
@@ -762,6 +765,51 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     <span className="text-gray-900 font-medium text-lg ml-2">
                       {bid.general_contractor || "Not assigned"}
                     </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-gray-600 text-sm font-medium">
+                    Project Start Date: 
+                  </span>
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={
+                        formData.project_start_date
+                          ? formData.project_start_date.slice(0, 10)
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          project_start_date: e.target.value || null,
+                        })
+                      }
+                      className="border border-gray-300 rounded px-2 py-1 text-sm ml-1"
+                    />
+                  ) : (
+                    <>
+                      {bid.project_start_date ? (
+                        <span className="text-gray-900 text-sm font-medium ml-1">
+                          {(() => {
+                          const dateStr = bid.project_start_date!;
+                          const dateOnly = dateStr.includes("T")
+                            ? dateStr.split("T")[0]
+                            : dateStr;
+                          const [year, month, day] = dateOnly.split("-").map(Number);
+                          const localDate = new Date(year, month - 1, day);
+                          return localDate.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          });
+                          })()}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm ml-1">-</span>
+                      )}
+                    </>
                   )}
                 </div>
 

@@ -5,6 +5,10 @@ import Sidebar from "../../../shared/components/ui/Sidebar";
 import PageHeader from "../../../shared/components/ui/PageHeader";
 import type { BidVendor, Vendor, VendorWithContact, Bid, User } from "../../../shared/types";
 import { getFollowUpUrgency } from "../../../shared/utils/phaseFollowUpUtils";
+import { exportAPMTasksToExcel, generateAPMTasksFromData } from "../../../shared/utils/excelGenerator";
+import { useToast } from "../../../shared/hooks/useToast";
+import { Toaster } from "../../../shared/components/ui/sonner";
+import AlertDialog from "../../../shared/components/ui/AlertDialog";
 
 interface APMDashboardProps {
   bids: Bid[];
@@ -114,8 +118,10 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
   isLoading = false
 }) => {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [dateRange, setDateRange] = useState<{
     startDate: Date | null;
     endDate: Date | null;
@@ -386,6 +392,69 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
     }
   };
 
+  const handleExportToExcel = () => {
+    setShowExportConfirm(true);
+  };
+
+  const confirmExportToExcel = () => {
+    try {
+      // Generate APM tasks from filtered data
+      const apmTasks = generateAPMTasksFromData(bids, bidVendors, vendors, users);
+      
+      // Filter tasks to match current view (apply same filters as the UI)
+      let tasksToExport = apmTasks;
+      
+      // Apply tab filtering
+      if (activeTab === "unassigned") {
+        tasksToExport = tasksToExport.filter((task) => !task.assignedUser);
+      } else if (activeTab !== "all") {
+        tasksToExport = tasksToExport.filter((task) => task.assignedUser?.id === activeTab);
+      }
+      
+      // Apply search filtering
+      if (searchTerm) {
+        tasksToExport = tasksToExport.filter(
+          (task) =>
+            task.project.project_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.project.project_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.project.general_contractor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.vendor.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.phase.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.phase.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+      
+      // Apply date range filtering
+      if (dateRange.startDate || dateRange.endDate) {
+        tasksToExport = tasksToExport.filter((task) => {
+          const taskDate = parseDateSafe(task.phase.followUpDate);
+          if (!taskDate) return false;
+
+          const startDate = normalizeDateToMidnight(dateRange.startDate);
+          const endDate = normalizeDateToMidnight(dateRange.endDate);
+          const normalizedTaskDate = normalizeDateToMidnight(taskDate);
+
+          if (!normalizedTaskDate) return false;
+
+          if (startDate && endDate) {
+            return normalizedTaskDate >= startDate && normalizedTaskDate <= endDate;
+          } else if (startDate) {
+            return normalizedTaskDate >= startDate;
+          } else if (endDate) {
+            return normalizedTaskDate <= endDate;
+          }
+
+          return true;
+        });
+      }
+      
+      exportAPMTasksToExcel(tasksToExport);
+      showSuccess('Export Successful! 📊', `Exported ${tasksToExport.length} tasks to Excel`);
+    } catch (error) {
+      showError('Export Failed ❌', error instanceof Error ? error.message : 'Failed to export to Excel');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen flex bg-slate-100">
@@ -424,6 +493,11 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
             setDateRange={setDateRange}
             showStatusFilter={false}
             showDateFilter={true}
+            exportButton={{
+              label: "Export",
+              onClick: handleExportToExcel,
+              disabled: filteredTasks.length === 0
+            }}
           />
 
         {error && (
@@ -723,6 +797,23 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Export Confirmation Modal */}
+      <AlertDialog
+        isOpen={showExportConfirm}
+        onClose={() => setShowExportConfirm(false)}
+        onConfirm={confirmExportToExcel}
+        title="Export to Excel"
+        subtitle={`Export ${filteredTasks.length} APM tasks to Excel`}
+        noteText="This will download an Excel file containing all visible APM tasks with current filters applied."
+        confirmText="Export to Excel"
+        cancelText="Cancel"
+        variant="info"
+        cleanStyle={true}
+      />
+
+      {/* Toast Container */}
+      <Toaster />
     </div>
   );
 };

@@ -19,6 +19,7 @@ interface ProjectFormData {
   estimated_value: number;
   created_by: string;
   assign_to: string;
+  project_start_date: string;
 }
 
 interface ProjectFormProps {
@@ -130,6 +131,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
           ) : (
             <span className="text-gray-900">
               {formatDate(bid.due_date)}
+            </span>
+          )}
+        </FormField>
+        
+        <FormField label="Project Start Date">
+          {isEditing ? (
+            <Input
+              type="date"
+              value={formData.project_start_date}
+              onChange={updateFormData('project_start_date')}
+            />
+          ) : (
+            <span className="text-gray-900">
+              {bid.project_start_date ? formatDate(bid.project_start_date) : 'Not set'}
             </span>
           )}
         </FormField>
