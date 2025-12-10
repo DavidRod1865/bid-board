@@ -26,14 +26,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-// Create Supabase client with TypeScript support
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-})
+// Create Supabase client with TypeScript support (singleton pattern)
+let _supabaseClient: any = null;
+export const supabase = (() => {
+  if (!_supabaseClient) {
+    _supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10,
+        },
+      },
+    });
+  }
+  return _supabaseClient;
+})()
 
 // Create a service role client for operations that need to bypass RLS
 const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
@@ -73,8 +79,10 @@ export class RealtimeManager {
     this.stateUpdaters = updaters;
   }
 
-  // Lightweight notification-only subscription for bids
+  // Real-time subscriptions for normalized tables
   subscribeToDataChanges(callback?: (payload: RealtimePayload) => void) {
+    // Feature flag to use new tables
+    const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
     
     const channel = supabase
       .channel('data_changes_notifications')
@@ -83,7 +91,7 @@ export class RealtimeManager {
         {
           event: '*',
           schema: 'public',
-          table: 'bids'
+          table: USE_NORMALIZED_TABLES ? 'projects' : 'bids'
         },
         (payload) => {
           this.handleBidsNotification(payload);
@@ -95,7 +103,7 @@ export class RealtimeManager {
         {
           event: '*',
           schema: 'public',
-          table: 'bid_vendors'
+          table: USE_NORMALIZED_TABLES ? 'project_vendors' : 'bid_vendors'
         },
         (payload) => {
           this.handleBidVendorsNotification(payload);
@@ -137,8 +145,50 @@ export class RealtimeManager {
           this.handleVendorContactsNotification(payload);
           callback?.(payload);
         }
-      )
-      .subscribe();
+      );
+
+    // Add subscriptions for new normalized tables when using them
+    if (USE_NORMALIZED_TABLES) {
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'est_responses'
+          },
+          (payload) => {
+            this.handleEstResponsesNotification(payload);
+            callback?.(payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'project_financials'
+          },
+          (payload) => {
+            this.handleProjectFinancialsNotification(payload);
+            callback?.(payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'apm_phases'
+          },
+          (payload) => {
+            this.handleApmPhasesNotification(payload);
+            callback?.(payload);
+          }
+        );
+    }
+    
+    channel.subscribe();
 
     this.channels['data_changes'] = channel;
     return channel;
@@ -148,13 +198,52 @@ export class RealtimeManager {
   private debounceTimers = new Map<string, NodeJS.Timeout>();
   private readonly DEBOUNCE_DELAY = 1000; // 1 second debounce
 
-  // Handle bids table notifications with incremental updates
+  // Handle bids/projects table notifications with incremental updates
   private handleBidsNotification(payload: RealtimePayload) {
     this.debounceNotification('bids', () => {
       try {
+        const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+        
         if (payload.eventType === 'INSERT' && payload.new) {
           // Add new bid to existing state with deduplication
-          const newBid = payload.new as any;
+          const newData = payload.new as any;
+          
+          // Transform normalized projects data to legacy bid format if needed
+          const newBid = USE_NORMALIZED_TABLES ? {
+            id: newData.id,
+            title: newData.project_name,
+            project_name: newData.project_name,
+            project_email: newData.project_email,
+            project_address: newData.project_address,
+            general_contractor: newData.general_contractor,
+            project_description: newData.project_description,
+            due_date: newData.est_due_date,
+            status: newData.status,
+            priority: newData.priority || false,
+            estimated_value: newData.estimated_value,
+            notes: newData.notes,
+            created_by: newData.created_by,
+            assign_to: newData.assigned_to,
+            file_location: newData.file_location,
+            archived: newData.archived || false,
+            archived_at: newData.archived_at,
+            archived_by: newData.archived_by,
+            on_hold: newData.on_hold || false,
+            on_hold_at: newData.on_hold_at,
+            on_hold_by: newData.on_hold_by,
+            department: newData.department,
+            sent_to_apm: newData.sent_to_apm || false,
+            sent_to_apm_at: newData.sent_to_apm_at,
+            apm_on_hold: newData.apm_on_hold || false,
+            apm_on_hold_at: newData.apm_on_hold_at,
+            apm_archived: newData.apm_archived || false,
+            apm_archived_at: newData.apm_archived_at,
+            gc_system: newData.gc_system,
+            added_to_procore: newData.added_to_procore || false,
+            made_by_apm: newData.made_by_apm || false,
+            project_start_date: newData.project_start_date
+          } : newData;
+          
           this.stateUpdaters.setBids?.(prevBids => {
             const exists = prevBids.some(bid => bid.id === newBid.id);
             return exists ? prevBids : [newBid, ...prevBids];
@@ -162,58 +251,109 @@ export class RealtimeManager {
           
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           // Update existing bid in state
-          const updatedBid = payload.new as any;
+          const updatedData = payload.new as any;
+          
+          // Transform normalized projects data to legacy bid format if needed
+          const updatedBid = USE_NORMALIZED_TABLES ? {
+            id: updatedData.id,
+            title: updatedData.project_name,
+            project_name: updatedData.project_name,
+            project_email: updatedData.project_email,
+            project_address: updatedData.project_address,
+            general_contractor: updatedData.general_contractor,
+            project_description: updatedData.project_description,
+            due_date: updatedData.est_due_date,
+            status: updatedData.status,
+            priority: updatedData.priority || false,
+            estimated_value: updatedData.estimated_value,
+            notes: updatedData.notes,
+            created_by: updatedData.created_by,
+            assign_to: updatedData.assigned_to,
+            file_location: updatedData.file_location,
+            archived: updatedData.archived || false,
+            archived_at: updatedData.archived_at,
+            archived_by: updatedData.archived_by,
+            on_hold: updatedData.on_hold || false,
+            on_hold_at: updatedData.on_hold_at,
+            on_hold_by: updatedData.on_hold_by,
+            department: updatedData.department,
+            sent_to_apm: updatedData.sent_to_apm || false,
+            sent_to_apm_at: updatedData.sent_to_apm_at,
+            apm_on_hold: updatedData.apm_on_hold || false,
+            apm_on_hold_at: updatedData.apm_on_hold_at,
+            apm_archived: updatedData.apm_archived || false,
+            apm_archived_at: updatedData.apm_archived_at,
+            gc_system: updatedData.gc_system,
+            added_to_procore: updatedData.added_to_procore || false,
+            made_by_apm: updatedData.made_by_apm || false,
+            project_start_date: updatedData.project_start_date
+          } : updatedData;
+          
           this.stateUpdaters.setBids?.(prevBids => 
             prevBids.map(bid => bid.id === updatedBid.id ? updatedBid : bid)
           );
           
         } else if (payload.eventType === 'DELETE' && payload.old) {
           // Remove bid from state
-          const deletedBid = payload.old as any;
+          const deletedData = payload.old as any;
           this.stateUpdaters.setBids?.(prevBids => 
-            prevBids.filter(bid => bid.id !== deletedBid.id)
+            prevBids.filter(bid => bid.id !== deletedData.id)
           );
           // Also remove related bid vendors
           this.stateUpdaters.setBidVendors?.(prevBidVendors =>
-            prevBidVendors.filter(bv => bv.bid_id !== deletedBid.id)
+            prevBidVendors.filter(bv => bv.bid_id !== deletedData.id)
           );
         }
       } catch (error) {
-        console.error('Error handling bids real-time notification:', error);
+        console.error('Error handling bids/projects real-time notification:', error);
       }
     });
   }
 
-  // Handle bid_vendors table notifications with incremental updates
+  // Handle bid_vendors/project_vendors table notifications
   private handleBidVendorsNotification(payload: RealtimePayload) {
     this.debounceNotification('bid_vendors', () => {
       try {
-        if (payload.eventType === 'INSERT' && payload.new) {
-          // Add new bid vendor to existing state with deduplication
-          const newBidVendor = { ...payload.new, bid_id: (payload.new as any).bid_id } as any;
-          this.stateUpdaters.setBidVendors?.(prevBidVendors => {
-            const exists = prevBidVendors.some(bv => bv.id === newBidVendor.id);
-            return exists ? prevBidVendors : [newBidVendor, ...prevBidVendors];
-          });
-          
-        } else if (payload.eventType === 'UPDATE' && payload.new) {
-          // Update existing bid vendor in state
-          const updatedBidVendor = payload.new as any;
-          this.stateUpdaters.setBidVendors?.(prevBidVendors => 
-            prevBidVendors.map(bv => bv.id === updatedBidVendor.id ? updatedBidVendor : bv)
-          );
-          
-        } else if (payload.eventType === 'DELETE' && payload.old) {
-          // Remove bid vendor from state
-          const deletedBidVendor = payload.old as any;
-          this.stateUpdaters.setBidVendors?.(prevBidVendors => 
-            prevBidVendors.filter(bv => bv.id !== deletedBidVendor.id)
-          );
+        const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+        
+        if (USE_NORMALIZED_TABLES) {
+          // For normalized tables, we trigger a refresh instead of trying to reconstruct
+          // the complex BidVendor format from separate normalized table updates
+          this.triggerDataRefresh();
+        } else {
+          // Legacy bid_vendors table handling
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const newBidVendor = { ...payload.new, bid_id: (payload.new as any).bid_id } as any;
+            this.stateUpdaters.setBidVendors?.(prevBidVendors => {
+              const exists = prevBidVendors.some(bv => bv.id === newBidVendor.id);
+              return exists ? prevBidVendors : [newBidVendor, ...prevBidVendors];
+            });
+            
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            const updatedBidVendor = payload.new as any;
+            this.stateUpdaters.setBidVendors?.(prevBidVendors => 
+              prevBidVendors.map(bv => bv.id === updatedBidVendor.id ? updatedBidVendor : bv)
+            );
+            
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            const deletedBidVendor = payload.old as any;
+            this.stateUpdaters.setBidVendors?.(prevBidVendors => 
+              prevBidVendors.filter(bv => bv.id !== deletedBidVendor.id)
+            );
+          }
         }
       } catch (error) {
-        console.error('Error handling bid_vendors real-time notification:', error);
+        console.error('Error handling bid_vendors/project_vendors real-time notification:', error);
       }
     });
+  }
+
+  // Trigger a full data refresh (simplified approach for normalized tables)
+  private triggerDataRefresh() {
+    // Emit a custom event that AppContent can listen to for triggering a data refresh
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+    }
   }
 
   // Handle vendors table notifications with incremental updates
@@ -337,6 +477,42 @@ export class RealtimeManager {
         }
       } catch (error) {
         console.error('Error handling vendor_contacts real-time notification:', error);
+      }
+    });
+  }
+
+  // Handle est_responses table notifications (normalized table)
+  private handleEstResponsesNotification(payload: RealtimePayload) {
+    this.debounceNotification('est_responses', () => {
+      try {
+        // For normalized tables, trigger a full data refresh
+        this.triggerDataRefresh();
+      } catch (error) {
+        console.error('Error handling est_responses real-time notification:', error);
+      }
+    });
+  }
+
+  // Handle project_financials table notifications (normalized table)
+  private handleProjectFinancialsNotification(payload: RealtimePayload) {
+    this.debounceNotification('project_financials', () => {
+      try {
+        // For normalized tables, trigger a full data refresh
+        this.triggerDataRefresh();
+      } catch (error) {
+        console.error('Error handling project_financials real-time notification:', error);
+      }
+    });
+  }
+
+  // Handle apm_phases table notifications (normalized table)
+  private handleApmPhasesNotification(payload: RealtimePayload) {
+    this.debounceNotification('apm_phases', () => {
+      try {
+        // For normalized tables, trigger a full data refresh
+        this.triggerDataRefresh();
+      } catch (error) {
+        console.error('Error handling apm_phases real-time notification:', error);
       }
     });
   }
@@ -536,121 +712,239 @@ export const dbOperations = {
     return data
   },
 
-  // NEW: Enhanced getBids using normalized tables (OPTIMIZED + HYBRID FALLBACK)
+  // OPTIMIZED: Enhanced getBids using consolidated view (SINGLE QUERY)
   async getBidsNormalized() {
     this.trackApiCall('getBidsNormalized');
     
-    // Get bids with BOTH old and new structures for hybrid approach
-    const { data: bidsData, error: bidsError } = await supabase
-      .from('bids')
-      .select(`
-        *,
-        created_by_user:users!created_by(name, email),
-        assigned_user:users!assign_to(name, email),
-        archived_by_user:users!archived_by(name, email),
-        bid_vendors(
-          *,
-          vendors(company_name, specialty)
-        )
-      `)
+    // Use the new optimized projects_complete view for single query
+    const { data: projectsData, error } = await supabase
+      .from('projects_complete')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (bidsError) throw bidsError;
-    if (!bidsData || bidsData.length === 0) return bidsData;
+    if (error) throw error;
+    if (!projectsData || projectsData.length === 0) return [];
 
-
-    // OPTIMIZED: Get all project vendors in one batch call
-    const bidIds = bidsData.map(bid => bid.id);
-    
-    // First get project vendors to get their IDs
-    const { data: projectVendors, error: projectVendorsError } = await supabase
-      .from('project_vendors')
-      .select(`
-        *,
-        vendor:vendors(id, company_name, specialty),
-        assigned_user:users(id, name, color_preference)
-      `)
-      .in('bid_id', bidIds);
-
-    if (projectVendorsError) throw projectVendorsError;
-    
-    // Get all project vendor IDs for related data queries
-    const projectVendorIds = projectVendors?.map(pv => pv.id) || [];
-    
-    // Now fetch all related data in parallel if we have project vendors
-    let vendorPhases, vendorFinancials, vendorFollowUps;
-    if (projectVendorIds.length > 0) {
-      const [phasesResult, financialsResult, followUpsResult] = await Promise.all([
-        supabase
-          .from('vendor_apm_phases')
-          .select('*')
-          .in('project_vendor_id', projectVendorIds)
-          .limit(5000),
-        supabase
-          .from('vendor_financials')
-          .select('*')
-          .in('project_vendor_id', projectVendorIds),
-        supabase
-          .from('vendor_apm_phases')
-          .select('*')
-          .in('project_vendor_id', projectVendorIds)
-          .not('follow_up_date', 'is', null)
-          .limit(5000)
-      ]);
+    // Transform projects_complete data to match legacy bids structure
+    const bidsWithVendorData = projectsData.map((project) => {
+      // Convert aggregated vendor data to bid_vendors format for backward compatibility
+      const bid_vendors = (project.vendors_data || [])
+        .map((vendorData: any) => {
+          // Ensure project ID is included in vendor data
+          const vendorWithProjectId = {
+            ...vendorData,
+            project_id: project.id,
+            bid_id: project.id // For backward compatibility
+          };
+          return this.convertVendorDataToBidVendor(vendorWithProjectId);
+        })
+        .filter((vendor: any) => vendor !== null);
       
-      vendorPhases = phasesResult;
-      vendorFinancials = financialsResult;
-      vendorFollowUps = followUpsResult;
-    } else {
-      // No project vendors, set empty results
-      vendorPhases = { data: [], error: null };
-      vendorFinancials = { data: [], error: null };
-      vendorFollowUps = { data: [], error: null };
-    }
-
-    // Check for errors in related data
-    if (vendorPhases.error) throw vendorPhases.error;
-    if (vendorFinancials.error) throw vendorFinancials.error;
-    if (vendorFollowUps.error) throw vendorFollowUps.error;
-
-    // Group data by bid_id for efficient assembly
-    const projectVendorsByBid = this.groupProjectVendorsByBid(
-      projectVendors || [],
-      vendorPhases.data || [],
-      vendorFinancials.data || [],
-      vendorFollowUps.data || []
-    );
-
-
-    // Attach vendor data to bids (hybrid approach: use normalized if available, fallback to legacy)
-    const bidsWithVendorData = bidsData.map((bid) => {
-      const projectVendorsComplete = projectVendorsByBid[bid.id] || [];
-      
-      // If we have normalized data, use it; otherwise fallback to legacy bid_vendors
-      if (projectVendorsComplete.length > 0) {
-        const transformedBidVendors = projectVendorsComplete.map(pvc => 
-          this.normalizedToBidVendor(pvc)
-        );
+      return {
+        // Main project/bid fields
+        id: project.id,
+        title: project.project_name, // Map project_name to title for backward compatibility
+        project_name: project.project_name,
+        project_email: project.project_email,
+        project_address: project.project_address,
+        general_contractor: project.old_general_contractor,
+        project_description: project.project_description,
+        due_date: project.est_due_date,
+        status: project.status,
+        priority: false, // Projects don't have priority, individual vendors do
+        estimated_value: null, // This would be calculated from vendor costs
+        notes: null,
+        created_by: project.created_by,
+        assign_to: project.assign_to,
+        file_location: project.file_location,
+        archived: project.est_activity_cycle === 'Archived',
+        archived_at: null,
+        archived_by: null,
+        on_hold: project.est_activity_cycle === 'On Hold',
+        on_hold_at: null,
+        on_hold_by: null,
+        department: project.department,
+        sent_to_apm: project.sent_to_apm,
+        sent_to_apm_at: null,
+        apm_on_hold: project.apm_activity_cycle === 'On Hold',
+        apm_on_hold_at: null,
+        apm_archived: project.apm_activity_cycle === 'Archived',
+        apm_archived_at: null,
+        gc_system: project.gc_system,
+        added_to_procore: project.added_to_procore,
+        made_by_apm: project.made_by_apm,
+        project_start_date: project.project_start_date,
+        created_at: project.created_at,
+        updated_at: project.updated_at,
         
-        return {
-          ...bid,
-          project_vendors_complete: projectVendorsComplete,
-          bid_vendors: transformedBidVendors
-        };
-      } else {
-        // FALLBACK: Use existing bid_vendors data if no normalized data exists
-        return {
-          ...bid,
-          project_vendors_complete: [],
-          // Keep existing bid_vendors as-is for APM functionality
-          bid_vendors: bid.bid_vendors || []
-        };
-      }
+        // User relationships (already in JSON format from view)
+        created_by_user: project.created_by_user,
+        assigned_user: project.assigned_user,
+        
+        // Legacy bid_vendors format for backward compatibility
+        bid_vendors,
+        
+        // New normalized structure for future use
+        project_vendors_complete: project.vendors_data || [],
+        vendor_count: project.vendor_count || 0,
+        completed_responses: project.completed_responses || 0,
+        priority_vendors: project.priority_vendors || 0
+      };
     });
 
     return bidsWithVendorData;
   },
 
+  // Convert view vendor data to BidVendor format (simplified for view structure)
+  convertVendorDataToBidVendor(vendorData: any): any {
+    if (!vendorData) {
+      console.warn('convertVendorDataToBidVendor: vendorData is undefined');
+      return null;
+    }
+    
+    // Debug logging to see what data we're getting
+    if (!vendorData.vendor_id || !vendorData.project_id) {
+      console.warn('convertVendorDataToBidVendor: Missing required IDs', {
+        vendor_id: vendorData.vendor_id,
+        project_id: vendorData.project_id,
+        bid_id: vendorData.bid_id
+      });
+    }
+    
+    // Return null if critical data is missing to prevent crashes
+    if (!vendorData.vendor_id) {
+      console.error('convertVendorDataToBidVendor: vendor_id is required but missing');
+      return null;
+    }
+    
+    const estResponse = vendorData.est_response || {};
+    const financials = vendorData.financials || {};
+    const apmPhases = vendorData.apm_phases || [];
+    
+    // Create phase lookup for easy access
+    const phaseMap = apmPhases.reduce((acc: any, phase: any) => {
+      acc[phase.phase_name?.toLowerCase().replace(' ', '_')] = phase;
+      return acc;
+    }, {});
+    
+    return {
+      // Basic vendor info
+      id: vendorData.id || null,
+      bid_id: vendorData.project_id || vendorData.bid_id || null,
+      vendor_id: vendorData.vendor_id || null,
+      vendor_name: vendorData.vendor_name,
+      specialty: vendorData.vendor_specialty,
+      is_priority: vendorData.is_priority,
+      assigned_apm_user: vendorData.assigned_by_user,
+      created_at: vendorData.created_at,
+      updated_at: vendorData.updated_at,
+      
+      // Estimating response data
+      due_date: estResponse.response_due_date,
+      response_received_date: estResponse.response_received_date,
+      status: estResponse.status || 'pending',
+      response_notes: estResponse.response_notes,
+      cost_amount: estResponse.cost_amount,
+      email_sent_date: estResponse.email_sent_date,
+      next_follow_up_date: estResponse.follow_up_date,
+      follow_up_count: 0,
+      last_follow_up_date: estResponse.follow_up_date,
+      responded_by: null,
+      
+      // Financial data
+      final_quote_amount: financials.final_amount,
+      buy_number: financials.buy_number,
+      po_number: financials.po_number,
+      
+      // APM phase data (extract from amp_phases array)
+      // Buy Number
+      buy_number_requested_date: phaseMap['buy_number']?.requested_date,
+      buy_number_received_date: phaseMap['buy_number']?.received_date,
+      buy_number_follow_up_date: phaseMap['buy_number']?.follow_up_date,
+      buy_number_notes: phaseMap['buy_number']?.notes,
+      
+      // Purchase Order
+      po_requested_date: phaseMap['purchase_order']?.requested_date,
+      po_sent_date: phaseMap['purchase_order']?.requested_date,
+      po_confirmed_date: phaseMap['purchase_order']?.received_date,
+      po_follow_up_date: phaseMap['purchase_order']?.follow_up_date,
+      po_notes: phaseMap['purchase_order']?.notes,
+      po_received_date: phaseMap['purchase_order']?.received_date,
+      
+      // Submittals
+      submittals_requested_date: phaseMap['submittals']?.requested_date,
+      submittals_received_date: phaseMap['submittals']?.received_date,
+      submittals_follow_up_date: phaseMap['submittals']?.follow_up_date,
+      submittals_notes: phaseMap['submittals']?.notes,
+      submittals_status: phaseMap['submittals']?.status === 'Completed' ? 'approved' : 
+                        phaseMap['submittals']?.status === 'Rejected & Revised' ? 'rejected' : 'pending',
+      submittals_revision_count: phaseMap['submittals']?.revision_count || 0,
+      submittals_last_revision_date: phaseMap['submittals']?.last_revision_date,
+      
+      // Revised Plans
+      revised_plans_requested_date: phaseMap['revised_plans']?.requested_date,
+      revised_plans_sent_date: phaseMap['revised_plans']?.requested_date,
+      revised_plans_confirmed_date: phaseMap['revised_plans']?.received_date,
+      revised_plans_follow_up_date: phaseMap['revised_plans']?.follow_up_date,
+      revised_plans_notes: phaseMap['revised_plans']?.notes,
+      
+      // Equipment Release
+      equipment_release_requested_date: phaseMap['equipment_release']?.requested_date,
+      equipment_released_date: phaseMap['equipment_release']?.received_date,
+      equipment_release_follow_up_date: phaseMap['equipment_release']?.follow_up_date,
+      equipment_release_notes: phaseMap['equipment_release']?.notes,
+      
+      // Closeout
+      closeout_requested_date: phaseMap['closeout']?.requested_date,
+      closeout_received_date: phaseMap['closeout']?.received_date,
+      closeout_approved_date: phaseMap['closeout']?.status === 'Completed' ? phaseMap['closeout']?.received_date : null,
+      closeout_follow_up_date: phaseMap['closeout']?.follow_up_date,
+      closeout_notes: phaseMap['closeout']?.notes,
+      
+      // Current APM phase and status (derived from active phases)
+      apm_phase: this.getCurrentAPMPhase(apmPhases),
+      amp_status: this.getCurrentAPMStatus(apmPhases),
+      apm_priority: vendorData.is_priority,
+      apm_phase_updated_at: vendorData.updated_at
+    };
+  },
+
+  // Helper to determine current APM phase
+  getCurrentAPMPhase(phases: any[]): string {
+    if (!phases || phases.length === 0) return 'quote_confirmed';
+    
+    const phaseOrder = ['closeout', 'equipment_release', 'revised_plans', 'submittals', 'purchase_order', 'buy_number'];
+    
+    for (const phaseName of phaseOrder) {
+      const phase = phases.find(p => p.phase_name?.toLowerCase().replace(' ', '_') === phaseName);
+      if (phase && phase.status !== 'Pending') {
+        return phaseName === 'purchase_order' ? 'po' : phaseName;
+      }
+    }
+    
+    return 'quote_confirmed';
+  },
+
+  // Helper to determine current APM status
+  getCurrentAPMStatus(phases: any[]): string {
+    if (!phases || phases.length === 0) return 'pending';
+    
+    const currentPhaseName = this.getCurrentAPMPhase(phases);
+    const currentPhase = phases.find(p => 
+      p.phase_name?.toLowerCase().replace(' ', '_') === currentPhaseName
+    );
+    
+    if (currentPhase) {
+      switch (currentPhase.status) {
+        case 'Completed': return 'completed';
+        case 'Rejected & Revised': return 'issue';
+        case 'Pending': return 'pending';
+        default: return 'pending';
+      }
+    }
+    
+    return 'pending';
+  },
 
   // Helper function to group normalized data efficiently
   groupProjectVendorsByBid(
@@ -2464,12 +2758,12 @@ export const dbOperations = {
     const financials = complete.financials;
     
     
-    // Create phase lookup map from both regular phases and follow-up phases
-    const allPhases = [...(complete.phases || []), ...(complete.follow_ups || [])];
+    // Create phase lookup map from regular phases only (follow-ups don't have status/priority)
+    const allPhases = complete.phases || [];
     const phaseMap = allPhases.reduce((acc, phase) => {
       acc[phase.phase_type] = phase;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, VendorApmPhase>);
 
     // Get the most recent/active phase for general status
     // Priority: in_progress > completed > received > requested > pending
@@ -2563,7 +2857,7 @@ export const dbOperations = {
       
       // PHASE-SPECIFIC MAPPING - This is what was missing for APM!
       // Quote Confirmation Phase (override financial value with phase-specific data)
-      final_quote_confirmed_date: getPhaseDate('quote_confirmed', 'completed_date') || financials?.final_quote_confirmed_date,
+      final_quote_confirmed_date: getPhaseDate('quote_confirmed', 'completed_date') || financials?.final_quote_confirmed_date || null,
       final_quote_notes: getPhaseNotes('quote_confirmed'),
       
       // Buy Number Phase
@@ -2584,10 +2878,16 @@ export const dbOperations = {
       submittals_requested_date: getPhaseDate('submittals', 'requested_date'),
       submittals_follow_up_date: getPhaseDate('submittals', 'follow_up_date'),
       submittals_received_date: getPhaseDate('submittals', 'completed_date'),
-      submittals_status: phaseMap['submittals']?.status || 'pending',
-      submittals_approved_date: phaseMap['submittals']?.status === 'approved' ? getPhaseDate('submittals', 'completed_date') : null,
-      submittals_rejected_date: phaseMap['submittals']?.status === 'rejected' ? getPhaseDate('submittals', 'completed_date') : null,
-      submittals_rejection_reason: phaseMap['submittals']?.status === 'rejected' ? getPhaseNotes('submittals') : null,
+      submittals_status: (() => {
+        const status = phaseMap['submittals']?.status;
+        if (status === 'completed') return 'approved';
+        if (status === 'received') return 'received';
+        if (status === 'approved') return 'approved';
+        return 'pending';
+      })() as 'pending' | 'received' | 'approved' | 'rejected' | 'rejected_revised' | 'resubmitted',
+      submittals_approved_date: phaseMap['submittals']?.status === 'approved' || phaseMap['submittals']?.status === 'completed' ? getPhaseDate('submittals', 'completed_date') : null,
+      submittals_rejected_date: null, // No 'rejected' status in new VendorApmPhase model
+      submittals_rejection_reason: null, // No 'rejected' status in new VendorApmPhase model
       submittals_revision_count: 0, // Could be calculated from follow-ups if needed
       submittals_last_revision_date: null,
       submittals_notes: getPhaseNotes('submittals'),
@@ -2612,6 +2912,668 @@ export const dbOperations = {
       closeout_approved_date: phaseMap['closeouts']?.status === 'approved' ? getPhaseDate('closeouts', 'completed_date') : null,
       closeout_notes: getPhaseNotes('closeouts')
     };
+  },
+
+  // ===========================================
+  // NEW OPTIMIZED FUNCTIONS USING CONSOLIDATED VIEWS
+  // These reduce REST requests from 5+ queries to 1 query
+  // ===========================================
+
+  // Get projects using optimized dashboard view (lightweight)
+  async getProjectsDashboard(filters?: Record<string, any>) {
+    this.trackApiCall('getProjectsDashboard');
+    
+    if (filters) {
+      // Use paginated function with filters
+      const { data, error } = await supabase.rpc('get_projects_paginated', {
+        page_size: 50,
+        page_number: 1,
+        filters: filters || {},
+        view_type: 'dashboard'
+      });
+      
+      if (error) throw error;
+      return data?.[0]?.projects || [];
+    } else {
+      // Simple dashboard view
+      const { data, error } = await supabase
+        .from('projects_dashboard')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return data;
+    }
+  },
+
+  // Get projects with medium detail for list views
+  async getProjectsList(filters?: Record<string, any>) {
+    this.trackApiCall('getProjectsList');
+    
+    if (filters) {
+      const { data, error } = await supabase.rpc('get_projects_paginated', {
+        page_size: 50,
+        page_number: 1,
+        filters: filters || {},
+        view_type: 'list'
+      });
+      
+      if (error) throw error;
+      return data?.[0]?.projects || [];
+    } else {
+      const { data, error } = await supabase
+        .from('projects_list')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return data;
+    }
+  },
+
+  // Get complete project data (replaces getBidsNormalized)
+  async getProjectsComplete(filters?: Record<string, any>) {
+    this.trackApiCall('getProjectsComplete');
+    
+    if (filters) {
+      const { data, error } = await supabase.rpc('get_projects_paginated', {
+        page_size: 50,
+        page_number: 1,
+        filters: filters || {},
+        view_type: 'complete'
+      });
+      
+      if (error) throw error;
+      return data?.[0]?.projects || [];
+    } else {
+      const { data, error } = await supabase
+        .from('projects_complete')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return data;
+    }
+  },
+
+  // Get single project with full details (optimized)
+  async getProjectDetail(projectId: number) {
+    this.trackApiCall('getProjectDetail');
+    
+    const { data, error } = await supabase.rpc('get_project_detail', {
+      project_id: projectId
+    });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Get active projects only
+  async getActiveProjects() {
+    this.trackApiCall('getActiveProjects');
+    
+    const { data, error } = await supabase
+      .from('projects_active')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    return data;
+  },
+
+  // Get APM projects
+  async getAPMProjects() {
+    this.trackApiCall('getAPMProjects');
+    
+    const { data, error } = await supabase
+      .from('projects_apm')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    return data;
+  },
+
+  // Paginated project queries
+  async getProjectsPaginated(
+    pageSize = 20, 
+    pageNumber = 1, 
+    filters = {}, 
+    viewType: 'dashboard' | 'list' | 'complete' | 'active' | 'apm' = 'dashboard'
+  ) {
+    this.trackApiCall('getProjectsPaginated');
+    
+    const { data, error } = await supabase.rpc('get_projects_paginated', {
+      page_size: pageSize,
+      page_number: pageNumber,
+      filters,
+      view_type: viewType
+    });
+    
+    if (error) throw error;
+    return data?.[0] || { projects: [], total_count: 0, page_info: {} };
+  },
+
+  // Bulk update vendor statuses (reduces N individual requests to 1)
+  async bulkUpdateVendorStatus(updates: Array<{project_vendor_id: number, status: string}>) {
+    this.trackApiCall('bulkUpdateVendorStatus');
+    
+    const { data, error } = await supabase.rpc('bulk_update_vendor_status', {
+      updates: updates
+    });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Legacy compatibility - map to new optimized functions
+  async getBidsOptimized() {
+    // Use dashboard view for backward compatibility
+    return this.getProjectsDashboard();
+  },
+
+  async getBidsNormalizedOptimized() {
+    // Use complete view for full data
+    return this.getProjectsComplete();
+  },
+
+  // ===========================================
+  // NEW NORMALIZED TABLE CRUD OPERATIONS
+  // ===========================================
+
+  // Create new project using normalized tables
+  async createProject(projectData: any) {
+    this.trackApiCall('createProject');
+    
+    const { data, error } = await supabase
+      .from('projects')
+      .insert([{
+        project_name: projectData.project_name || projectData.title,
+        project_address: projectData.project_address,
+        project_description: projectData.project_description,
+        est_due_date: projectData.due_date,
+        status: projectData.status || 'Gathering Costs',
+        department: projectData.department || 'Estimating',
+        gc_system: projectData.gc_system,
+        added_to_procore: projectData.added_to_procore || false,
+        made_by_apm: projectData.made_by_apm || false,
+        project_start_date: projectData.project_start_date,
+        est_activity_cycle: 'Active',
+        sent_to_apm: false,
+        created_by: projectData.created_by,
+        assign_to: projectData.assign_to,
+        file_location: projectData.file_location
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Create project with vendors using normalized tables
+  async createProjectWithVendorsNormalized(projectData: any, vendorIds: number[]) {
+    this.trackApiCall('createProjectWithVendorsNormalized');
+    
+    // First create the project
+    const project = await this.createProject(projectData);
+    
+    if (!vendorIds || vendorIds.length === 0) {
+      return { project, vendorRelationships: [] };
+    }
+
+    // Create vendor relationships in normalized structure
+    const vendorRelationships = [];
+    
+    for (const vendorId of vendorIds) {
+      // Create project_vendor relationship
+      const { data: projectVendor, error: pvError } = await supabase
+        .from('project_vendors')
+        .insert([{
+          project_id: project.id,
+          vendor_id: vendorId,
+          is_priority: false,
+          assigned_by_user: projectData.created_by
+        }])
+        .select()
+        .single();
+
+      if (pvError) throw pvError;
+
+      // Create corresponding est_response
+      const { data: estResponse, error: erError } = await supabase
+        .from('est_responses')
+        .insert([{
+          project_vendor_id: projectVendor.id,
+          status: 'pending',
+          response_due_date: projectData.due_date,
+          is_priority: false
+        }])
+        .select()
+        .single();
+
+      if (erError) throw erError;
+
+      // Create corresponding project_financials
+      const { data: projectFinancial, error: pfError } = await supabase
+        .from('project_financials')
+        .insert([{
+          project_vendor_id: projectVendor.id
+        }])
+        .select()
+        .single();
+
+      if (pfError) throw pfError;
+
+      vendorRelationships.push({
+        project_vendor: projectVendor,
+        est_response: estResponse,
+        project_financial: projectFinancial
+      });
+    }
+
+    return { project, vendorRelationships };
+  },
+
+  // Add vendor to existing project using normalized tables
+  async addVendorToProjectNormalized(projectId: number, vendorId: number, data: any = {}) {
+    this.trackApiCall('addVendorToProjectNormalized');
+    
+    // Create project_vendor relationship
+    const { data: projectVendor, error: pvError } = await supabase
+      .from('project_vendors')
+      .insert([{
+        project_id: projectId,
+        vendor_id: vendorId,
+        is_priority: data.is_priority || false,
+        assigned_by_user: data.assigned_by_user
+      }])
+      .select()
+      .single();
+
+    if (pvError) throw pvError;
+
+    // Create corresponding est_response
+    const { data: estResponse, error: erError } = await supabase
+      .from('est_responses')
+      .insert([{
+        project_vendor_id: projectVendor.id,
+        status: data.status || 'pending',
+        response_due_date: data.due_date,
+        is_priority: data.is_priority || false,
+        response_notes: data.response_notes,
+        cost_amount: data.cost_amount
+      }])
+      .select()
+      .single();
+
+    if (erError) throw erError;
+
+    // Create corresponding project_financials
+    const { data: projectFinancial, error: pfError } = await supabase
+      .from('project_financials')
+      .insert([{
+        project_vendor_id: projectVendor.id,
+        estimated_amount: data.cost_amount,
+        buy_number: data.buy_number,
+        po_number: data.po_number
+      }])
+      .select()
+      .single();
+
+    if (pfError) throw pfError;
+
+    return {
+      project_vendor: projectVendor,
+      est_response: estResponse,
+      project_financial: projectFinancial
+    };
+  },
+
+  // Create APM phase using normalized tables
+  async createAPMPhase(projectVendorId: number, phaseData: any) {
+    this.trackApiCall('createAPMPhase');
+    
+    const { data, error } = await supabase
+      .from('apm_phases')
+      .insert([{
+        project_vendor_id: projectVendorId,
+        phase_name: phaseData.phase_name,
+        status: phaseData.status || 'Pending',
+        requested_date: phaseData.requested_date,
+        received_date: phaseData.received_date,
+        follow_up_date: phaseData.follow_up_date,
+        notes: phaseData.notes,
+        revision_count: phaseData.revision_count || 0,
+        last_revision_date: phaseData.last_revision_date
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // ===========================================
+  // UPDATE OPERATIONS FOR NORMALIZED TABLES
+  // ===========================================
+
+  // Update project using normalized tables
+  async updateProjectNormalized(projectId: number, updates: any) {
+    this.trackApiCall('updateProjectNormalized');
+    
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        project_name: updates.project_name || updates.title,
+        project_address: updates.project_address,
+        project_description: updates.project_description,
+        est_due_date: updates.due_date,
+        status: updates.status,
+        department: updates.department,
+        gc_system: updates.gc_system,
+        added_to_procore: updates.added_to_procore,
+        made_by_apm: updates.made_by_apm,
+        project_start_date: updates.project_start_date,
+        est_activity_cycle: updates.archived ? 'Archived' : updates.on_hold ? 'On Hold' : 'Active',
+        apm_activity_cycle: updates.apm_archived ? 'Archived' : updates.apm_on_hold ? 'On Hold' : updates.sent_to_apm ? 'Active' : null,
+        sent_to_apm: updates.sent_to_apm,
+        assign_to: updates.assign_to,
+        file_location: updates.file_location,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', projectId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Update estimating response
+  async updateEstResponseNormalized(projectVendorId: number, updates: any) {
+    this.trackApiCall('updateEstResponseNormalized');
+    
+    const { data, error } = await supabase
+      .from('est_responses')
+      .update({
+        status: updates.status,
+        response_due_date: updates.response_due_date || updates.due_date,
+        response_received_date: updates.response_received_date,
+        response_notes: updates.response_notes,
+        cost_amount: updates.cost_amount,
+        email_sent_date: updates.email_sent_date,
+        follow_up_date: updates.follow_up_date,
+        is_priority: updates.is_priority,
+        updated_at: new Date().toISOString()
+      })
+      .eq('project_vendor_id', projectVendorId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Update project financials
+  async updateProjectFinancialsNormalized(projectVendorId: number, updates: any) {
+    this.trackApiCall('updateProjectFinancialsNormalized');
+    
+    const { data, error } = await supabase
+      .from('project_financials')
+      .update({
+        estimated_amount: updates.estimated_amount || updates.cost_amount,
+        final_amount: updates.final_amount || updates.final_quote_amount,
+        buy_number: updates.buy_number,
+        po_number: updates.po_number,
+        updated_at: new Date().toISOString()
+      })
+      .eq('project_vendor_id', projectVendorId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Update project vendor relationship
+  async updateProjectVendorNormalized(projectVendorId: number, updates: any) {
+    this.trackApiCall('updateProjectVendorNormalized');
+    
+    const { data, error } = await supabase
+      .from('project_vendors')
+      .update({
+        is_priority: updates.is_priority || updates.apm_priority,
+        assigned_by_user: updates.assigned_by_user || updates.assigned_apm_user,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', projectVendorId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Update APM phase
+  async updateAPMPhaseNormalized(phaseId: number, updates: any) {
+    this.trackApiCall('updateAPMPhaseNormalized');
+    
+    const { data, error } = await supabase
+      .from('apm_phases')
+      .update({
+        status: updates.status,
+        requested_date: updates.requested_date,
+        received_date: updates.received_date,
+        follow_up_date: updates.follow_up_date,
+        notes: updates.notes,
+        revision_count: updates.revision_count,
+        last_revision_date: updates.last_revision_date,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', phaseId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Combined update for vendor (updates across multiple tables)
+  async updateVendorDataNormalized(projectVendorId: number, updates: any) {
+    this.trackApiCall('updateVendorDataNormalized');
+    
+    const promises = [];
+
+    // Update project_vendor if needed
+    if (updates.is_priority !== undefined || updates.assigned_apm_user !== undefined) {
+      promises.push(this.updateProjectVendorNormalized(projectVendorId, {
+        is_priority: updates.is_priority,
+        assigned_by_user: updates.assigned_apm_user
+      }));
+    }
+
+    // Update est_response if needed
+    if (updates.status !== undefined || updates.cost_amount !== undefined || updates.due_date !== undefined) {
+      promises.push(this.updateEstResponseNormalized(projectVendorId, {
+        status: updates.status,
+        response_due_date: updates.due_date,
+        response_received_date: updates.response_received_date,
+        response_notes: updates.response_notes,
+        cost_amount: updates.cost_amount,
+        email_sent_date: updates.email_sent_date,
+        follow_up_date: updates.next_follow_up_date,
+        is_priority: updates.is_priority
+      }));
+    }
+
+    // Update project_financials if needed
+    if (updates.final_quote_amount !== undefined || updates.buy_number !== undefined || updates.po_number !== undefined) {
+      promises.push(this.updateProjectFinancialsNormalized(projectVendorId, {
+        estimated_amount: updates.cost_amount,
+        final_amount: updates.final_quote_amount,
+        buy_number: updates.buy_number,
+        po_number: updates.po_number
+      }));
+    }
+
+    const results = await Promise.all(promises);
+    return results;
+  },
+
+  // ===========================================
+  // DELETE OPERATIONS FOR NORMALIZED TABLES
+  // ===========================================
+
+  // Delete project and all related data
+  async deleteProjectNormalized(projectId: number) {
+    this.trackApiCall('deleteProjectNormalized');
+    
+    // Get all project_vendors for this project first
+    const { data: projectVendors, error: pvError } = await supabase
+      .from('project_vendors')
+      .select('id')
+      .eq('project_id', projectId);
+
+    if (pvError) throw pvError;
+
+    // Delete related data in correct order (child tables first)
+    const projectVendorIds = projectVendors?.map(pv => pv.id) || [];
+    
+    if (projectVendorIds.length > 0) {
+      // Delete APM phases
+      const { error: apError } = await supabase
+        .from('apm_phases')
+        .delete()
+        .in('project_vendor_id', projectVendorIds);
+
+      if (apError) throw apError;
+
+      // Delete est_responses
+      const { error: erError } = await supabase
+        .from('est_responses')
+        .delete()
+        .in('project_vendor_id', projectVendorIds);
+
+      if (erError) throw erError;
+
+      // Delete project_financials
+      const { error: pfError } = await supabase
+        .from('project_financials')
+        .delete()
+        .in('project_vendor_id', projectVendorIds);
+
+      if (pfError) throw pfError;
+
+      // Delete project_vendors
+      const { error: pvDelError } = await supabase
+        .from('project_vendors')
+        .delete()
+        .in('id', projectVendorIds);
+
+      if (pvDelError) throw pvDelError;
+    }
+
+    // Delete project notes (still uses bid_id in current schema)
+    const { error: notesError } = await supabase
+      .from('project_notes')
+      .delete()
+      .eq('bid_id', projectId);
+
+    if (notesError) throw notesError;
+
+    // Finally delete the project
+    const { data, error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Remove vendor from project (delete relationship)
+  async removeVendorFromProjectNormalized(projectVendorId: number) {
+    this.trackApiCall('removeVendorFromProjectNormalized');
+    
+    // Delete related data first
+    const promises = [
+      // Delete APM phases
+      supabase.from('apm_phases').delete().eq('project_vendor_id', projectVendorId),
+      // Delete est_response
+      supabase.from('est_responses').delete().eq('project_vendor_id', projectVendorId),
+      // Delete project_financials
+      supabase.from('project_financials').delete().eq('project_vendor_id', projectVendorId)
+    ];
+
+    const results = await Promise.all(promises);
+    
+    // Check for errors
+    for (const result of results) {
+      if (result.error) throw result.error;
+    }
+
+    // Finally delete project_vendor relationship
+    const { data, error } = await supabase
+      .from('project_vendors')
+      .delete()
+      .eq('id', projectVendorId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete multiple vendor relationships (bulk operation)
+  async removeMultipleVendorsFromProjectNormalized(projectVendorIds: number[]) {
+    this.trackApiCall('removeMultipleVendorsFromProjectNormalized');
+    
+    if (!projectVendorIds.length) return [];
+
+    // Delete all related data in parallel
+    const promises = [
+      // Delete APM phases
+      supabase.from('apm_phases').delete().in('project_vendor_id', projectVendorIds),
+      // Delete est_responses
+      supabase.from('est_responses').delete().in('project_vendor_id', projectVendorIds),
+      // Delete project_financials
+      supabase.from('project_financials').delete().in('project_vendor_id', projectVendorIds)
+    ];
+
+    const results = await Promise.all(promises);
+    
+    // Check for errors
+    for (const result of results) {
+      if (result.error) throw result.error;
+    }
+
+    // Finally delete project_vendor relationships
+    const { data, error } = await supabase
+      .from('project_vendors')
+      .delete()
+      .in('id', projectVendorIds)
+      .select();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete specific APM phase
+  async deleteAPMPhaseNormalized(phaseId: number) {
+    this.trackApiCall('deleteAPMPhaseNormalized');
+    
+    const { data, error } = await supabase
+      .from('apm_phases')
+      .delete()
+      .eq('id', phaseId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   }
 }
 

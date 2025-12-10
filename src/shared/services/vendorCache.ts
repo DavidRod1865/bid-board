@@ -46,7 +46,7 @@ class VendorCacheService {
     try {
       // Fetch fresh data
       const vendors = await dbOperations.getVendors();
-      const contacts = await dbOperations.getVendorContacts();
+      const contacts = await dbOperations.getAllVendorContacts();
 
       const cacheData: VendorCacheData = { vendors, contacts };
       
@@ -66,10 +66,11 @@ class VendorCacheService {
     } catch (error) {
       console.error('VendorCache: Failed to fetch vendors:', error);
       
-      // Return stale cache if available
-      if (cached) {
+      // Re-check cache as fallback (avoid TypeScript flow analysis issue)
+      const fallbackCache = this.getCachedData();
+      if (fallbackCache) {
         console.warn('VendorCache: Using stale cache due to fetch error');
-        return cached.data.vendors;
+        return fallbackCache.data.vendors;
       }
       
       throw error;
@@ -245,7 +246,7 @@ class VendorCacheService {
   /**
    * Invalidate cache for specific vendor - call when vendor data changes
    */
-  invalidateVendor(vendorId: number): void {
+  invalidateVendor(_vendorId: number): void {
     // For now, invalidate entire cache since vendors are interrelated
     this.invalidateCache();
   }

@@ -96,15 +96,15 @@ const AppContentInternal: React.FC = () => {
         
         // Handle both old and new table structures
         const transformedBids = bidsData.map((bid: RawBidData): Bid => {
-          if (USE_NORMALIZED_TABLES && bid.project_vendors_complete) {
-            // NEW: Handle normalized structure
-            const bidVendorsFromNormalized = bid.project_vendors_complete.map((pvc) => 
-              dbOperations.normalizedToBidVendor(pvc)
-            );
-            extractedBidVendors.push(...bidVendorsFromNormalized);
+          if (USE_NORMALIZED_TABLES) {
+            // NEW: Our getBidsNormalized already returns data in correct format
+            if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
+              // The new function already converts to bid_vendors format
+              extractedBidVendors.push(...bid.bid_vendors.filter(bv => bv && bv.id));
+            }
             
             // Remove normalized data and create proper Bid type
-            const { project_vendors_complete, bid_vendors, ...bidWithoutNested } = bid;
+            const { project_vendors_complete: _unused1, bid_vendors, ...bidWithoutNested } = bid;
             return bidWithoutNested as Bid;
             
           } else if (bid.bid_vendors && Array.isArray(bid.bid_vendors)) {
@@ -117,7 +117,7 @@ const AppContentInternal: React.FC = () => {
           }
           
           // Return bid without the nested bid_vendors
-          const { bid_vendors, project_vendors_complete, ...bidWithoutVendors } = bid;
+          const { bid_vendors: _unused2, project_vendors_complete: _unused3, ...bidWithoutVendors } = bid;
           return bidWithoutVendors as Bid;
         });
 
@@ -152,17 +152,36 @@ const AppContentInternal: React.FC = () => {
       // Real-time notifications will be handled by updated RealtimeManager
     });
 
+    // Listen for custom data refresh events (used by normalized tables)
+    const handleDataRefresh = () => {
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      if (USE_NORMALIZED_TABLES) {
+        // Trigger a full data refresh for normalized tables
+        loadApplicationData();
+      }
+    };
+
+    window.addEventListener('supabase-data-changed', handleDataRefresh);
+
     // Cleanup function
     return () => {
       realtimeManager.unsubscribeAll();
+      window.removeEventListener('supabase-data-changed', handleDataRefresh);
     };
   }, []);
 
   // Handler functions to update status
   const handleStatusChange = async (bidId: number, newStatus: string) => {
     try {
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
       // Update bid status in the database
-      await dbOperations.updateBid(bidId, { status: newStatus });
+      if (USE_NORMALIZED_TABLES) {
+        await dbOperations.updateProjectNormalized(bidId, { status: newStatus });
+      } else {
+        await dbOperations.updateBid(bidId, { status: newStatus });
+      }
       
       // Update bid status in local state
       setBids(prevBids => 
@@ -182,7 +201,14 @@ const AppContentInternal: React.FC = () => {
   // Handler functions for update bid
   const handleUpdateBid = async (bidId: number, updatedBid: Partial<Bid>) => {
     try {
-      await dbOperations.updateBid(bidId, updatedBid);
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      if (USE_NORMALIZED_TABLES) {
+        await dbOperations.updateProjectNormalized(bidId, updatedBid);
+      } else {
+        await dbOperations.updateBid(bidId, updatedBid);
+      }
       
       // If the bid is being archived, remove it from the main dashboard
       if (updatedBid.archived === true) {
@@ -207,7 +233,12 @@ const AppContentInternal: React.FC = () => {
   // Handler functions for adding a new bid
   const handleAddBid = async (bidData: Omit<Bid, 'id'>) => {
     try {
-      const newBid = await dbOperations.createBid(bidData);
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      const newBid = USE_NORMALIZED_TABLES 
+        ? await dbOperations.createProject(bidData)
+        : await dbOperations.createBid(bidData);
       
       // Use optimistic update for bids since real-time might be delayed
       // The deduplication logic in the real-time subscription will prevent duplicates
@@ -258,7 +289,12 @@ const AppContentInternal: React.FC = () => {
   // Handler functions for copying a bid
   const handleCopyProject = async (_originalProjectId: number, newProjectData: Omit<Bid, 'id'>) => {
     try {
-      const newBid = await dbOperations.createBid(newProjectData);
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      const newBid = USE_NORMALIZED_TABLES 
+        ? await dbOperations.createProject(newProjectData)
+        : await dbOperations.createBid(newProjectData);
       
       // Use optimistic update for consistency with handleAddBid
       const transformedBid: Bid = {
@@ -308,7 +344,12 @@ const AppContentInternal: React.FC = () => {
   // Handler function for adding a bid with vendors
   const handleAddProjectWithVendors = async (bidData: Omit<Bid, 'id'>, vendorIds: number[]) => {
     try {
-      const result = await dbOperations.createProjectWithVendors(bidData, vendorIds);
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      const result = USE_NORMALIZED_TABLES 
+        ? await dbOperations.createProjectWithVendorsNormalized(bidData, vendorIds)
+        : await dbOperations.createProjectWithVendors(bidData, vendorIds);
       
       // Transform and add the project to state
       const transformedBid: Bid = {
@@ -380,7 +421,14 @@ const AppContentInternal: React.FC = () => {
   // Handler functions for deleting a bid
   const handleDeleteBid = async (bidId: number) => {
     try {
-      await dbOperations.deleteBid(bidId);
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      if (USE_NORMALIZED_TABLES) {
+        await dbOperations.deleteProjectNormalized(bidId);
+      } else {
+        await dbOperations.deleteBid(bidId);
+      }
       setBids(prevBids => prevBids.filter(bid => bid.id !== bidId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete bid');
@@ -441,17 +489,29 @@ const AppContentInternal: React.FC = () => {
   // Handler functions for adding vendor to a bid
   const handleAddBidVendor = async (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => {
     try {
-      const newBidVendor = await dbOperations.addVendorToBid(bidId, {
-        vendor_id: vendorData.vendor_id,
-        due_date: vendorData.due_date,
-        response_received_date: vendorData.response_received_date,
-        status: vendorData.status,
-        follow_up_count: vendorData.follow_up_count || 0,
-        last_follow_up_date: vendorData.last_follow_up_date,
-        response_notes: vendorData.response_notes,
-        responded_by: vendorData.responded_by,
-        is_priority: vendorData.is_priority || false
-      });
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      const newBidVendor = USE_NORMALIZED_TABLES 
+        ? await dbOperations.addVendorToProjectNormalized(bidId, vendorData.vendor_id, {
+            is_priority: vendorData.is_priority || false,
+            assigned_by_user: vendorData.assigned_apm_user,
+            status: vendorData.status,
+            due_date: vendorData.due_date,
+            response_notes: vendorData.response_notes,
+            cost_amount: vendorData.cost_amount
+          })
+        : await dbOperations.addVendorToBid(bidId, {
+            vendor_id: vendorData.vendor_id,
+            due_date: vendorData.due_date,
+            response_received_date: vendorData.response_received_date,
+            status: vendorData.status,
+            follow_up_count: vendorData.follow_up_count || 0,
+            last_follow_up_date: vendorData.last_follow_up_date,
+            response_notes: vendorData.response_notes,
+            responded_by: vendorData.responded_by,
+            is_priority: vendorData.is_priority || false
+          });
       
       // Transform the response to match our BidVendor type
       const bidVendorResponse = newBidVendor as BidVendor & { vendors?: Vendor };
@@ -480,7 +540,23 @@ const AppContentInternal: React.FC = () => {
   // Handler functions for updating a bid vendor
   const handleUpdateBidVendor = async (bidVendorId: number, vendorData: Partial<BidVendor>) => {
     try {
-      await dbOperations.updateBidVendor(bidVendorId, vendorData);
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      if (USE_NORMALIZED_TABLES) {
+        // For normalized tables, we need to update different tables based on the data
+        if (vendorData.response_received_date || vendorData.status || vendorData.response_notes) {
+          await dbOperations.updateEstResponseNormalized(bidVendorId, vendorData);
+        }
+        if (vendorData.cost_amount || vendorData.final_quote_amount || vendorData.buy_number) {
+          await dbOperations.updateProjectFinancialsNormalized(bidVendorId, vendorData);
+        }
+        // For other vendor data updates
+        await dbOperations.updateVendorDataNormalized(bidVendorId, vendorData);
+      } else {
+        await dbOperations.updateBidVendor(bidVendorId, vendorData);
+      }
+      
       setBidVendors(prevBidVendors => 
         prevBidVendors.map(bv => 
           bv.id === bidVendorId ? { ...bv, ...vendorData } : bv
@@ -494,10 +570,20 @@ const AppContentInternal: React.FC = () => {
   // Handler functions for removing bid vendors
   const handleRemoveBidVendors = async (bidVendorIds: number[]) => {
     try {
-      // Remove each bid vendor individually
-      await Promise.all(
-        bidVendorIds.map(id => dbOperations.removeVendorFromBid(id))
-      );
+      // Feature flag for normalized tables
+      const USE_NORMALIZED_TABLES = import.meta.env.VITE_USE_NORMALIZED_TABLES === 'true';
+      
+      if (USE_NORMALIZED_TABLES) {
+        // Remove each vendor from project individually using normalized function
+        await Promise.all(
+          bidVendorIds.map(id => dbOperations.removeVendorFromProjectNormalized(id))
+        );
+      } else {
+        // Remove each bid vendor individually
+        await Promise.all(
+          bidVendorIds.map(id => dbOperations.removeVendorFromBid(id))
+        );
+      }
       
       setBidVendors(prevBidVendors => 
         prevBidVendors.filter(bv => !bidVendorIds.includes(bv.id))

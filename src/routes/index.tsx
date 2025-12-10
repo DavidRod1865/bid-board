@@ -156,8 +156,10 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         element={
           <ProtectedRoute allowedRoles={['Admin', 'APM']}>
             <APMDashboard 
-              bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
-              bidVendors={bidVendors.filter(bv => bids.find(b => b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold))}
+              bids={bids.filter(bid => bid && bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
+              bidVendors={bidVendors.filter(bv => 
+                bv && bv.bid_id && bids.find(b => b && b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold)
+              )}
               vendors={vendors}
               users={users}
               isLoading={isLoading}

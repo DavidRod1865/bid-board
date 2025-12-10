@@ -10,6 +10,7 @@ interface ActiveProjectReportData {
     vendorName: string;
     equipmentRequestedDate: string | null;
     equipmentReleasedDate: string | null;
+    equipmentReleaseNotes: string;
   }[];
 }
 
@@ -152,7 +153,8 @@ export class ActiveProjectReportService {
         return {
           vendorName: vendor?.company_name || 'Unknown Vendor',
           equipmentRequestedDate: bv.equipment_release_requested_date,
-          equipmentReleasedDate: bv.equipment_released_date
+          equipmentReleasedDate: bv.equipment_released_date,
+          equipmentReleaseNotes: bv.equipment_release_notes || ''
         };
       });
 

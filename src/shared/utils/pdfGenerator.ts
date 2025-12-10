@@ -340,10 +340,6 @@ export class WeeklyVendorCostsPDFGenerator {
   private getCurrentProjectIndex(): number {
     return this.currentProjectIndex;
   }
-  
-  private incrementProjectIndex(): void {
-    this.currentProjectIndex++;
-  }
 
   /**
    * Add consolidated vendor table with enhanced styling and project color
