@@ -9,7 +9,6 @@ import type {
 } from "../../../../shared/types";
 import Sidebar from "../../../../shared/components/ui/Sidebar";
 import AlertDialog from "../../../../shared/components/ui/AlertDialog";
-import StatusBadge from "../../../../shared/components/ui/StatusBadge";
 import VendorTable from "../../../estimating/components/VendorManagement/VendorTable";
 import ProjectNotes from "../../../../shared/components/modals/ProjectNotes";
 import AddVendorToProjectModal from "../../../estimating/components/VendorManagement/AddVendorToProjectModal";
@@ -25,7 +24,6 @@ import {
 import { dbOperations } from "../../../../shared/services/supabase";
 // Real-time updates handled by AppContent
 import { formatDate } from "../../../../shared/utils/formatters";
-import { BID_STATUSES } from "../../../../shared/utils/constants";
 import {
   UserPlusIcon,
   PencilIcon,
@@ -289,7 +287,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
   const handleAddNoteSubmit = async (content: string) => {
     // Let the database function auto-detect current user via Auth
-    await dbOperations.createProjectNote(bid.id, content);
+    await dbOperations.createProjectNote({
+      bid_id: bid.id,
+      content: content
+    });
   };
 
   const confirmDeleteProject = async () => {

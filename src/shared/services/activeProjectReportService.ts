@@ -1,4 +1,4 @@
-import type { Bid, BidVendor, Vendor, ProjectNote } from '../types';
+import type { Bid, Vendor, ProjectNote } from '../types';
 import { supabase } from './supabase';
 import { formatDate } from '../utils/formatters';
 
@@ -62,7 +62,7 @@ export class ActiveProjectReportService {
       }
 
       // Get project IDs for related queries
-      const projectIds = projects.map(p => p.id);
+      const projectIds = projects.map((p: any) => p.id);
 
       // Get project vendors for these projects
       const { data: projectVendors, error: projectVendorsError } = await supabase

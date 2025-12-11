@@ -1,12 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import type { 
-  ProjectVendor, 
-  VendorApmPhase, 
-  VendorFinancial, 
-  VendorFollowUp, 
-  ProjectVendorComplete,
-  BidVendor
-} from '../types'
 
 // Real-time payload types
 type RealtimePayload = {
@@ -42,20 +34,14 @@ export const supabase = (() => {
 // Real-time channel management for normalized tables
 export class RealtimeManager {
   private channels: { [key: string]: ReturnType<typeof supabase.channel> } = {}
-  private stateUpdaters: {
-    setBids?: (bids: any[] | ((prev: any[]) => any[])) => void;
-    setVendors?: (vendors: any[] | ((prev: any[]) => any[])) => void;
-    setBidVendors?: (bidVendors: any[] | ((prev: any[]) => any[])) => void;
-    setProjectNotes?: (notes: any[] | ((prev: any[]) => any[])) => void;
-  } = {}
 
-  setStateUpdaters(updaters: {
+  setStateUpdaters(_updaters: {
     setBids?: (bids: any[] | ((prev: any[]) => any[])) => void;
     setVendors?: (vendors: any[] | ((prev: any[]) => any[])) => void;
     setBidVendors?: (bidVendors: any[] | ((prev: any[]) => any[])) => void;
     setProjectNotes?: (notes: any[] | ((prev: any[]) => any[])) => void;
   }) {
-    this.stateUpdaters = updaters;
+    // State updaters not currently used - full refresh approach instead
   }
 
   // Real-time subscriptions for normalized tables

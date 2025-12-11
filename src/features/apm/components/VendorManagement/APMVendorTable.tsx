@@ -18,7 +18,6 @@ const formatDateSafe = (dateString: string | null): string => {
   return localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 import { getPhaseFollowUpDate, getPhaseDisplayName, getCurrentPhasesWithSoonestFollowUp, getFollowUpUrgencyClasses, getFollowUpUrgency, areAllAPMPhasesCompleted, haveAnyAPMPhasesStarted } from '../../../../shared/utils/phaseFollowUpUtils';
-import APMVendorSlideOut from './APMVendorSlideOut';
 import { Checkbox } from '../../../../shared/components/ui/checkbox';
 
 // Helper function to format amount values with decimals
@@ -110,8 +109,6 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
   const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
   const [sortField, setSortField] = useState<keyof BidVendor | 'vendor_name'>('apm_phase_updated_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [selectedVendorForUpdate, setSelectedVendorForUpdate] = useState<BidVendor | null>(null);
-  const [isSlideOutOpen, setIsSlideOutOpen] = useState(false);
   const [openNotePopover, setOpenNotePopover] = useState<number | null>(null);
   
   // Inline editing state
@@ -227,10 +224,6 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
     }
   };
 
-  const handleUpdateVendor = (vendor: BidVendor) => {
-    setSelectedVendorForUpdate(vendor);
-    setIsSlideOutOpen(true);
-  };
 
   // Inline editing handlers
   const handleStartEdit = (vendor: BidVendor) => {
@@ -801,16 +794,6 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
         </tbody>
       </table>
       
-      {/* APM Vendor Slide-Out For Editing */}
-      <APMVendorSlideOut
-        vendor={selectedVendorForUpdate}
-        bid={selectedVendorForUpdate ? bids.find(b => b.id === selectedVendorForUpdate.bid_id) || null : null}
-        vendorInfo={selectedVendorForUpdate ? vendors.find(v => v.id === selectedVendorForUpdate.vendor_id) || null : null}
-        users={users}
-        isOpen={isSlideOutOpen}
-        onOpenChange={setIsSlideOutOpen}
-        onUpdate={onUpdateVendor}
-      />
 
       {/* APM Phase Modal for Add/Edit */}
       <APMPhaseModal

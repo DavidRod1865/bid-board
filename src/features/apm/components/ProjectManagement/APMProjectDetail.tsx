@@ -67,18 +67,9 @@ interface APMProjectDetailProps {
 interface EquipmentTableProps {
   bidVendors: BidVendor[];
   vendors: Vendor[];
-  selectedIds: Set<number>;
-  onSelectionChange: (id: number, selected: boolean) => void;
-  onSelectAll: (selected: boolean) => void;
 }
 
-const EquipmentTable: React.FC<EquipmentTableProps> = ({ 
-  bidVendors, 
-  vendors, 
-  selectedIds,
-  onSelectionChange,
-  onSelectAll,
-}) => {
+const EquipmentTable: React.FC<EquipmentTableProps> = ({ bidVendors, vendors }) => {
   const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
 
   const getVendorName = (vendorId: number) => {
@@ -89,21 +80,11 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({
     setExpandedVendor(expandedVendor === vendorId ? null : vendorId);
   };
 
-  const allSelected = bidVendors.length > 0 && bidVendors.every(v => selectedIds.has(v.id));
-  const someSelected = bidVendors.some(v => selectedIds.has(v.id));
-
   return (
     <div className="border border-gray-300">
       <table className="min-w-full divide-y divide-gray-300">
         <thead className="bg-slate-700">
           <tr>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider w-12">
-              <Checkbox
-                checked={allSelected}
-                onCheckedChange={(checked) => onSelectAll(checked === true)}
-                className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
-              />
-            </th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
               Vendor
             </th>
@@ -118,28 +99,15 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({
         <tbody className="bg-white divide-y divide-gray-300">
           {bidVendors.map((vendor, index) => {
             const isExpanded = expandedVendor === vendor.id;
-            const isSelected = selectedIds.has(vendor.id);
             const rowClasses = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
             
             return (
               <React.Fragment key={vendor.id}>
                 <tr 
-                  className={`${rowClasses} hover:bg-slate-100 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                  className={`${rowClasses} hover:bg-slate-100 transition-colors cursor-pointer`}
+                  onClick={() => toggleExpanded(vendor.id)}
                 >
                   <td className="px-2 py-2 whitespace-nowrap">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={(checked) => {
-                        onSelectionChange(vendor.id, checked === true);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
-                    />
-                  </td>
-                  <td 
-                    className="px-2 py-2 whitespace-nowrap cursor-pointer"
-                    onClick={() => toggleExpanded(vendor.id)}
-                  >
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => {
@@ -159,22 +127,16 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({
                       </span>
                     </div>
                   </td>
-                  <td 
-                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
-                    onClick={() => toggleExpanded(vendor.id)}
-                  >
+                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
                     {vendor.cost_amount ? `$${Number(vendor.cost_amount).toLocaleString()}` : '—'}
                   </td>
-                  <td 
-                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
-                    onClick={() => toggleExpanded(vendor.id)}
-                  >
+                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
                     {vendor.final_quote_amount ? `$${Number(vendor.final_quote_amount).toLocaleString()}` : '—'}
                   </td>
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={4} className="px-0 py-0">
+                    <td colSpan={3} className="px-0 py-0">
                       <div className="bg-gray-50 border-t border-gray-200">
                         <div className="p-4">
                           <div className="text-sm text-gray-600 mb-2">Equipment items will be added here</div>
@@ -197,18 +159,9 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({
 interface ScheduleTableProps {
   bidVendors: BidVendor[];
   vendors: Vendor[];
-  selectedIds: Set<number>;
-  onSelectionChange: (id: number, selected: boolean) => void;
-  onSelectAll: (selected: boolean) => void;
 }
 
-const ScheduleTable: React.FC<ScheduleTableProps> = ({ 
-  bidVendors, 
-  vendors, 
-  selectedIds,
-  onSelectionChange,
-  onSelectAll,
-}) => {
+const ScheduleTable: React.FC<ScheduleTableProps> = ({ bidVendors, vendors }) => {
   const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
 
   const getVendorName = (vendorId: number) => {
@@ -219,21 +172,11 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
     setExpandedVendor(expandedVendor === vendorId ? null : vendorId);
   };
 
-  const allSelected = bidVendors.length > 0 && bidVendors.every(v => selectedIds.has(v.id));
-  const someSelected = bidVendors.some(v => selectedIds.has(v.id));
-
   return (
     <div className="border border-gray-300">
       <table className="min-w-full divide-y divide-gray-300">
         <thead className="bg-slate-700">
           <tr>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider w-12">
-              <Checkbox
-                checked={allSelected}
-                onCheckedChange={(checked) => onSelectAll(checked === true)}
-                className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
-              />
-            </th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
               Vendor
             </th>
@@ -248,28 +191,15 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
         <tbody className="bg-white divide-y divide-gray-300">
           {bidVendors.map((vendor, index) => {
             const isExpanded = expandedVendor === vendor.id;
-            const isSelected = selectedIds.has(vendor.id);
             const rowClasses = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
             
             return (
               <React.Fragment key={vendor.id}>
                 <tr 
-                  className={`${rowClasses} hover:bg-slate-100 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                  className={`${rowClasses} hover:bg-slate-100 transition-colors cursor-pointer`}
+                  onClick={() => toggleExpanded(vendor.id)}
                 >
                   <td className="px-2 py-2 whitespace-nowrap">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={(checked) => {
-                        onSelectionChange(vendor.id, checked === true);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
-                    />
-                  </td>
-                  <td 
-                    className="px-2 py-2 whitespace-nowrap cursor-pointer"
-                    onClick={() => toggleExpanded(vendor.id)}
-                  >
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => {
@@ -289,22 +219,16 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({
                       </span>
                     </div>
                   </td>
-                  <td 
-                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
-                    onClick={() => toggleExpanded(vendor.id)}
-                  >
+                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
                     {vendor.cost_amount ? `$${Number(vendor.cost_amount).toLocaleString()}` : '—'}
                   </td>
-                  <td 
-                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
-                    onClick={() => toggleExpanded(vendor.id)}
-                  >
+                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
                     {vendor.final_quote_amount ? `$${Number(vendor.final_quote_amount).toLocaleString()}` : '—'}
                   </td>
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={4} className="px-0 py-0">
+                    <td colSpan={3} className="px-0 py-0">
                       <div className="bg-gray-50 border-t border-gray-200">
                         <div className="p-4">
                           <div className="text-sm text-gray-600 mb-2">Schedule items will be added here</div>
@@ -369,31 +293,10 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   // Tab state for bottom panel
   const [activeTab, setActiveTab] = useState("vendors");
 
-  // Handler to switch tabs and clear selections
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    // Clear selections when switching tabs
-    setSelectedEquipmentIds(new Set());
-    setSelectedScheduleIds(new Set());
-  };
-
   // Vendor selection state for APM vendor table
   const [selectedVendorIds, setSelectedVendorIds] = useState<Set<number>>(
     new Set()
   );
-
-  // Selection state for equipment and schedule tabs
-  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<number>>(
-    new Set()
-  );
-  const [selectedScheduleIds, setSelectedScheduleIds] = useState<Set<number>>(
-    new Set()
-  );
-
-  // Modal state for bulk delete
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [itemsToDelete, setItemsToDelete] = useState<number[]>([]);
-  const [deleteType, setDeleteType] = useState<"equipment" | "schedule" | null>(null);
 
   const getVendorById = (vendorId: number) =>
     vendors.find((v) => v.id === vendorId);
@@ -619,91 +522,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           : "Failed to remove vendor from project"
       );
       throw error; // Re-throw so the table can handle it
-    }
-  };
-
-  // Equipment and Schedule selection handlers
-  const handleEquipmentSelectionChange = (id: number, selected: boolean) => {
-    setSelectedEquipmentIds((prev) => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(id);
-      } else {
-        newSet.delete(id);
-      }
-      return newSet;
-    });
-  };
-
-  const handleEquipmentSelectAll = (selected: boolean) => {
-    if (selected) {
-      setSelectedEquipmentIds(new Set(projectVendors.map((v) => v.id)));
-    } else {
-      setSelectedEquipmentIds(new Set());
-    }
-  };
-
-  const handleScheduleSelectionChange = (id: number, selected: boolean) => {
-    setSelectedScheduleIds((prev) => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(id);
-      } else {
-        newSet.delete(id);
-      }
-      return newSet;
-    });
-  };
-
-  const handleScheduleSelectAll = (selected: boolean) => {
-    if (selected) {
-      setSelectedScheduleIds(new Set(projectVendors.map((v) => v.id)));
-    } else {
-      setSelectedScheduleIds(new Set());
-    }
-  };
-
-  // Bulk delete handlers
-  const handleBulkDeleteEquipment = () => {
-    if (selectedEquipmentIds.size === 0) return;
-    setItemsToDelete(Array.from(selectedEquipmentIds));
-    setDeleteType("equipment");
-    setShowBulkDeleteModal(true);
-  };
-
-  const handleBulkDeleteSchedule = () => {
-    if (selectedScheduleIds.size === 0) return;
-    setItemsToDelete(Array.from(selectedScheduleIds));
-    setDeleteType("schedule");
-    setShowBulkDeleteModal(true);
-  };
-
-  const confirmBulkDelete = async () => {
-    try {
-      setIsVendorLoading(true);
-
-      // Delete all selected items
-      await Promise.all(
-        itemsToDelete.map((id) => dbOperations.removeVendorFromBid(id))
-      );
-
-      // Clear selections
-      if (deleteType === "equipment") {
-        setSelectedEquipmentIds(new Set());
-      } else if (deleteType === "schedule") {
-        setSelectedScheduleIds(new Set());
-      }
-
-      // Close modal and reset state
-      setShowBulkDeleteModal(false);
-      setItemsToDelete([]);
-      setDeleteType(null);
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Failed to delete items"
-      );
-    } finally {
-      setIsVendorLoading(false);
     }
   };
 
@@ -1742,7 +1560,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     ].map((tab) => (
                       <button
                         key={tab.id}
-                        onClick={() => handleTabChange(tab.id)}
+                        onClick={() => setActiveTab(tab.id)}
                         className={`py-4 px-1 border-b-2 font-medium text-sm ${
                           activeTab === tab.id
                             ? "border-[#d4af37] text-[#d4af37]"
@@ -1792,51 +1610,27 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     )}
 
                     {activeTab === "equipment" && (
-                      <>
-                        {selectedEquipmentIds.size === 0 ? (
-                          <button
-                            onClick={() => {
-                              // TODO: Implement add equipment functionality
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            <UserPlusIcon className="w-4 h-4 mr-1" />
-                            Add Equipment
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleBulkDeleteEquipment}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          >
-                            <TrashIcon className="w-4 h-4 mr-1" />
-                            Delete Selected ({selectedEquipmentIds.size})
-                          </button>
-                        )}
-                      </>
+                      <button
+                        onClick={() => {
+                          // TODO: Implement add equipment functionality
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        <UserPlusIcon className="w-4 h-4 mr-1" />
+                        Add Equipment
+                      </button>
                     )}
 
                     {activeTab === "schedule" && (
-                      <>
-                        {selectedScheduleIds.size === 0 ? (
-                          <button
-                            onClick={() => {
-                              // TODO: Implement add schedule functionality
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            <UserPlusIcon className="w-4 h-4 mr-1" />
-                            Add Schedule
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleBulkDeleteSchedule}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          >
-                            <TrashIcon className="w-4 h-4 mr-1" />
-                            Delete Selected ({selectedScheduleIds.size})
-                          </button>
-                        )}
-                      </>
+                      <button
+                        onClick={() => {
+                          // TODO: Implement add schedule functionality
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        <UserPlusIcon className="w-4 h-4 mr-1" />
+                        Add Schedule
+                      </button>
                     )}
 
                     {activeTab === "notes" && (
@@ -1875,9 +1669,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                   <EquipmentTable
                     bidVendors={projectVendors}
                     vendors={vendors}
-                    selectedIds={selectedEquipmentIds}
-                    onSelectionChange={handleEquipmentSelectionChange}
-                    onSelectAll={handleEquipmentSelectAll}
                   />
                 )}
 
@@ -1885,9 +1676,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                   <ScheduleTable
                     bidVendors={projectVendors}
                     vendors={vendors}
-                    selectedIds={selectedScheduleIds}
-                    onSelectionChange={handleScheduleSelectionChange}
-                    onSelectAll={handleScheduleSelectAll}
                   />
                 )}
 
@@ -1953,26 +1741,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           vendorsToRemove.length === 1 ? "" : "s"
         } from this APM project?`}
         confirmText="Remove Vendors"
-        cancelText="Cancel"
-        variant="danger"
-      />
-
-      {/* Bulk Delete Confirmation Modal */}
-      <AlertDialog
-        isOpen={showBulkDeleteModal}
-        onClose={() => {
-          setShowBulkDeleteModal(false);
-          setItemsToDelete([]);
-          setDeleteType(null);
-        }}
-        onConfirm={confirmBulkDelete}
-        title={`Delete ${deleteType === "equipment" ? "Equipment" : "Schedule"} Items`}
-        message={`Are you sure you want to delete ${
-          itemsToDelete.length
-        } ${deleteType === "equipment" ? "equipment" : "schedule"} item${
-          itemsToDelete.length === 1 ? "" : "s"
-        }? This action cannot be undone.`}
-        confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
       />

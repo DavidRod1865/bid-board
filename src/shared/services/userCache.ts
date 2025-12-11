@@ -96,7 +96,7 @@ class UserCacheService {
       };
 
       // Also populate individual user caches
-      users.forEach(user => {
+      users.forEach((user: any) => {
         if (user.email) {
           this.userEmailCache.set(user.email, {
             data: user,

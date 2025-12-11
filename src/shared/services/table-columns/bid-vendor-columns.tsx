@@ -3,7 +3,6 @@ import type { BidVendor, Vendor } from "../../types"
 import { DataTableColumnHeader } from "../../components/ui/data-table-column-header"
 import { formatDate, formatCurrency, getBidUrgency } from "../../utils/formatters"
 import { getVendorStatusColor } from "../../utils/statusUtils"
-import { Button } from "../../components/ui/Button"
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import { StarIcon as StarOutline } from '@heroicons/react/24/outline'
 
@@ -12,7 +11,7 @@ interface BidVendorWithVendor extends BidVendor {
 }
 
 export function createBidVendorColumns(
-  onEdit?: (vendorId: number) => void,
+  _onEdit?: (vendorId: number) => void,
   onUpdatePriority?: (bidVendorId: number, isPriority: boolean) => void,
   editingVendorId?: number | null,
   editValues?: { cost_amount: number | string | null; status: string },

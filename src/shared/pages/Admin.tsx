@@ -202,11 +202,11 @@ const Admin: React.FC = () => {
           timeData,
           bidsKPIData
         ] = await Promise.all([
-          dbOperations.getResponseDistribution(analyticsFilters),
-          dbOperations.getTrendData(analyticsFilters),
-          dbOperations.getVendorPerformanceData(analyticsFilters),
-          dbOperations.getTimeDistributionData(analyticsFilters),
-          dbOperations.getBidsForKPI(analyticsFilters)
+          dbOperations.getResponseDistribution(),
+          dbOperations.getTrendData(),
+          dbOperations.getVendorPerformanceData(),
+          dbOperations.getTimeDistributionData(),
+          dbOperations.getBidsForKPI()
         ]);
         
         // Process the raw data

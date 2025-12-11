@@ -125,7 +125,8 @@ const APMAddProjectModal: React.FC<APMAddProjectModalProps> = ({
       apm_archived_at: null,
       gc_system: formData.gc_system, // Use form data
       added_to_procore: formData.added_to_procore, // Use form data
-      made_by_apm: true // Mark projects created by APM
+      made_by_apm: true, // Mark projects created by APM
+      gc_contact_id: null // Default to null for new projects
     };
 
     try {

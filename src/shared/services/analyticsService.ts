@@ -30,7 +30,7 @@ class AnalyticsService {
 
       if (error) throw error;
 
-      return (projects || []).map(project => {
+      return (projects || []).map((project: any) => {
         // Calculate completion hours
         let completion_hours = null;
         let completion_status: 'On Time' | 'Late' | 'Overdue' | 'In Progress' = 'In Progress';
@@ -177,7 +177,7 @@ class AnalyticsService {
 
       const statusGroups = new Map<string, number[]>();
       
-      (projects || []).forEach(project => {
+      (projects || []).forEach((project: any) => {
         if (!statusGroups.has(project.status)) {
           statusGroups.set(project.status, []);
         }
@@ -328,7 +328,7 @@ class AnalyticsService {
 
       if (error) throw error;
 
-      return (history || []).map((item, index) => {
+      return (history || []).map((item: any, index: number) => {
         const startDate = index === 0 
           ? parseISO(item.changed_at) 
           : parseISO(history[index - 1].changed_at);

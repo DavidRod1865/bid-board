@@ -39,8 +39,8 @@ const APMProjectDetailWrapper: React.FC<APMProjectDetailWrapperProps> = (props) 
           // fetch individual bid from Supabase by ID
           const fetchedBid = await dbOperations.getBidById(bidId);
           
-          // Check if the fetched bid is an APM project
-          if (!fetchedBid.sent_to_apm) {
+          // Check if the fetched bid exists and is an APM project
+          if (!fetchedBid || !fetchedBid.sent_to_apm) {
             setNotFound(true);
             return;
           }

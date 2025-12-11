@@ -57,7 +57,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         try {
           // This user was invited and is logging in for the first time
           // Activate their account and update their Auth0 ID
-          const activatedUser = await dbOperations.markUserAsActive(dbUser.id, user.sub);
+          const activatedUser = await dbOperations.markUserAsActive(dbUser.id);
           dbUser = activatedUser;
           console.log('UserContext: Successfully activated invitation for:', dbUser?.email);
         } catch (activationError) {
@@ -68,7 +68,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       if (!dbUser && user.email && user.name) {
         try {
-          dbUser = await dbOperations.createOrUpdateUserProfile(user.sub, {
+          dbUser = await dbOperations.createOrUpdateUserProfile({
+            auth0_id: user.sub,
             email: user.email,
             name: user.name,
             color_preference: '#d4af37'

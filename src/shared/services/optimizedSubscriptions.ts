@@ -80,7 +80,7 @@ export class OptimizedSubscriptionService {
           .eq('est_activity_cycle', 'Active')
           .limit(50); // Limit to prevent too many subscriptions
 
-        context.activeProjects = assignedProjects?.map(p => p.id) || [];
+        context.activeProjects = assignedProjects?.map((p: any) => p.id) || [];
 
         // Get assigned vendors for APM users
         const { data: assignedVendors } = await supabase
@@ -89,7 +89,7 @@ export class OptimizedSubscriptionService {
           .eq('assigned_apm_user', userId)
           .limit(100); // Limit vendor subscriptions
 
-        context.assignedVendors = assignedVendors?.map(v => v.id) || [];
+        context.assignedVendors = assignedVendors?.map((v: any) => v.id) || [];
         
       } else if (role === 'Estimating') {
         // Estimating users: get recent projects they created or are assigned to
@@ -101,7 +101,7 @@ export class OptimizedSubscriptionService {
           .order('updated_at', { ascending: false })
           .limit(30); // Limit to recent projects
 
-        context.activeProjects = recentProjects?.map(p => p.id) || [];
+        context.activeProjects = recentProjects?.map((p: any) => p.id) || [];
       }
 
     } catch (error) {

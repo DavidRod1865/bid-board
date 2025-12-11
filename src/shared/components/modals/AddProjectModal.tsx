@@ -149,7 +149,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
       apm_archived_at: null,
       gc_system: null, // Default GC system
       added_to_procore: false, // Default Procore status
-      made_by_apm: selectedDepartment === 'APM' ? true : false // Mark projects created by APM department
+      made_by_apm: selectedDepartment === 'APM' ? true : false, // Mark projects created by APM department
+      gc_contact_id: null // Default to null for new projects
     };
 
     try {

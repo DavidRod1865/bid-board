@@ -140,7 +140,8 @@ const CopyProjectModal: React.FC<CopyProjectModalProps> = ({
       apm_archived_at: null,
       gc_system: null, // Default GC system
       added_to_procore: false, // Default Procore status
-      made_by_apm: false // Copied projects are not made by APM
+      made_by_apm: false, // Copied projects are not made by APM
+      gc_contact_id: null // Default to null for copied projects
     };
 
     onCopyProject(selectedProjectId!, projectData);
