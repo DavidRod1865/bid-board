@@ -92,6 +92,16 @@ const getPhaseNotes = (
   bidVendor: BidVendor,
   phaseName: string
 ): string | null => {
+  // First check normalized apm_phases structure
+  if (bidVendor.apm_phases && bidVendor.apm_phases.length > 0) {
+    const phase = bidVendor.apm_phases.find(p => 
+      p.phase_name.toLowerCase().replace(/\s+/g, '_') === phaseName ||
+      p.phase_name === phaseName
+    );
+    return phase?.notes || null;
+  }
+
+  // Fallback to legacy column-based notes
   switch (phaseName) {
     case "buy_number":
       return bidVendor.buy_number_notes;
@@ -162,45 +172,63 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
 
       if (!vendor || !project) return;
 
-      // Get all pending phases for this vendor
-      const phases = [
-        {
-          name: "buy_number",
-          displayName: "Buy Number",
-          followUpDate: bidVendor.buy_number_follow_up_date,
-          receivedDate: bidVendor.buy_number_received_date,
-        },
-        {
-          name: "po",
-          displayName: "Purchase Order",
-          followUpDate: bidVendor.po_follow_up_date,
-          receivedDate: bidVendor.po_received_date,
-        },
-        {
-          name: "submittals",
-          displayName: "Submittals",
-          followUpDate: bidVendor.submittals_follow_up_date,
-          receivedDate: bidVendor.submittals_received_date,
-        },
-        {
-          name: "revised_plans",
-          displayName: "Revised Plans",
-          followUpDate: bidVendor.revised_plans_follow_up_date,
-          receivedDate: bidVendor.revised_plans_confirmed_date,
-        },
-        {
-          name: "equipment_release",
-          displayName: "Equipment Release",
-          followUpDate: bidVendor.equipment_release_follow_up_date,
-          receivedDate: bidVendor.equipment_released_date,
-        },
-        {
-          name: "closeouts",
-          displayName: "Closeouts",
-          followUpDate: bidVendor.closeout_follow_up_date,
-          receivedDate: bidVendor.closeout_received_date,
-        },
-      ];
+      // Get all pending phases from apm_phases array (normalized structure)
+      let phases: Array<{
+        name: string;
+        displayName: string;
+        followUpDate: string | null;
+        receivedDate: string | null;
+      }> = [];
+
+      if (bidVendor.apm_phases && bidVendor.apm_phases.length > 0) {
+        // Use normalized apm_phases structure
+        phases = bidVendor.apm_phases.map(phase => ({
+          name: phase.phase_name.toLowerCase().replace(/\s+/g, '_'),
+          displayName: phase.phase_name,
+          followUpDate: phase.follow_up_date,
+          receivedDate: phase.received_date,
+        }));
+      } else {
+        // Fallback to legacy column-based structure
+        phases = [
+          {
+            name: "buy_number",
+            displayName: "Buy Number",
+            followUpDate: bidVendor.buy_number_follow_up_date,
+            receivedDate: bidVendor.buy_number_received_date,
+          },
+          {
+            name: "po",
+            displayName: "Purchase Order",
+            followUpDate: bidVendor.po_follow_up_date,
+            receivedDate: bidVendor.po_received_date,
+          },
+          {
+            name: "submittals",
+            displayName: "Submittals",
+            followUpDate: bidVendor.submittals_follow_up_date,
+            receivedDate: bidVendor.submittals_received_date,
+          },
+          {
+            name: "revised_plans",
+            displayName: "Revised Plans",
+            followUpDate: bidVendor.revised_plans_follow_up_date,
+            receivedDate: bidVendor.revised_plans_confirmed_date,
+          },
+          {
+            name: "equipment_release",
+            displayName: "Equipment Release",
+            followUpDate: bidVendor.equipment_release_follow_up_date,
+            receivedDate: bidVendor.equipment_released_date,
+          },
+          {
+            name: "closeouts",
+            displayName: "Closeouts",
+            followUpDate: bidVendor.closeout_follow_up_date,
+            receivedDate: bidVendor.closeout_received_date,
+          },
+        ];
+      }
 
       // Create individual task for each pending phase
       phases.forEach((phase) => {

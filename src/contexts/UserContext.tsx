@@ -232,11 +232,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   useEffect(() => {
     if (!authLoading) {
       // Test database connection on first load
-      dbOperations.testDatabaseConnection().then(result => {
-        if (!result.success) {
-          console.error('UserContext: Database connection test failed during initialization');
-        }
-      });
+      // dbOperations.testDatabaseConnection().then(result => {
+      //   if (!result.success) {
+      //     console.error('UserContext: Database connection test failed during initialization');
+      //   }
+      // });
       
       fetchUserProfile();
     }

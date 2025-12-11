@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronRightIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import type { BidVendor, Vendor, Bid, User } from '../../../../shared/types';
+import APMPhaseModal from '../modals/APMPhaseModal';
+import AlertDialog from '../../../../shared/components/ui/AlertDialog';
+import { Popover, PopoverTrigger, PopoverContent } from '../../../../shared/components/ui/popover';
 
 // Helper function to format dates avoiding timezone conversion issues
 const formatDateSafe = (dateString: string | null): string => {
@@ -14,28 +17,38 @@ const formatDateSafe = (dateString: string | null): string => {
   const localDate = new Date(year, month - 1, day);
   return localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
-import { getPhaseFollowUpDate, getPhaseDisplayName, getCurrentPhasesWithSoonestFollowUp, getFollowUpUrgencyClasses, getFollowUpUrgency } from '../../../../shared/utils/phaseFollowUpUtils';
+import { getPhaseFollowUpDate, getPhaseDisplayName, getCurrentPhasesWithSoonestFollowUp, getFollowUpUrgencyClasses, getFollowUpUrgency, areAllAPMPhasesCompleted, haveAnyAPMPhasesStarted } from '../../../../shared/utils/phaseFollowUpUtils';
 import APMVendorSlideOut from './APMVendorSlideOut';
 import { Checkbox } from '../../../../shared/components/ui/checkbox';
 
-// Helper function to format amount values
+// Helper function to format amount values with decimals
 const formatAmount = (amount: number | string | null): string => {
-  if (!amount) return '—';
+  if (!amount && amount !== 0) return '—';
   
+  let numValue: number;
   if (typeof amount === 'number') {
-    // Use toString() to preserve exact decimal places without rounding or adding zeros
-    return `$${amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    numValue = amount;
+  } else if (typeof amount === 'string') {
+    // Remove $ and commas, then parse
+    const cleaned = amount.replace(/[$,]/g, '');
+    numValue = parseFloat(cleaned);
+    if (isNaN(numValue)) return '—';
+  } else {
+    return '—';
   }
   
-  if (typeof amount === 'string') {
-    return amount.startsWith('$') ? amount : `$${amount}`;
-  }
-  
-  return '—';
+  // Format with 2 decimal places and thousand separators
+  return `$${numValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 };
 
-// Helper function to check if all phases are completed
+// Helper function to check if all phases are completed (with fallback to legacy)
 const areAllPhasesCompleted = (vendor: BidVendor): boolean => {
+  // Use new apm_phases array if available
+  if (vendor.apm_phases && vendor.apm_phases.length > 0) {
+    return areAllAPMPhasesCompleted(vendor);
+  }
+  
+  // Fallback to legacy column-based check
   return Boolean(
     vendor.buy_number_received_date &&
     vendor.po_received_date &&
@@ -46,8 +59,14 @@ const areAllPhasesCompleted = (vendor: BidVendor): boolean => {
   );
 };
 
-// Helper function to check if any phases have started
+// Helper function to check if any phases have started (with fallback to legacy)
 const haveAnyPhasesStarted = (vendor: BidVendor): boolean => {
+  // Use new apm_phases array if available
+  if (vendor.apm_phases && vendor.apm_phases.length > 0) {
+    return haveAnyAPMPhasesStarted(vendor);
+  }
+  
+  // Fallback to legacy column-based check
   return Boolean(
     vendor.buy_number_follow_up_date ||
     vendor.po_follow_up_date ||
@@ -58,6 +77,7 @@ const haveAnyPhasesStarted = (vendor: BidVendor): boolean => {
   );
 };
 
+
 interface APMVendorTableProps {
   bidVendors: BidVendor[];
   vendors: Vendor[];
@@ -67,6 +87,10 @@ interface APMVendorTableProps {
   selectedVendors: Set<number>;
   onVendorSelect: (vendorId: number, selected: boolean) => void;
   onBulkVendorSelect?: (vendorIds: number[], selected: boolean) => void;
+  onCreatePhase?: (vendorId: number, phaseData: any) => Promise<void>;
+  onUpdatePhase?: (phaseId: number, updates: any) => Promise<void>;
+  onDeletePhase?: (phaseId: number) => Promise<void>;
+  onDeleteVendor?: (bidVendorId: number) => Promise<void>;
 }
 
 const APMVendorTable: React.FC<APMVendorTableProps> = ({
@@ -77,13 +101,55 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
   onUpdateVendor,
   selectedVendors,
   onVendorSelect,
-  onBulkVendorSelect
+  onBulkVendorSelect,
+  onCreatePhase,
+  onUpdatePhase,
+  onDeletePhase,
+  onDeleteVendor
 }) => {
   const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
   const [sortField, setSortField] = useState<keyof BidVendor | 'vendor_name'>('apm_phase_updated_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedVendorForUpdate, setSelectedVendorForUpdate] = useState<BidVendor | null>(null);
   const [isSlideOutOpen, setIsSlideOutOpen] = useState(false);
+  const [openNotePopover, setOpenNotePopover] = useState<number | null>(null);
+  
+  // Inline editing state
+  const [editingVendorId, setEditingVendorId] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<{
+    cost_amount: number | string | null;
+    final_quote_amount: number | string | null;
+    assigned_apm_user: string | null;
+  }>({
+    cost_amount: null,
+    final_quote_amount: null,
+    assigned_apm_user: null,
+  });
+
+  // Phase management state
+  const [isPhaseModalOpen, setIsPhaseModalOpen] = useState(false);
+  const [selectedPhase, setSelectedPhase] = useState<any | null>(null);
+  const [selectedVendorForPhase, setSelectedVendorForPhase] = useState<BidVendor | null>(null);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    phaseId: number | null;
+    phaseName: string;
+  }>({
+    isOpen: false,
+    phaseId: null,
+    phaseName: ''
+  });
+  
+  const [deleteVendorConfirmation, setDeleteVendorConfirmation] = useState<{
+    isOpen: boolean;
+    bidVendorId: number | null;
+    vendorName: string;
+  }>({
+    isOpen: false,
+    bidVendorId: null,
+    vendorName: ''
+  });
 
   // Helper functions
   const getVendorName = useCallback((vendorId: number) => {
@@ -166,6 +232,166 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
     setIsSlideOutOpen(true);
   };
 
+  // Inline editing handlers
+  const handleStartEdit = (vendor: BidVendor) => {
+    setEditingVendorId(vendor.id);
+    setEditValues({
+      cost_amount: vendor.cost_amount,
+      final_quote_amount: vendor.final_quote_amount,
+      assigned_apm_user: vendor.assigned_apm_user,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingVendorId(null);
+    setEditValues({
+      cost_amount: null,
+      final_quote_amount: null,
+      assigned_apm_user: null,
+    });
+  };
+
+  const handleSaveEdit = async (vendor: BidVendor) => {
+    try {
+      const updates: Partial<BidVendor> = {};
+      
+      // Only include changed fields
+      if (editValues.cost_amount !== vendor.cost_amount) {
+        updates.cost_amount = editValues.cost_amount;
+      }
+      if (editValues.final_quote_amount !== vendor.final_quote_amount) {
+        updates.final_quote_amount = editValues.final_quote_amount;
+      }
+      if (editValues.assigned_apm_user !== vendor.assigned_apm_user) {
+        updates.assigned_apm_user = editValues.assigned_apm_user;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await onUpdateVendor(vendor.id, updates);
+      }
+      
+      setEditingVendorId(null);
+      setEditValues({
+        cost_amount: null,
+        final_quote_amount: null,
+        assigned_apm_user: null,
+      });
+    } catch (error) {
+      console.error('Failed to save vendor updates:', error);
+    }
+  };
+
+  const handleEditValueChange = (field: 'cost_amount' | 'final_quote_amount' | 'assigned_apm_user', value: any) => {
+    setEditValues(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // Helper to parse amount input (remove $ and commas, preserve decimals)
+  const parseAmountInput = (value: string): number | null => {
+    if (!value || value.trim() === '') return null;
+    const cleaned = value.replace(/[$,]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed;
+  };
+
+  // Helper to format amount for input display (with decimals)
+  const formatAmountForInput = (amount: number | string | null): string => {
+    if (!amount && amount !== 0) return '';
+    let numValue: number;
+    if (typeof amount === 'number') {
+      numValue = amount;
+    } else if (typeof amount === 'string') {
+      const cleaned = amount.replace(/[$,]/g, '');
+      numValue = parseFloat(cleaned);
+      if (isNaN(numValue)) return '';
+    } else {
+      return '';
+    }
+    return numValue.toFixed(2);
+  };
+
+  // Phase management handlers
+  const handleAddPhase = (vendor: BidVendor) => {
+    setSelectedVendorForPhase(vendor);
+    setSelectedPhase(null);
+    setModalMode('add');
+    setIsPhaseModalOpen(true);
+  };
+
+  const handleEditPhase = (vendor: BidVendor, phase: any) => {
+    setSelectedVendorForPhase(vendor);
+    setSelectedPhase(phase);
+    setModalMode('edit');
+    setIsPhaseModalOpen(true);
+  };
+
+  const handleDeletePhase = (phase: any) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      phaseId: phase.id,
+      phaseName: phase.phase_name
+    });
+  };
+
+  const handlePhaseModalSubmit = async (phaseData: any) => {
+    if (!selectedVendorForPhase) return;
+
+    try {
+      if (modalMode === 'add' && onCreatePhase) {
+        await onCreatePhase(selectedVendorForPhase.vendor_id, phaseData);
+      } else if (modalMode === 'edit' && selectedPhase && onUpdatePhase) {
+        await onUpdatePhase(selectedPhase.id, phaseData);
+      }
+    } catch (error) {
+      console.error('Failed to save phase:', error);
+      throw error; // Let the modal handle the error display
+    }
+  };
+
+  const confirmDeletePhase = async () => {
+    if (!deleteConfirmation.phaseId || !onDeletePhase) return;
+
+    try {
+      await onDeletePhase(deleteConfirmation.phaseId);
+      setDeleteConfirmation({ isOpen: false, phaseId: null, phaseName: '' });
+    } catch (error) {
+      console.error('Failed to delete phase:', error);
+      // Keep dialog open for error feedback
+    }
+  };
+
+  const cancelDeletePhase = () => {
+    setDeleteConfirmation({ isOpen: false, phaseId: null, phaseName: '' });
+  };
+
+  // Vendor delete handlers
+  const handleDeleteVendor = (vendor: BidVendor) => {
+    const vendorName = getVendorName(vendor.vendor_id);
+    setDeleteVendorConfirmation({
+      isOpen: true,
+      bidVendorId: vendor.id,
+      vendorName: vendorName
+    });
+  };
+
+  const confirmDeleteVendor = async () => {
+    if (!deleteVendorConfirmation.bidVendorId || !onDeleteVendor) return;
+
+    try {
+      await onDeleteVendor(deleteVendorConfirmation.bidVendorId);
+      setDeleteVendorConfirmation({ isOpen: false, bidVendorId: null, vendorName: '' });
+    } catch (error) {
+      console.error('Failed to delete vendor:', error);
+      // Keep dialog open for error feedback
+    }
+  };
+
+  const cancelDeleteVendor = () => {
+    setDeleteVendorConfirmation({ isOpen: false, bidVendorId: null, vendorName: '' });
+  };
+
 
 
 
@@ -173,28 +399,32 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
     field, 
     children, 
     className = "" 
-  }) => (
-    <th 
-      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${className}`}
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center space-x-1">
-        <span>{children}</span>
-        {sortField === field && (
-          <span className="text-blue-500">
-            {sortDirection === 'asc' ? '↑' : '↓'}
-          </span>
-        )}
-      </div>
-    </th>
-  );
+  }) => {
+    const isVendor = field === 'vendor_name';
+    const alignmentClass = className.includes('text-center') ? 'text-center' : (isVendor ? 'text-left' : 'text-center');
+    return (
+      <th 
+        className={`px-2 py-2 ${alignmentClass} text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-slate-600 transition-colors ${className}`}
+        onClick={() => handleSort(field)}
+      >
+        <div className={`flex items-center space-x-1 ${alignmentClass === 'text-center' ? 'justify-center' : ''}`}>
+          <span>{children}</span>
+          {sortField === field && (
+            <span className="text-blue-500">
+              {sortDirection === 'asc' ? '↑' : '↓'}
+            </span>
+          )}
+        </div>
+      </th>
+    );
+  };
 
   return (
-    <div className="overflow-hidden border-b-2 border-gray-200">
+    <div className="overflow-hidden border border-gray-300">
       <table className="min-w-full divide-y divide-gray-300">
-        <thead className="bg-gray-50">
+        <thead className="bg-slate-700">
           <tr>
-            <th className="px-6 py-3 text-left">
+            <th className="px-2 py-2 text-left">
               <Checkbox
                 onCheckedChange={(checked) => {
                   const isChecked = checked === true;
@@ -218,25 +448,43 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
               />
             </th>
             <SortableHeader field="vendor_name">Vendor</SortableHeader>
-            <SortableHeader field="apm_phase">Original Quote</SortableHeader>
-            <SortableHeader field="apm_status">Final Quote</SortableHeader>
-            <SortableHeader field="apm_phase_updated_at">Pending Phase</SortableHeader>
-            <SortableHeader field="next_follow_up_date">Next Follow-up</SortableHeader>
-            <SortableHeader field="assigned_apm_user">Assigned To</SortableHeader>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <SortableHeader field="apm_phase" className="text-center">Original Quote</SortableHeader>
+            <SortableHeader field="apm_status" className="text-center">Final Quote</SortableHeader>
+            <SortableHeader field="apm_phase_updated_at" className="text-center">Pending Phase</SortableHeader>
+            <SortableHeader field="next_follow_up_date" className="text-center">Follow-Up</SortableHeader>
+            <SortableHeader field="assigned_apm_user" className="text-center">Assigned To</SortableHeader>
+            <th className="px-2 py-2 text-center text-xs font-semibold text-white uppercase tracking-wider">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {sortedVendors.map((vendor) => (
+        <tbody className="bg-white divide-y divide-gray-300">
+          {sortedVendors.map((vendor, index) => {
+            const isExpanded = expandedVendor === vendor.id;
+            const { soonestDate } = getCurrentPhasesWithSoonestFollowUp(vendor);
+            const urgencyClasses = getFollowUpUrgencyClasses(soonestDate);
+            
+            // Professional alternating backgrounds with subtle urgency styling
+            let rowClasses = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+            if (urgencyClasses) {
+              // Subtle urgency colors for better readability
+              if (urgencyClasses.includes('bg-red')) {
+                rowClasses = index % 2 === 0 ? 'bg-red-50/50' : 'bg-red-50/30';
+              } else if (urgencyClasses.includes('bg-orange')) {
+                rowClasses = index % 2 === 0 ? 'bg-orange-50/50' : 'bg-orange-50/30';
+              }
+            }
+            if (isExpanded) {
+              rowClasses += ' border-b-0';
+            }
+            
+            return (
             <React.Fragment key={vendor.id}>
-              <tr className={`${(() => {
-                const { soonestDate } = getCurrentPhasesWithSoonestFollowUp(vendor);
-                const urgencyClasses = getFollowUpUrgencyClasses(soonestDate);
-                return urgencyClasses || 'hover:bg-gray-50';
-              })()}`}>
-                <td className="px-6 py-4 whitespace-nowrap">
+              <tr 
+                className={`${rowClasses} hover:bg-slate-100 transition-colors cursor-pointer border-l-4 border-l-transparent`}
+                onClick={() => toggleExpanded(vendor.id)}
+              >
+                <td className="px-2 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selectedVendors.has(vendor.vendor_id)}
                     onCheckedChange={(checked) => onVendorSelect(vendor.vendor_id, checked === true)}
@@ -244,46 +492,75 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Vendor Name with Expand/Collapse */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
+                <td className="px-2 py-2 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => toggleExpanded(vendor.id)}
-                      className="mr-2 p-1 hover:bg-gray-100 rounded"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpanded(vendor.id);
+                      }}
+                      className="p-0.5 hover:bg-gray-200 rounded transition-colors"
                     >
-                      {expandedVendor === vendor.id ? (
-                        <ChevronDownIcon className="h-4 w-4" />
+                      {isExpanded ? (
+                        <ChevronDownIcon className="h-4 w-4 text-gray-600" />
                       ) : (
-                        <ChevronRightIcon className="h-4 w-4" />
+                        <ChevronRightIcon className="h-4 w-4 text-gray-600" />
                       )}
                     </button>
-                    <div>
-                      <div className="text-sm text-gray-900">
-                        {getVendorName(vendor.vendor_id)}
-                      </div>
-                    </div>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {getVendorName(vendor.vendor_id)}
+                    </span>
                   </div>
                 </td>
                 
                 {/* Original Quote Amount */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-900">
-                    {formatAmount(vendor.cost_amount as number | string | null)}
-                  </span>
+                <td className="px-2 py-2 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                  {editingVendorId === vendor.id ? (
+                    <input
+                      type="text"
+                      value={editValues.cost_amount !== null && editValues.cost_amount !== undefined ? `$${formatAmountForInput(editValues.cost_amount)}` : ''}
+                      onChange={(e) => {
+                        const parsed = parseAmountInput(e.target.value);
+                        handleEditValueChange('cost_amount', parsed);
+                      }}
+                      className="w-full px-2 py-1 text-sm text-center border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="$0.00"
+                      step="0.01"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-slate-800">
+                      {formatAmount(vendor.cost_amount as number | string | null)}
+                    </span>
+                  )}
                 </td>
 
                 {/* Final Quote Amount */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-900">
-                    {formatAmount(vendor.final_quote_amount as number | string | null)}
-                  </span>
+                <td className="px-2 py-2 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                  {editingVendorId === vendor.id ? (
+                    <input
+                      type="text"
+                      value={editValues.final_quote_amount !== null && editValues.final_quote_amount !== undefined ? `$${formatAmountForInput(editValues.final_quote_amount)}` : ''}
+                      onChange={(e) => {
+                        const parsed = parseAmountInput(e.target.value);
+                        handleEditValueChange('final_quote_amount', parsed);
+                      }}
+                      className="w-full px-2 py-1 text-sm text-center border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="$0.00"
+                      step="0.01"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-slate-800">
+                      {formatAmount(vendor.final_quote_amount as number | string | null)}
+                    </span>
+                  )}
                 </td>
 
                 {/* Pending Phase */}
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 text-center">
                   {(() => {
                     // Check if all phases are completed
                     if (areAllPhasesCompleted(vendor)) {
-                      return 'Completed';
+                      return '—';
                     }
                     
                     const { phases } = getCurrentPhasesWithSoonestFollowUp(vendor);
@@ -292,6 +569,15 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                       if (!haveAnyPhasesStarted(vendor)) {
                         return '—';
                       }
+                      // For normalized structure, show the current active phase or fallback
+                      if (vendor.apm_phases && vendor.apm_phases.length > 0) {
+                        const activePhase = vendor.apm_phases.find(p => p.status !== 'Completed');
+                        if (activePhase) {
+                          return activePhase.phase_name;
+                        }
+                        return 'All Phases Complete';
+                      }
+                      // Fallback to legacy apm_phase
                       return getPhaseDisplayName(vendor.apm_phase);
                     }
                     return phases.map(phase => phase.displayName).join(', ');
@@ -299,7 +585,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Next Follow-up Date */}
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-700 text-center">
                   {(() => {
                     // If all phases completed, no follow-up needed
                     if (areAllPhasesCompleted(vendor)) {
@@ -315,159 +601,203 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Assigned APM User */}
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {getAssignedUserName(vendor.assigned_apm_user)}
+                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-700 text-center" onClick={(e) => e.stopPropagation()}>
+                  {editingVendorId === vendor.id ? (
+                    <select
+                      value={editValues.assigned_apm_user || ''}
+                      onChange={(e) => handleEditValueChange('assigned_apm_user', e.target.value || null)}
+                      className="w-full px-2 py-1 text-sm text-center border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    getAssignedUserName(vendor.assigned_apm_user)
+                  )}
                 </td>
 
                 {/* Actions */}
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button 
-                    className="bg-gray-50 px-3 py-1 rounded text-black hover:bg-gray-200"
-                    onClick={() => handleUpdateVendor(vendor)}
-                  >
-                    Edit
-                  </button>
+                <td className="px-2 py-2 whitespace-nowrap text-sm text-center" onClick={(e) => e.stopPropagation()}>
+                  {editingVendorId === vendor.id ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        className="text-blue-600 hover:text-blue-700 font-semibold text-sm transition-colors cursor-pointer"
+                        onClick={() => handleSaveEdit(vendor)}
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="text-gray-600 hover:text-gray-700 font-semibold text-sm transition-colors cursor-pointer"
+                        onClick={handleCancelEdit}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        className="text-blue-600 hover:text-blue-700 font-semibold text-sm transition-colors cursor-pointer"
+                        onClick={() => handleStartEdit(vendor)}
+                      >
+                        Edit
+                      </button>
+                      {onDeleteVendor && (
+                        <button
+                          className="text-red-600 hover:text-red-700 font-semibold text-sm transition-colors cursor-pointer"
+                          onClick={() => handleDeleteVendor(vendor)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </td>
               </tr>
               
-              {/* Expanded Details Row */}
-              {expandedVendor === vendor.id && (
-                <tr className="bg-gray-50">
-                  <td colSpan={8}>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-blue-100">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-mediums text-gray-500 uppercase tracking-wider">Phase Name</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested Date</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Follow-up Date</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Received Date</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-5/12">Notes</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          
-                          {/* Buy# Row */}
-                          <tr className={getPhaseUrgencyClasses(vendor.buy_number_follow_up_date, vendor.buy_number_received_date)}>
-                            <td className="px-4 py-2 text-sm font-medium text-gray-900">Buy#</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.buy_number_requested_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.buy_number_follow_up_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.buy_number_received_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {vendor.buy_number_notes || '—'}
-                            </td>
-                          </tr>
-                          
-                          {/* Purchase Order Row */}
-                          <tr className={getPhaseUrgencyClasses(vendor.po_follow_up_date, vendor.po_received_date)}>
-                            <td className="px-4 py-2 text-sm font-medium text-gray-900">Purchase Order</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.po_requested_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.po_follow_up_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.po_received_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {vendor.po_notes || '—'}
-                            </td>
-                          </tr>
-                          
-                          {/* Submittal Row */}
-                          <tr className={getPhaseUrgencyClasses(vendor.submittals_follow_up_date, vendor.submittals_received_date)}>
-                            <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                              Submittal
-                              {vendor.submittals_revision_count > 0 && (
-                                <span className="ml-2 text-xs text-blue-600 font-normal">
-                                  (Rev: {vendor.submittals_revision_count})
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.submittals_requested_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.submittals_follow_up_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.submittals_received_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              <div className="space-y-1">
-                                {vendor.submittals_notes && <div>{vendor.submittals_notes}</div>}
-                                {vendor.submittals_rejection_reason && (
-                                  <div className="text-red-600 text-xs">Rejection: {vendor.submittals_rejection_reason}</div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-
-                           {/* Revised Plans Row */}
-                          <tr className={getPhaseUrgencyClasses(vendor.revised_plans_follow_up_date, vendor.revised_plans_confirmed_date)}>
-                            <td className="px-4 py-2 text-sm font-medium text-gray-900">Revised Plans</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.revised_plans_requested_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.revised_plans_follow_up_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.revised_plans_confirmed_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {vendor.revised_plans_notes || '—'}
-                            </td>
-                          </tr>
-                          
-                          {/* Equipment Release Row */}
-                          <tr className={getPhaseUrgencyClasses(vendor.equipment_release_follow_up_date, vendor.equipment_released_date)}>
-                            <td className="px-4 py-2 text-sm font-medium text-gray-900">Equipment Release</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.equipment_release_requested_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.equipment_release_follow_up_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.equipment_released_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {vendor.equipment_release_notes || '—'}
-                            </td>
-                          </tr>
-                          
-                          {/* Closeout Row */}
-                          <tr className={getPhaseUrgencyClasses(vendor.closeout_follow_up_date, vendor.closeout_received_date)}>
-                            <td className="px-4 py-2 text-sm font-medium text-gray-900">Closeout</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.closeout_requested_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.closeout_follow_up_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {formatDateSafe(vendor.closeout_received_date)}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900">
-                              {vendor.closeout_notes || '—'}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+              {/* Expanded Details Row - APM Phases */}
+              {isExpanded && (
+                <tr className={`${index % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-t border-gray-300`}>
+                  <td colSpan={8} className="px-0 py-0">
+                        <table className="min-w-full divide-y divide-gray-300">
+                          <thead className="bg-slate-500">
+                            <tr>
+                              <th className="px-2 py-1 text-left text-xs font-semibold text-white uppercase tracking-wider w-48">Phase Name</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Status</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Requested Date</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Follow-up Date</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Received Date</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-fit">Notes</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-fit">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-300">
+                            {/* Render APM Phases if available */}
+                            {vendor.apm_phases && vendor.apm_phases.length > 0 ? (
+                              vendor.apm_phases.map((phase, phaseIndex) => (
+                                <tr 
+                                  key={phase.id} 
+                                  className={`${phaseIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getPhaseUrgencyClasses(phase.follow_up_date, phase.received_date)}`}
+                                >
+                                  <td className="px-2 py-1 text-sm font-semibold text-slate-900 text-left">
+                                    {phase.phase_name}
+                                    {phase.revision_count > 0 && (
+                                      <span className="ml-2 text-xs text-blue-600 font-normal">
+                                        (Rev: {phase.revision_count})
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-1 text-sm text-slate-800 text-center">
+                                    <span className={`px-2 py-1 text-xs rounded-full font-medium inline-block ${
+                                      phase.status === 'Completed' 
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                        : phase.status === 'Pending' 
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                        : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                    }`}>
+                                      {phase.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center">
+                                    {formatDateSafe(phase.requested_date)}
+                                  </td>
+                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center">
+                                    {formatDateSafe(phase.follow_up_date)}
+                                  </td>
+                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center">
+                                    {formatDateSafe(phase.received_date)}
+                                  </td>
+                                  <td className="px-2 py-1 text-sm text-slate-600 text-center">
+                                    {phase.notes ? (
+                                      <Popover open={openNotePopover === phase.id} onOpenChange={(open) => setOpenNotePopover(open ? phase.id : null)}>
+                                        <PopoverTrigger asChild>
+                                          <button
+                                            className="inline-flex items-center justify-center relative mx-auto"
+                                            onClick={(e) => e.stopPropagation()}
+                                            title="View Notes"
+                                          >
+                                            <DocumentTextIcon className="h-5 w-5 text-slate-600 drop-shadow-[0_0_4px_rgba(71,85,105,0.4)] animate-pulse" style={{ animationDuration: '2s' }} />
+                                            <span className="absolute inset-0 flex items-center justify-center">
+                                              <span className="absolute h-5 w-5 animate-ping text-slate-500 opacity-30" style={{ animationDuration: '3s' }}>
+                                                <DocumentTextIcon className="h-5 w-5" />
+                                              </span>
+                                            </span>
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent 
+                                          className="w-80 p-4 bg-white border border-gray-200 shadow-lg"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <div className="space-y-2">
+                                            <h4 className="text-sm font-semibold text-gray-900 mb-2">Phase Notes</h4>
+                                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                              {phase.notes}
+                                            </p>
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    ) : (
+                                      '—'
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-1 text-sm text-slate-800 text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button
+                                        className="text-blue-600 hover:text-blue-700 font-medium text-xs transition-colors"
+                                        onClick={() => handleEditPhase(vendor, phase)}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        className="text-red-600 hover:text-red-700 font-medium text-xs transition-colors"
+                                        onClick={() => handleDeletePhase(phase)}
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={7} className="px-2 py-4 text-center text-slate-500">
+                                  <div className="space-y-3">
+                                    <p className="text-sm font-medium">No APM phases found for this vendor.</p>
+                                    <button 
+                                      className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm transition-colors font-medium"
+                                      onClick={() => handleAddPhase(vendor)}
+                                    >
+                                      Add First Phase
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            
+                            {/* Add Phase Button Row (when phases exist) */}
+                            {vendor.apm_phases && vendor.apm_phases.length > 0 && (
+                              <tr className="bg-slate-100">
+                                <td colSpan={7} className="px-2 py-2 text-center">
+                                  <button 
+                                    className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm transition-colors font-medium"
+                                    onClick={() => handleAddPhase(vendor)}
+                                  >
+                                    Add New Phase
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                   </td>
                 </tr>
               )}
             </React.Fragment>
-          ))}
+          );
+          })}
         </tbody>
       </table>
       
@@ -480,6 +810,40 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
         isOpen={isSlideOutOpen}
         onOpenChange={setIsSlideOutOpen}
         onUpdate={onUpdateVendor}
+      />
+
+      {/* APM Phase Modal for Add/Edit */}
+      <APMPhaseModal
+        isOpen={isPhaseModalOpen}
+        onClose={() => setIsPhaseModalOpen(false)}
+        onSubmit={handlePhaseModalSubmit}
+        vendor={selectedVendorForPhase}
+        existingPhase={selectedPhase}
+        mode={modalMode}
+      />
+
+      {/* Delete Phase Confirmation Dialog */}
+      <AlertDialog
+        isOpen={deleteConfirmation.isOpen}
+        onClose={cancelDeletePhase}
+        onConfirm={confirmDeletePhase}
+        title={`Delete APM Phase`}
+        message={`Are you sure you want to delete the "${deleteConfirmation.phaseName}" phase? This action cannot be undone.`}
+        confirmText="Delete Phase"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Delete Vendor Confirmation Dialog */}
+      <AlertDialog
+        isOpen={deleteVendorConfirmation.isOpen}
+        onClose={cancelDeleteVendor}
+        onConfirm={confirmDeleteVendor}
+        title={`Remove Vendor from Project`}
+        message={`Are you sure you want to remove "${deleteVendorConfirmation.vendorName}" from this project? This action cannot be undone.`}
+        confirmText="Remove Vendor"
+        cancelText="Cancel"
+        variant="danger"
       />
     </div>
   );

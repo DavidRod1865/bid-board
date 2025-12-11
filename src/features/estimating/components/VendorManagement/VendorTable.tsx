@@ -33,6 +33,16 @@ const VendorTable: React.FC<VendorTableProps> = ({
   onSelectionChange,
 }) => {
   const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
+  
+  // Inline editing state
+  const [editingVendorId, setEditingVendorId] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<{
+    cost_amount: number | string | null;
+    status: string;
+  }>({
+    cost_amount: null,
+    status: '',
+  });
 
   // Dynamic page size management
   const { 
@@ -72,8 +82,122 @@ const VendorTable: React.FC<VendorTableProps> = ({
     onUpdateBidVendor?.(bidVendorId, { is_priority: isPriority });
   }, [onUpdateBidVendor]);
 
+  // Inline editing handlers
+  const handleStartEdit = useCallback((bidVendorId: number) => {
+    const vendor = vendorsWithData.find(v => v.id === bidVendorId);
+    if (vendor) {
+      setEditingVendorId(bidVendorId);
+      setEditValues({
+        cost_amount: vendor.cost_amount,
+        status: vendor.status,
+      });
+    }
+  }, [vendorsWithData]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingVendorId(null);
+    setEditValues({
+      cost_amount: null,
+      status: '',
+    });
+  }, []);
+
+  const handleSaveEdit = useCallback(async (bidVendorId: number) => {
+    const vendor = vendorsWithData.find(v => v.id === bidVendorId);
+    if (!vendor || !onUpdateBidVendor) return;
+
+    try {
+      const updates: Partial<BidVendor> = {};
+      
+      if (editValues.cost_amount !== vendor.cost_amount) {
+        updates.cost_amount = editValues.cost_amount;
+      }
+      if (editValues.status !== vendor.status) {
+        updates.status = editValues.status;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await onUpdateBidVendor(bidVendorId, updates);
+      }
+      
+      setEditingVendorId(null);
+      setEditValues({
+        cost_amount: null,
+        status: '',
+      });
+    } catch (error) {
+      console.error('Failed to save vendor updates:', error);
+    }
+  }, [editValues, vendorsWithData, onUpdateBidVendor]);
+
+  const handleEditValueChange = useCallback((field: 'cost_amount' | 'status', value: any) => {
+    setEditValues(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
+  const handleDeleteVendor = useCallback((bidVendorId: number) => {
+    // For now, we'll just call onRemoveVendors with a single vendor
+    // In the future, this could show a confirmation dialog
+    if (onRemoveVendors) {
+      const vendor = vendorsWithData.find(v => v.id === bidVendorId);
+      if (vendor) {
+        onRemoveVendors([vendor.vendor_id]);
+      }
+    }
+  }, [vendorsWithData, onRemoveVendors]);
+
+  // Helper to parse amount input (remove $ and commas, preserve decimals)
+  const parseAmountInput = useCallback((value: string): number | null => {
+    if (!value || value.trim() === '') return null;
+    const cleaned = value.replace(/[$,]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed;
+  }, []);
+
+  // Helper to format amount for input display (with decimals)
+  const formatAmountForInput = useCallback((amount: number | string | null): string => {
+    if (!amount && amount !== 0) return '';
+    let numValue: number;
+    if (typeof amount === 'number') {
+      numValue = amount;
+    } else if (typeof amount === 'string') {
+      const cleaned = amount.replace(/[$,]/g, '');
+      numValue = parseFloat(cleaned);
+      if (isNaN(numValue)) return '';
+    } else {
+      return '';
+    }
+    return numValue.toFixed(2);
+  }, []);
+
   // Create column definitions
-  const columns = useMemo(() => createBidVendorColumns(onEdit, handlePriorityUpdate), [onEdit, handlePriorityUpdate]);
+  const columns = useMemo(() => createBidVendorColumns(
+    onEdit,
+    handlePriorityUpdate,
+    editingVendorId,
+    editValues,
+    handleStartEdit,
+    handleSaveEdit,
+    handleCancelEdit,
+    handleEditValueChange,
+    handleDeleteVendor,
+    parseAmountInput,
+    formatAmountForInput
+  ), [
+    onEdit,
+    handlePriorityUpdate,
+    editingVendorId,
+    editValues,
+    handleStartEdit,
+    handleSaveEdit,
+    handleCancelEdit,
+    handleEditValueChange,
+    handleDeleteVendor,
+    parseAmountInput,
+    formatAmountForInput
+  ]);
 
   const handleRemoveSelected = () => {
     if (selectedVendors.length > 0 && onRemoveVendors) {

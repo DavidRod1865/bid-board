@@ -42,7 +42,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   selectedBids = new Set(),
   onBidSelect,
   useAPMRouting = false,
-  pageSize = 10,
+  pageSize = 25,
   enablePageSizeSelector = false,
   availablePageSizes = [10, 15, 20, 25, 30, 50],
   onPageSizeChange,

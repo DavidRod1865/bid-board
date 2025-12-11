@@ -66,6 +66,22 @@ export const getDefaultAPMFields = () => ({
   apm_priority: false,
   apm_phase_updated_at: null as string | null,
   
+  // APM Phases (normalized structure)
+  apm_phases: [] as Array<{
+    id: number;
+    project_vendor_id: number;
+    phase_name: string;
+    status: string;
+    requested_date: string | null;
+    follow_up_date: string | null;
+    received_date: string | null;
+    notes: string | null;
+    revision_count: number;
+    last_revision_date: string | null;
+    created_at: string;
+    updated_at: string;
+  }>,
+  
 });
 
 // Helper function to create a new BidVendor with all required fields

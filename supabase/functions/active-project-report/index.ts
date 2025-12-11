@@ -90,11 +90,10 @@ serve(async (req) => {
 
     // Query active projects within 60 days
     const { data: projects, error: projectsError } = await supabaseClient
-      .from('bids')
+      .from('projects')
       .select('*')
       .eq('sent_to_apm', true)
-      .eq('apm_archived', false)
-      .eq('apm_on_hold', false)
+      .eq('apm_activity_cycle', 'Active')
       .not('project_start_date', 'is', null)
       .gte('project_start_date', todayFormatted)
       .lte('project_start_date', sixtyDaysFormatted)
@@ -123,17 +122,17 @@ serve(async (req) => {
     const projectIds = projects.map(p => p.id)
 
     // Get bid vendors
-    const { data: bidVendors, error: bidVendorsError } = await supabaseClient
-      .from('bid_vendors')
+    const { data: projectVendors, error: projectVendorsError } = await supabaseClient
+      .from('project_vendors')
       .select('*')
-      .in('bid_id', projectIds)
+      .in('project_id', projectIds)
 
-    if (bidVendorsError) {
-      throw new Error(`Failed to fetch bid vendors: ${bidVendorsError.message}`)
+    if (projectVendorsError) {
+      throw new Error(`Failed to fetch project vendors: ${projectVendorsError.message}`)
     }
 
     // Get vendors
-    const vendorIds = [...new Set(bidVendors?.map(bv => bv.vendor_id) || [])]
+    const vendorIds = [...new Set(projectVendors?.map(pv => pv.vendor_id) || [])]
     const { data: vendors, error: vendorsError } = await supabaseClient
       .from('vendors')
       .select('*')
@@ -150,7 +149,7 @@ serve(async (req) => {
         *,
         user:users(name, color_preference)
       `)
-      .in('bid_id', projectIds)
+      .in('project_id', projectIds)
       .order('created_at', { ascending: false })
 
     if (notesError) {
@@ -160,7 +159,7 @@ serve(async (req) => {
     // Process the data (already sorted by project_start_date)
     const processedData = processProjectData(
       projects,
-      bidVendors || [],
+      projectVendors || [],
       vendors || [],
       projectNotes || []
     )
@@ -228,35 +227,35 @@ serve(async (req) => {
 
 function processProjectData(
   projects: Record<string, unknown>[],
-  bidVendors: Record<string, unknown>[],
+  projectVendors: Record<string, unknown>[],
   vendors: Record<string, unknown>[],
   projectNotes: Record<string, unknown>[]
 ): ActiveProjectReportData[] {
   return projects.map(project => {
     // Get vendors for this project
-    const projectBidVendors = bidVendors.filter(bv => bv.bid_id === project.id)
-    const projectVendors = projectBidVendors
-      .map(bv => vendors.find(v => v.id === bv.vendor_id))
+    const projectBidVendors = projectVendors.filter(pv => pv.project_id === project.id)
+    const projectVendorsList = projectBidVendors
+      .map(pv => vendors.find(v => v.id === pv.vendor_id))
       .filter(v => v !== undefined)
 
     // Get most recent project note
-    const projectSpecificNotes = projectNotes.filter(note => note.bid_id === project.id)
+    const projectSpecificNotes = projectNotes.filter(note => note.project_id === project.id)
     const mostRecentNote = getMostRecentNote(projectSpecificNotes)
 
     // Get equipment request information for each vendor
-    const equipmentRequestInfo = projectBidVendors.map(bv => {
-      const vendor = vendors.find(v => v.id === bv.vendor_id)
+    const equipmentRequestInfo = projectBidVendors.map(pv => {
+      const vendor = vendors.find(v => v.id === pv.vendor_id)
       return {
-        vendorName: vendor?.company_name || 'Unknown Vendor',
-        equipmentRequestedDate: bv.equipment_release_requested_date,
-        equipmentReleasedDate: bv.equipment_released_date,
-        equipmentReleaseNotes: bv.equipment_release_notes || ''
+        vendorName: (vendor?.company_name as string) || 'Unknown Vendor',
+        equipmentRequestedDate: null, // Legacy field not in normalized structure
+        equipmentReleasedDate: null, // Legacy field not in normalized structure
+        equipmentReleaseNotes: '' // Legacy field not in normalized structure
       }
     })
 
     return {
       project,
-      vendors: projectVendors,
+      vendors: projectVendorsList,
       mostRecentNote,
       equipmentRequestInfo
     }

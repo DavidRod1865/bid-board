@@ -57,7 +57,7 @@ export function DataTable<TData, TValue>({
   getRowBorderColor,
   initialSorting = [],
   enableSorting = true,
-  pageSize = 50,
+  pageSize = 25,
   enablePageSizeSelector = false,
   availablePageSizes = [10, 15, 20, 25, 30, 50],
   onPageSizeChange,
@@ -218,7 +218,7 @@ export function DataTable<TData, TValue>({
                 return (
                   <tr
                   key={row.id}
-                  className={`relative bg-white border-b border-gray-200 transition-all hover:bg-gray-50 cursor-pointer ${
+                  className={`relative bg-white border-b border-gray-200 transition-all hover:bg-slate-100 cursor-pointer ${
                     getRowClassName ? getRowClassName(row.original) : ''
                     }`}
                     style={getRowStyle ? getRowStyle(row.original) : {}}

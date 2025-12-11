@@ -19,13 +19,13 @@ interface DynamicPageSizeReturn {
 export const useDynamicPageSize = (options: UseDynamicPageSizeOptions = {}): DynamicPageSizeReturn => {
   const {
     rowHeight = 60,
-    minPageSize = 5,
+    minPageSize = 25,
     maxPageSize = 50,
     storageKey = 'table-page-size',
     reservedHeight = 440
   } = options;
 
-  const [calculatedPageSize, setCalculatedPageSize] = useState(10);
+  const [calculatedPageSize, setCalculatedPageSize] = useState(25);
   const [manualPageSize, setManualPageSizeState] = useState<number | null>(null);
 
   // Standard page size options for dropdown
@@ -38,8 +38,13 @@ export const useDynamicPageSize = (options: UseDynamicPageSizeOptions = {}): Dyn
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       const parsed = parseInt(saved, 10);
+      // Only load if valid and >= minPageSize (25 by default)
+      // If saved value is less than minPageSize, ignore it and use calculated/default
       if (!isNaN(parsed) && parsed >= minPageSize && parsed <= maxPageSize) {
         setManualPageSizeState(parsed);
+      } else if (!isNaN(parsed) && parsed < minPageSize) {
+        // Clear invalid saved value that's below minimum
+        localStorage.removeItem(storageKey);
       }
     }
   }, [storageKey, minPageSize, maxPageSize]);
@@ -92,7 +97,8 @@ export const useDynamicPageSize = (options: UseDynamicPageSizeOptions = {}): Dyn
   };
 
   // Use manual override if set, otherwise use calculated size
-  const effectivePageSize = manualPageSize ?? calculatedPageSize;
+  // Ensure effective page size is never less than minPageSize (25 by default)
+  const effectivePageSize = Math.max(minPageSize, manualPageSize ?? calculatedPageSize);
 
   return {
     pageSize: effectivePageSize,

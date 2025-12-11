@@ -13,50 +13,49 @@ class AnalyticsService {
    */
   async getBidCompletionAnalytics(dateRange: { startDate: Date; endDate: Date }): Promise<BidCompletionAnalytics[]> {
     try {
-      const { data: bids, error } = await supabase
-        .from('bids')
+      const { data: projects, error } = await supabase
+        .from('projects')
         .select(`
           id,
-          title,
           project_name,
           created_at,
-          due_date,
+          est_due_date,
           status,
           completed_at,
           updated_at
         `)
         .gte('created_at', dateRange.startDate.toISOString())
         .lte('created_at', dateRange.endDate.toISOString())
-        .not('archived', 'eq', true);
+        .not('est_activity_cycle', 'eq', 'Archived');
 
       if (error) throw error;
 
-      return (bids || []).map(bid => {
+      return (projects || []).map(project => {
         // Calculate completion hours
         let completion_hours = null;
         let completion_status: 'On Time' | 'Late' | 'Overdue' | 'In Progress' = 'In Progress';
 
-        if (bid.completed_at) {
-          const created = parseISO(bid.created_at);
-          const completed = parseISO(bid.completed_at);
+        if (project.completed_at) {
+          const created = parseISO(project.created_at);
+          const completed = parseISO(project.completed_at);
           completion_hours = Math.round((differenceInHours(completed, created) * 10)) / 10;
           
-          const dueDate = parseISO(bid.due_date);
+          const dueDate = parseISO(project.est_due_date);
           completion_status = completed <= dueDate ? 'On Time' : 'Late';
-        } else if (new Date() > parseISO(bid.due_date)) {
+        } else if (new Date() > parseISO(project.est_due_date)) {
           completion_status = 'Overdue';
         }
 
         return {
-          id: bid.id,
-          title: bid.title || 'Untitled',
-          project_name: bid.project_name,
+          id: project.id,
+          title: project.project_name || 'Untitled',
+          project_name: project.project_name,
           completion_hours,
           completion_status,
-          created_at: bid.created_at,
-          due_date: bid.due_date,
-          status: bid.status,
-          completed_at: bid.completed_at
+          created_at: project.created_at,
+          due_date: project.est_due_date,
+          status: project.status,
+          completed_at: project.completed_at
         } as BidCompletionAnalytics;
       });
     } catch (error) {
@@ -70,17 +69,18 @@ class AnalyticsService {
    */
   async getVendorResponseAnalytics(dateRange: { startDate: Date; endDate: Date }): Promise<VendorResponseAnalytics[]> {
     try {
-      const { data: bidVendors, error } = await supabase
-        .from('bid_vendors')
+      const { data: projectVendors, error } = await supabase
+        .from('project_vendors')
         .select(`
           vendor_id,
-          email_sent_date,
-          response_received_date,
+          created_at,
+          est_responses!inner(
+            response_received_date
+          ),
           vendors!inner(company_name)
         `)
-        .not('email_sent_date', 'is', null)
-        .gte('email_sent_date', dateRange.startDate.toISOString())
-        .lte('email_sent_date', dateRange.endDate.toISOString());
+        .gte('created_at', dateRange.startDate.toISOString())
+        .lte('created_at', dateRange.endDate.toISOString());
 
       if (error) throw error;
 
@@ -91,17 +91,17 @@ class AnalyticsService {
         responses: Array<{ email_sent_date: string; response_received_date: string | null }>;
       }>();
 
-      (bidVendors || []).forEach(bv => {
-        if (!vendorMap.has(bv.vendor_id)) {
-          vendorMap.set(bv.vendor_id, {
-            vendor_id: bv.vendor_id,
-            company_name: (bv.vendors as any).company_name,
+      (projectVendors || []).forEach((pv: any) => {
+        if (!vendorMap.has(pv.vendor_id)) {
+          vendorMap.set(pv.vendor_id, {
+            vendor_id: pv.vendor_id,
+            company_name: pv.vendors.company_name,
             responses: []
           });
         }
-        vendorMap.get(bv.vendor_id)!.responses.push({
-          email_sent_date: bv.email_sent_date,
-          response_received_date: bv.response_received_date
+        vendorMap.get(pv.vendor_id)!.responses.push({
+          email_sent_date: pv.created_at, // Use project_vendor creation as email sent
+          response_received_date: pv.est_responses?.response_received_date || null
         });
       });
 
@@ -167,25 +167,25 @@ class AnalyticsService {
    */
   private async getCompletionTimeByStatusFallback() {
     try {
-      const { data: bids, error } = await supabase
-        .from('bids')
+      const { data: projects, error } = await supabase
+        .from('projects')
         .select('id, status, created_at, completed_at')
         .not('completed_at', 'is', null)
-        .not('archived', 'eq', true);
+        .not('est_activity_cycle', 'eq', 'Archived');
 
       if (error) throw error;
 
       const statusGroups = new Map<string, number[]>();
       
-      (bids || []).forEach(bid => {
-        if (!statusGroups.has(bid.status)) {
-          statusGroups.set(bid.status, []);
+      (projects || []).forEach(project => {
+        if (!statusGroups.has(project.status)) {
+          statusGroups.set(project.status, []);
         }
         
-        const created = parseISO(bid.created_at);
-        const completed = parseISO(bid.completed_at);
+        const created = parseISO(project.created_at);
+        const completed = parseISO(project.completed_at);
         const hours = differenceInHours(completed, created);
-        statusGroups.get(bid.status)!.push(hours);
+        statusGroups.get(project.status)!.push(hours);
       });
 
       return Array.from(statusGroups.entries()).map(([status, hours]) => ({
@@ -225,15 +225,16 @@ class AnalyticsService {
    */
   private async getVendorResponseMetricsFallback() {
     try {
-      const { data: bidVendors, error } = await supabase
-        .from('bid_vendors')
+      const { data: projectVendors, error } = await supabase
+        .from('project_vendors')
         .select(`
           vendor_id,
-          email_sent_date,
-          response_received_date,
+          created_at,
+          est_responses(
+            response_received_date
+          ),
           vendors!inner(company_name)
-        `)
-        .not('email_sent_date', 'is', null);
+        `);
 
       if (error) throw error;
 
@@ -245,24 +246,24 @@ class AnalyticsService {
         response_times: number[];
       }>();
 
-      (bidVendors || []).forEach(bv => {
-        if (!vendorMap.has(bv.vendor_id)) {
-          vendorMap.set(bv.vendor_id, {
-            vendor_id: bv.vendor_id,
-            vendor_name: (bv.vendors as any).company_name,
+      (projectVendors || []).forEach((pv: any) => {
+        if (!vendorMap.has(pv.vendor_id)) {
+          vendorMap.set(pv.vendor_id, {
+            vendor_id: pv.vendor_id,
+            vendor_name: pv.vendors.company_name,
             total_requests: 0,
             responses: 0,
             response_times: []
           });
         }
 
-        const vendor = vendorMap.get(bv.vendor_id)!;
+        const vendor = vendorMap.get(pv.vendor_id)!;
         vendor.total_requests++;
 
-        if (bv.response_received_date) {
+        if (pv.est_responses?.response_received_date) {
           vendor.responses++;
-          const sent = parseISO(bv.email_sent_date);
-          const responded = parseISO(bv.response_received_date);
+          const sent = parseISO(pv.created_at);
+          const responded = parseISO(pv.est_responses.response_received_date);
           vendor.response_times.push(differenceInHours(responded, sent));
         }
       });
@@ -448,20 +449,20 @@ class AnalyticsService {
    */
   async getActiveBidsStatusData(): Promise<{ status: string; count: number; percentage: number }[]> {
     try {
-      // Fetch active bids with false archived status
-      const { data: bids, error } = await supabase
-        .from('bids')
+      // Fetch active projects 
+      const { data: projects, error } = await supabase
+        .from('projects')
         .select('status')
-        .eq('archived', false);
+        .eq('est_activity_cycle', 'Active');
 
       if (error) throw error;
 
-      // Count bids by status
+      // Count projects by status
       const statusCounts = new Map<string, number>();
-      const totalBids = bids?.length || 0;
+      const totalProjects = projects?.length || 0;
 
-      (bids || []).forEach(bid => {
-        const status = bid.status;
+      (projects || []).forEach((project: any) => {
+        const status = project.status;
         statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
       });
 
@@ -469,7 +470,7 @@ class AnalyticsService {
       return Array.from(statusCounts.entries()).map(([status, count]) => ({
         status,
         count,
-        percentage: totalBids > 0 ? Math.round((count / totalBids) * 100) : 0
+        percentage: totalProjects > 0 ? Math.round((count / totalProjects) * 100) : 0
       }));
     } catch (error) {
       console.error('Error fetching active bids status data:', error);

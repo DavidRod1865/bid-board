@@ -62,38 +62,58 @@ export interface VendorWithContact extends Vendor {
 }
 
 export interface Bid {
+  // Core project fields from projects table
   id: number;
-  title: string;
   project_name: string;
   project_email: string | null;
   project_address: string | null;
-  general_contractor: string | null;
+  general_contractor: string | null;  // Computed from old_general_contractor in view
   project_description: string | null;
-  due_date: string;
   status: string;
   priority: boolean;
   estimated_value: number | null;
   notes: string | null;
   created_by: string | null;
-  assign_to: string | null;
   file_location: string | null;
-  archived: boolean;
+  
+  // Computed boolean fields from activity cycle enums
+  archived: boolean;  // Computed from est_activity_cycle = 'Archived'
   archived_at: string | null;
   archived_by: string | null;
-  on_hold: boolean;
+  on_hold: boolean;  // Computed from est_activity_cycle = 'On Hold'
   on_hold_at: string | null;
   on_hold_by: string | null;
+  
+  // Team and workflow fields
   department?: string;
   sent_to_apm: boolean;
   sent_to_apm_at: string | null;
-  apm_on_hold: boolean;
+  
+  // APM computed fields
+  apm_on_hold: boolean;  // Computed from apm_activity_cycle = 'On Hold'
   apm_on_hold_at: string | null;
-  apm_archived: boolean;
+  apm_archived: boolean;  // Computed from apm_activity_cycle = 'Archived'
   apm_archived_at: string | null;
+  
+  // Additional fields
   gc_system: 'Procore' | 'AutoDesk' | 'Email' | 'Other' | null;
+  gc_contact_id: number | null;  // Foreign key to vendor_contacts table
   added_to_procore: boolean;
   made_by_apm: boolean;
   project_start_date: string | null;
+  
+  // Legacy compatibility fields (required for existing components)
+  title: string;  // Alias for project_name
+  due_date: string;  // Legacy field name (maps to est_due_date in database)
+  assign_to: string | null;  // Legacy field name (maps to assigned_to in database)
+  
+  // Database field names (optional for backward compatibility during transition)
+  est_due_date?: string;  // Optional during transition
+  assigned_to?: string | null;  // Optional during transition
+  
+  // Timestamps
+  created_at?: string;
+  updated_at?: string;
 }
 
 // New normalized table types
@@ -232,6 +252,22 @@ export interface BidVendor {
   apm_priority: boolean;
   apm_phase_updated_at: string | null;
   
+  // APM Phases (normalized structure)
+  apm_phases?: Array<{
+    id: number;
+    project_vendor_id: number;
+    phase_name: string;
+    status: string;
+    requested_date: string | null;
+    follow_up_date: string | null;
+    received_date: string | null;
+    notes: string | null;
+    revision_count: number;
+    last_revision_date: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+  
 }
 
 export interface EmailLog {
@@ -275,8 +311,8 @@ export interface ProjectNote {
 export interface DashboardData {
   users: User[];
   vendors: Vendor[];
-  bids: Bid[];
-  bid_vendors: BidVendor[];
+  projects: Bid[]; // Projects table data (using Bid interface for now)
+  bidVendors: BidVendor[]; // Computed from project_vendors + est_responses + project_financials + apm_phases
   email_logs: EmailLog[];
   user_presence: UserPresence[];
   activity_log: ActivityLog[];

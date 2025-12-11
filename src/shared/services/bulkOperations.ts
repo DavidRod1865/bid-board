@@ -17,13 +17,11 @@ class BulkOperationsService {
 
     const results = await Promise.allSettled(
       bidIds.map(bidId => 
+        // Move to active by clearing both archive and hold status
         dbOperations.updateBid(bidId, {
           on_hold: false,
-          on_hold_at: null,
-          on_hold_by: null,
           archived: false,
-          archived_at: null,
-          archived_by: null
+          updated_at: new Date().toISOString()
         })
       )
     );
@@ -54,14 +52,10 @@ class BulkOperationsService {
 
     const results = await Promise.allSettled(
       bidIds.map(bidId => 
-        // First clear on-hold status, then archive
+        // Archive projects using new activity cycle approach
         dbOperations.updateBid(bidId, {
-          on_hold: false,
-          on_hold_at: null,
-          on_hold_by: null,
           archived: true,
-          archived_at: new Date().toISOString(),
-          archived_by: null // Using null for now
+          updated_at: new Date().toISOString(),
         })
       )
     );
@@ -94,12 +88,7 @@ class BulkOperationsService {
       bidIds.map(bidId => 
         dbOperations.updateBid(bidId, {
           on_hold: true,
-          on_hold_at: new Date().toISOString(),
-          on_hold_by: null, // TODO: Get current user ID
-          // Also unarchive if the item was archived
-          archived: false,
-          archived_at: null,
-          archived_by: null
+          updated_at: new Date().toISOString(),
         })
       )
     );
@@ -185,9 +174,8 @@ class BulkOperationsService {
       bidIds.map(bidId => 
         dbOperations.updateBid(bidId, {
           apm_on_hold: false,
-          apm_on_hold_at: null,
           apm_archived: false,
-          apm_archived_at: null
+          updated_at: new Date().toISOString()
         })
       )
     );
@@ -219,9 +207,8 @@ class BulkOperationsService {
       bidIds.map(bidId => 
         dbOperations.updateBid(bidId, {
           apm_on_hold: false,
-          apm_on_hold_at: null,
           apm_archived: true,
-          apm_archived_at: new Date().toISOString()
+          updated_at: new Date().toISOString()
         })
       )
     );
@@ -253,9 +240,8 @@ class BulkOperationsService {
       bidIds.map(bidId => 
         dbOperations.updateBid(bidId, {
           apm_archived: false,
-          apm_archived_at: null,
           apm_on_hold: true,
-          apm_on_hold_at: new Date().toISOString()
+          updated_at: new Date().toISOString()
         })
       )
     );
@@ -287,11 +273,11 @@ class BulkOperationsService {
       bidIds.map(bidId => 
         dbOperations.updateBid(bidId, {
           sent_to_apm: false,
-          sent_to_apm_at: null,
+
           apm_on_hold: false,
-          apm_on_hold_at: null,
+
           apm_archived: false,
-          apm_archived_at: null
+          updated_at: new Date().toISOString()
         })
       )
     );
@@ -323,7 +309,7 @@ class BulkOperationsService {
       bidIds.map(bidId => 
         dbOperations.updateBid(bidId, {
           sent_to_apm: true,
-          sent_to_apm_at: new Date().toISOString()
+          updated_at: new Date().toISOString()
         })
       )
     );

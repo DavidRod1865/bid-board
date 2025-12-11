@@ -13,38 +13,27 @@ interface BidVendorWithVendor extends BidVendor {
 
 export function createBidVendorColumns(
   onEdit?: (vendorId: number) => void,
-  onUpdatePriority?: (bidVendorId: number, isPriority: boolean) => void
+  onUpdatePriority?: (bidVendorId: number, isPriority: boolean) => void,
+  editingVendorId?: number | null,
+  editValues?: { cost_amount: number | string | null; status: string },
+  onStartEdit?: (bidVendorId: number) => void,
+  onSaveEdit?: (bidVendorId: number) => void,
+  onCancelEdit?: () => void,
+  onEditValueChange?: (field: 'cost_amount' | 'status', value: any) => void,
+  onDeleteVendor?: (bidVendorId: number) => void,
+  parseAmountInput?: (value: string) => number | null,
+  formatAmountForInput?: (amount: number | string | null) => string
 ): ColumnDef<BidVendorWithVendor>[] {
   return [
-    {
-      id: "vendor",
-      accessorKey: "vendor.company_name",
-      meta: {
-        width: "w-[23%]",
-      },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Vendor" />
-      ),
-      cell: ({ row }) => {
-        const bidVendor = row.original;
-        return (
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-900 text-sm">
-              {bidVendor.vendor?.company_name || 'Unknown Vendor'}
-            </span>
-          </div>
-        );
-      },
-    },
     {
       id: "priority",
       accessorKey: "is_priority",
       meta: {
-        width: "w-[8%]",
+        width: "w-12",
       },
       header: () => (
-        <div className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-          Priority
+        <div className="flex items-center justify-center w-fit -mr-2">
+          <StarOutline className="w-5 h-5 text-gray-400" />
         </div>
       ),
       cell: ({ row }) => {
@@ -52,7 +41,7 @@ export function createBidVendorColumns(
         const isPriority = bidVendor.is_priority;
         
         return (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center w-fit -mr-2">
             <button
               onClick={() => onUpdatePriority?.(bidVendor.id, !isPriority)}
               className="p-1 rounded hover:bg-gray-100 transition-colors"
@@ -76,16 +65,102 @@ export function createBidVendorColumns(
       },
     },
     {
+      id: "vendor",
+      accessorKey: "vendor.company_name",
+      meta: {
+        width: "w-auto",
+      },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Vendor" />
+      ),
+      cell: ({ row }) => {
+        const bidVendor = row.original;
+        return (
+          <div className="flex items-center gap-2 -ml-2">
+            <span className="font-medium text-gray-900 text-sm">
+              {bidVendor.vendor?.company_name || 'Unknown Vendor'}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      id: "status",
+      accessorKey: "status",
+      meta: {
+        width: "w-auto",
+      },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" center />
+      ),
+      cell: ({ row }) => {
+        const bidVendor = row.original;
+        const isEditing = editingVendorId === bidVendor.id;
+        
+        if (isEditing && onEditValueChange) {
+          return (
+            <div className="text-center">
+              <select
+                value={editValues?.status || bidVendor.status}
+                onChange={(e) => onEditValueChange('status', e.target.value)}
+                className="border border-blue-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="pending">PENDING</option>
+                <option value="yes bid">YES BID</option>
+                <option value="no bid">NO BID</option>
+              </select>
+            </div>
+          );
+        }
+        
+        return (
+          <div className="text-center">
+            <span
+              className={`text-xs font-medium px-2 py-1 rounded-full ${getVendorStatusColor(
+                bidVendor.status
+              )}`}
+            >
+              {bidVendor.status.toUpperCase()}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
       id: "cost_amount",
       accessorKey: "cost_amount",
       meta: {
-        width: "w-[14%]",
+        width: "w-auto",
       },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Cost Amount" center />
       ),
       cell: ({ row }) => {
         const bidVendor = row.original;
+        const isEditing = editingVendorId === bidVendor.id;
+        
+        if (isEditing && onEditValueChange && formatAmountForInput) {
+          return (
+            <div className="flex items-center justify-center">
+              <input
+                type="text"
+                value={editValues?.cost_amount !== null && editValues?.cost_amount !== undefined ? `$${formatAmountForInput(editValues.cost_amount)}` : ''}
+                onChange={(e) => {
+                  if (parseAmountInput) {
+                    const parsed = parseAmountInput(e.target.value);
+                    onEditValueChange('cost_amount', parsed);
+                  }
+                }}
+                className="w-full px-2 py-1 text-sm text-center border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="$0.00"
+                step="0.01"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          );
+        }
+        
         return (
           <div className="flex items-center justify-center">
             {bidVendor.cost_amount !== null && bidVendor.cost_amount !== undefined ? (
@@ -108,7 +183,7 @@ export function createBidVendorColumns(
       id: "response_received_date",
       accessorKey: "response_received_date",
       meta: {
-        width: "w-[14%]",
+        width: "w-auto",
       },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Response Date" center />
@@ -137,7 +212,7 @@ export function createBidVendorColumns(
       id: "due_date",
       accessorKey: "due_date",
       meta: {
-        width: "w-[14%]",
+        width: "w-auto",
       },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Due Date" center />
@@ -181,30 +256,6 @@ export function createBidVendorColumns(
       },
     },
     {
-      id: "status",
-      accessorKey: "status",
-      meta: {
-        width: "w-[12%]",
-      },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Status" center />
-      ),
-      cell: ({ row }) => {
-        const bidVendor = row.original;
-        return (
-          <div className="text-center">
-            <span
-              className={`text-xs font-medium px-2 py-1 rounded-full ${getVendorStatusColor(
-                bidVendor.status
-              )}`}
-            >
-              {bidVendor.status.toUpperCase()}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
       id: "actions",
       meta: {
         width: "w-[15%]",
@@ -216,15 +267,55 @@ export function createBidVendorColumns(
       ),
       cell: ({ row }) => {
         const bidVendor = row.original;
+        const isEditing = editingVendorId === bidVendor.id;
+        
+        if (isEditing) {
+          return (
+            <div className="flex items-center justify-center gap-3">
+              <button
+                className="text-blue-600 hover:text-blue-700 font-semibold text-sm transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSaveEdit?.(bidVendor.id);
+                }}
+              >
+                Save
+              </button>
+              <button
+                className="text-gray-600 hover:text-gray-700 font-semibold text-sm transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancelEdit?.();
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          );
+        }
+        
         return (
-          <div className="text-center">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => onEdit?.(bidVendor.vendor?.id || bidVendor.vendor_id)}
+          <div className="flex items-center justify-center gap-3">
+            <button
+              className="text-blue-600 hover:text-blue-700 font-semibold text-sm transition-colors cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartEdit?.(bidVendor.id);
+              }}
             >
               Edit
-            </Button>
+            </button>
+            {onDeleteVendor && (
+              <button
+                className="text-red-600 hover:text-red-700 font-semibold text-sm transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteVendor(bidVendor.id);
+                }}
+              >
+                Delete
+              </button>
+            )}
           </div>
         );
       },

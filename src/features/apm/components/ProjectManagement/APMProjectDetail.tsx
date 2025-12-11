@@ -38,6 +38,7 @@ import {
   CheckIcon,
   XMarkIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import {
   DropdownMenu,
@@ -61,6 +62,266 @@ interface APMProjectDetailProps {
     vendorData: Partial<BidVendor>
   ) => Promise<void>;
 }
+
+// Equipment Table Component
+interface EquipmentTableProps {
+  bidVendors: BidVendor[];
+  vendors: Vendor[];
+  selectedIds: Set<number>;
+  onSelectionChange: (id: number, selected: boolean) => void;
+  onSelectAll: (selected: boolean) => void;
+}
+
+const EquipmentTable: React.FC<EquipmentTableProps> = ({ 
+  bidVendors, 
+  vendors, 
+  selectedIds,
+  onSelectionChange,
+  onSelectAll,
+}) => {
+  const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
+
+  const getVendorName = (vendorId: number) => {
+    return vendors.find(v => v.id === vendorId)?.company_name || 'Unknown Vendor';
+  };
+
+  const toggleExpanded = (vendorId: number) => {
+    setExpandedVendor(expandedVendor === vendorId ? null : vendorId);
+  };
+
+  const allSelected = bidVendors.length > 0 && bidVendors.every(v => selectedIds.has(v.id));
+  const someSelected = bidVendors.some(v => selectedIds.has(v.id));
+
+  return (
+    <div className="border border-gray-300">
+      <table className="min-w-full divide-y divide-gray-300">
+        <thead className="bg-slate-700">
+          <tr>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider w-12">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={(checked) => onSelectAll(checked === true)}
+                className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
+              />
+            </th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
+              Vendor
+            </th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
+              Original Quote
+            </th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
+              Final Quote
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-300">
+          {bidVendors.map((vendor, index) => {
+            const isExpanded = expandedVendor === vendor.id;
+            const isSelected = selectedIds.has(vendor.id);
+            const rowClasses = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+            
+            return (
+              <React.Fragment key={vendor.id}>
+                <tr 
+                  className={`${rowClasses} hover:bg-slate-100 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                >
+                  <td className="px-2 py-2 whitespace-nowrap">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => {
+                        onSelectionChange(vendor.id, checked === true);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
+                    />
+                  </td>
+                  <td 
+                    className="px-2 py-2 whitespace-nowrap cursor-pointer"
+                    onClick={() => toggleExpanded(vendor.id)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpanded(vendor.id);
+                        }}
+                        className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                      >
+                        {isExpanded ? (
+                          <ChevronDownIcon className="h-4 w-4 text-gray-600" />
+                        ) : (
+                          <ChevronRightIcon className="h-4 w-4 text-gray-600" />
+                        )}
+                      </button>
+                      <span className="text-sm font-semibold text-slate-900">
+                        {getVendorName(vendor.vendor_id)}
+                      </span>
+                    </div>
+                  </td>
+                  <td 
+                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
+                    onClick={() => toggleExpanded(vendor.id)}
+                  >
+                    {vendor.cost_amount ? `$${Number(vendor.cost_amount).toLocaleString()}` : '—'}
+                  </td>
+                  <td 
+                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
+                    onClick={() => toggleExpanded(vendor.id)}
+                  >
+                    {vendor.final_quote_amount ? `$${Number(vendor.final_quote_amount).toLocaleString()}` : '—'}
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={4} className="px-0 py-0">
+                      <div className="bg-gray-50 border-t border-gray-200">
+                        <div className="p-4">
+                          <div className="text-sm text-gray-600 mb-2">Equipment items will be added here</div>
+                          {/* Equipment items will be added here later */}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// Schedule Table Component
+interface ScheduleTableProps {
+  bidVendors: BidVendor[];
+  vendors: Vendor[];
+  selectedIds: Set<number>;
+  onSelectionChange: (id: number, selected: boolean) => void;
+  onSelectAll: (selected: boolean) => void;
+}
+
+const ScheduleTable: React.FC<ScheduleTableProps> = ({ 
+  bidVendors, 
+  vendors, 
+  selectedIds,
+  onSelectionChange,
+  onSelectAll,
+}) => {
+  const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
+
+  const getVendorName = (vendorId: number) => {
+    return vendors.find(v => v.id === vendorId)?.company_name || 'Unknown Vendor';
+  };
+
+  const toggleExpanded = (vendorId: number) => {
+    setExpandedVendor(expandedVendor === vendorId ? null : vendorId);
+  };
+
+  const allSelected = bidVendors.length > 0 && bidVendors.every(v => selectedIds.has(v.id));
+  const someSelected = bidVendors.some(v => selectedIds.has(v.id));
+
+  return (
+    <div className="border border-gray-300">
+      <table className="min-w-full divide-y divide-gray-300">
+        <thead className="bg-slate-700">
+          <tr>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider w-12">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={(checked) => onSelectAll(checked === true)}
+                className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
+              />
+            </th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
+              Vendor
+            </th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
+              Original Quote
+            </th>
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
+              Final Quote
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-300">
+          {bidVendors.map((vendor, index) => {
+            const isExpanded = expandedVendor === vendor.id;
+            const isSelected = selectedIds.has(vendor.id);
+            const rowClasses = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+            
+            return (
+              <React.Fragment key={vendor.id}>
+                <tr 
+                  className={`${rowClasses} hover:bg-slate-100 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                >
+                  <td className="px-2 py-2 whitespace-nowrap">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => {
+                        onSelectionChange(vendor.id, checked === true);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37]"
+                    />
+                  </td>
+                  <td 
+                    className="px-2 py-2 whitespace-nowrap cursor-pointer"
+                    onClick={() => toggleExpanded(vendor.id)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpanded(vendor.id);
+                        }}
+                        className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                      >
+                        {isExpanded ? (
+                          <ChevronDownIcon className="h-4 w-4 text-gray-600" />
+                        ) : (
+                          <ChevronRightIcon className="h-4 w-4 text-gray-600" />
+                        )}
+                      </button>
+                      <span className="text-sm font-semibold text-slate-900">
+                        {getVendorName(vendor.vendor_id)}
+                      </span>
+                    </div>
+                  </td>
+                  <td 
+                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
+                    onClick={() => toggleExpanded(vendor.id)}
+                  >
+                    {vendor.cost_amount ? `$${Number(vendor.cost_amount).toLocaleString()}` : '—'}
+                  </td>
+                  <td 
+                    className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 cursor-pointer"
+                    onClick={() => toggleExpanded(vendor.id)}
+                  >
+                    {vendor.final_quote_amount ? `$${Number(vendor.final_quote_amount).toLocaleString()}` : '—'}
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={4} className="px-0 py-0">
+                      <div className="bg-gray-50 border-t border-gray-200">
+                        <div className="p-4">
+                          <div className="text-sm text-gray-600 mb-2">Schedule items will be added here</div>
+                          {/* Schedule items will be added here later */}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   bid,
@@ -108,10 +369,31 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   // Tab state for bottom panel
   const [activeTab, setActiveTab] = useState("vendors");
 
+  // Handler to switch tabs and clear selections
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    // Clear selections when switching tabs
+    setSelectedEquipmentIds(new Set());
+    setSelectedScheduleIds(new Set());
+  };
+
   // Vendor selection state for APM vendor table
   const [selectedVendorIds, setSelectedVendorIds] = useState<Set<number>>(
     new Set()
   );
+
+  // Selection state for equipment and schedule tabs
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [selectedScheduleIds, setSelectedScheduleIds] = useState<Set<number>>(
+    new Set()
+  );
+
+  // Modal state for bulk delete
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [itemsToDelete, setItemsToDelete] = useState<number[]>([]);
+  const [deleteType, setDeleteType] = useState<"equipment" | "schedule" | null>(null);
 
   const getVendorById = (vendorId: number) =>
     vendors.find((v) => v.id === vendorId);
@@ -124,6 +406,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
     project_name: bid.project_name,
     project_address: bid.project_address || "",
     general_contractor: bid.general_contractor || "",
+    gc_contact_id: (bid as any).gc_contact_id || null,
     project_description: bid.project_description || "",
     estimated_value: bid.estimated_value || 0,
     created_by: bid.created_by || "",
@@ -134,22 +417,26 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
     project_start_date: bid.project_start_date,
   });
 
+  // State for GC contacts
+  const [gcContacts, setGcContacts] = useState<any[]>([]);
+  const [loadingGcContacts, setLoadingGcContacts] = useState(false);
+
   // Data is now provided via props from AppContent - no local loading needed
 
-  // Set up real-time subscriptions for bid_vendors changes
+  // Set up real-time subscriptions for project_vendors changes
   useEffect(() => {
     const channel = supabase
-      .channel("apm_project_detail_bid_vendors")
+      .channel("apm_project_detail_project_vendors")
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "bid_vendors",
-          filter: `bid_id=eq.${bid.id}`,
+          table: "project_vendors",
+          filter: `project_id=eq.${bid.id}`,
         },
         () => {
-          // Since we're receiving bid_vendors via props, the parent component
+          // Since we're receiving project_vendors via props, the parent component
           // should handle the real-time updates. This subscription ensures
           // immediate feedback for any changes made within this component.
         }
@@ -181,6 +468,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
       project_name: bid.project_name,
       project_address: bid.project_address || "",
       general_contractor: bid.general_contractor || "",
+      gc_contact_id: (bid as any).gc_contact_id || null,
       project_description: bid.project_description || "",
       estimated_value: bid.estimated_value || 0,
       created_by: bid.created_by || "",
@@ -192,6 +480,41 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
     });
   }, [bid]);
 
+  // Fetch GC contacts when general contractor is selected
+  useEffect(() => {
+    const fetchGcContacts = async () => {
+      const gcName = isEditing ? formData.general_contractor : bid.general_contractor;
+      
+      if (!gcName) {
+        setGcContacts([]);
+        return;
+      }
+
+      // Find vendor by company name
+      const gcVendor = vendors.find(
+        (v) => v.company_name.toLowerCase() === gcName.toLowerCase()
+      );
+
+      if (!gcVendor) {
+        setGcContacts([]);
+        return;
+      }
+
+      setLoadingGcContacts(true);
+      try {
+        const contacts = await dbOperations.getVendorContacts(gcVendor.id);
+        setGcContacts(contacts || []);
+      } catch (error) {
+        console.error('Error fetching GC contacts:', error);
+        setGcContacts([]);
+      } finally {
+        setLoadingGcContacts(false);
+      }
+    };
+
+    fetchGcContacts();
+  }, [formData.general_contractor, bid.general_contractor, isEditing, vendors]);
+
   const handleSave = async () => {
     try {
       // Convert empty strings to null for UUID fields and other fields that require null
@@ -202,6 +525,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
         // Ensure proper formatting for new fields
         gc_system: formData.gc_system || null,
         added_to_procore: Boolean(formData.added_to_procore),
+        gc_contact_id: formData.gc_contact_id || null,
       };
       await onUpdateBid(bid.id, dataToSave);
       setIsEditing(false);
@@ -222,6 +546,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
       project_name: bid.project_name,
       project_address: bid.project_address || "",
       general_contractor: bid.general_contractor || "",
+      gc_contact_id: (bid as any).gc_contact_id || null,
       project_description: bid.project_description || "",
       estimated_value: bid.estimated_value || 0,
       created_by: bid.created_by || "",
@@ -281,6 +606,145 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           ? error.message
           : "Failed to update vendor workflow"
       );
+    }
+  };
+
+  const handleDeleteVendor = async (bidVendorId: number) => {
+    try {
+      await dbOperations.removeVendorFromBid(bidVendorId);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to remove vendor from project"
+      );
+      throw error; // Re-throw so the table can handle it
+    }
+  };
+
+  // Equipment and Schedule selection handlers
+  const handleEquipmentSelectionChange = (id: number, selected: boolean) => {
+    setSelectedEquipmentIds((prev) => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleEquipmentSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedEquipmentIds(new Set(projectVendors.map((v) => v.id)));
+    } else {
+      setSelectedEquipmentIds(new Set());
+    }
+  };
+
+  const handleScheduleSelectionChange = (id: number, selected: boolean) => {
+    setSelectedScheduleIds((prev) => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleScheduleSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedScheduleIds(new Set(projectVendors.map((v) => v.id)));
+    } else {
+      setSelectedScheduleIds(new Set());
+    }
+  };
+
+  // Bulk delete handlers
+  const handleBulkDeleteEquipment = () => {
+    if (selectedEquipmentIds.size === 0) return;
+    setItemsToDelete(Array.from(selectedEquipmentIds));
+    setDeleteType("equipment");
+    setShowBulkDeleteModal(true);
+  };
+
+  const handleBulkDeleteSchedule = () => {
+    if (selectedScheduleIds.size === 0) return;
+    setItemsToDelete(Array.from(selectedScheduleIds));
+    setDeleteType("schedule");
+    setShowBulkDeleteModal(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      setIsVendorLoading(true);
+
+      // Delete all selected items
+      await Promise.all(
+        itemsToDelete.map((id) => dbOperations.removeVendorFromBid(id))
+      );
+
+      // Clear selections
+      if (deleteType === "equipment") {
+        setSelectedEquipmentIds(new Set());
+      } else if (deleteType === "schedule") {
+        setSelectedScheduleIds(new Set());
+      }
+
+      // Close modal and reset state
+      setShowBulkDeleteModal(false);
+      setItemsToDelete([]);
+      setDeleteType(null);
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to delete items"
+      );
+    } finally {
+      setIsVendorLoading(false);
+    }
+  };
+
+  // APM Phase management handlers
+  const handleCreatePhase = async (vendorId: number, phaseData: any) => {
+    try {
+      // Find the project_vendor ID from the bidVendor data
+      const bidVendor = projectVendors.find(bv => bv.vendor_id === vendorId);
+      if (!bidVendor?.id) {
+        throw new Error('Project vendor relationship not found');
+      }
+      
+      await dbOperations.createAPMPhase(bidVendor.id, {
+        phase_name: phaseData.phase_name,
+        status: phaseData.status,
+        requested_date: phaseData.requested_date,
+        follow_up_date: phaseData.follow_up_date,
+        received_date: phaseData.received_date,
+        notes: phaseData.notes
+      });
+    } catch (error) {
+      console.error('Failed to create APM phase:', error);
+      throw error; // Re-throw to let the modal handle error display
+    }
+  };
+
+  const handleUpdatePhase = async (phaseId: number, updates: any) => {
+    try {
+      await dbOperations.updateAPMPhase(phaseId, updates);
+    } catch (error) {
+      console.error('Failed to update APM phase:', error);
+      throw error; // Re-throw to let the modal handle error display
+    }
+  };
+
+  const handleDeletePhase = async (phaseId: number) => {
+    try {
+      await dbOperations.deleteAPMPhase(phaseId);
+    } catch (error) {
+      console.error('Failed to delete APM phase:', error);
+      throw error; // Re-throw to let confirmation dialog handle error display
     }
   };
 
@@ -358,7 +822,10 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
 
   const handleAddNoteSubmit = async (content: string) => {
     // Let the database function auto-detect current user via Auth
-    await dbOperations.createProjectNote(bid.id, content);
+    await dbOperations.createProjectNote({
+      bid_id: bid.id,
+      content: content
+    });
   };
 
   const confirmDeleteProject = async () => {
@@ -697,9 +1164,9 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
             <div className="border-b border-gray-200"></div>
           </div>
 
-          <div className="px-6 py-4">
+          <div className="px-6 py-4 flex flex-col min-h-0 flex-1">
             {/* Flattened Project Info Header */}
-            <div className="mb-4 space-y-4">
+            <div className="mb-4 space-y-4 flex-shrink-0">
               {/* Project Name */}
               <div>
                 <span className="text-gray-600 text-sm font-medium">
@@ -723,7 +1190,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     <span>{bid.project_name}</span>
                   )}
                 </div>
-                <div>
+                <div className="text-lg text-gray-700 mb-3">
                   {isEditing ? (
                     <input
                       type="text"
@@ -734,44 +1201,119 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           project_address: e.target.value,
                         })
                       }
-                      className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
+                      className="border border-gray-300 rounded px-3 py-2 text-lg w-full"
                       placeholder="Project address..."
                     />
                   ) : (
-                    <span className="text-gray-900 text-lg font-medium">
+                    <span>
                       {bid.project_address || "Address Not Specified"}
                     </span>
                   )}
                 </div>
 
-                <div>
-                  <span className="text-gray-600 text-lg font-medium">
-                    General Contractor:
-                  </span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.general_contractor}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          general_contractor: e.target.value,
-                        })
-                      }
-                      className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                      placeholder="General contractor..."
-                    />
-                  ) : (
-                    <span className="text-gray-900 font-medium text-lg ml-2">
-                      {bid.general_contractor || "Not assigned"}
+                <div className="grid grid-cols-2 gap-6 mt-4">
+                  <div>
+                    <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-1">
+                      General Contractor
                     </span>
-                  )}
-                </div>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.general_contractor}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            general_contractor: e.target.value,
+                            gc_contact_id: null, // Reset contact when GC changes
+                          });
+                        }}
+                        className="border border-gray-300 rounded px-3 py-2 text-base w-full"
+                        placeholder="General contractor..."
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-medium text-base block">
+                        {bid.general_contractor || "Not assigned"}
+                      </span>
+                    )}
+                    
+                    {/* GC Contact - only show if GC is selected */}
+                    {formData.general_contractor && (
+                      <div className="mt-4">
+                        <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-1">
+                          GC Contact
+                        </span>
+                        {isEditing ? (
+                          <div>
+                            {loadingGcContacts ? (
+                              <span className="text-gray-400 text-sm">Loading contacts...</span>
+                            ) : gcContacts.length > 0 ? (
+                              <select
+                                value={formData.gc_contact_id || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    gc_contact_id: e.target.value ? Number(e.target.value) : null,
+                                  })
+                                }
+                                className="border border-gray-300 rounded px-3 py-2 text-base w-full"
+                              >
+                                <option value="">Select a contact</option>
+                                {gcContacts.map((contact) => (
+                                  <option key={contact.id} value={contact.id}>
+                                    {contact.contact_name}
+                                    {contact.contact_title ? ` - ${contact.contact_title}` : ''}
+                                    {contact.is_primary ? ' (Primary)' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="text-gray-400 text-sm">
+                                No contacts found for this contractor
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            {(() => {
+                              if (!(bid as any).gc_contact_id) {
+                                return <span className="text-gray-900 font-medium text-base block">Not assigned</span>;
+                              }
+                              // Try to find contact in current gcContacts, or show placeholder
+                              const contact = gcContacts.find(c => c.id === (bid as any).gc_contact_id);
+                              if (!contact) {
+                                return <span className="text-gray-900 font-medium text-base block">Contact selected</span>;
+                              }
+                              return (
+                                <>
+                                  <span className="text-gray-900 font-medium text-base block">
+                                    {contact.contact_name}{contact.contact_title ? ` - ${contact.contact_title}` : ''}
+                                  </span>
+                                  {(contact.phone || contact.email) && (
+                                    <div className="text-gray-600 text-xs mt-1">
+                                      {contact.phone && (
+                                        <span>{contact.phone}</span>
+                                      )}
+                                      {contact.phone && contact.email && (
+                                        <span className="mx-1">•</span>
+                                      )}
+                                      {contact.email && (
+                                        <span>{contact.email}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                <div>
-                  <span className="text-gray-600 text-sm font-medium">
-                    Project Start Date: 
-                  </span>
+                  <div>
+                    <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-1">
+                      Project Start Date
+                    </span>
                   {isEditing ? (
                     <input
                       type="date"
@@ -786,12 +1328,12 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           project_start_date: e.target.value || null,
                         })
                       }
-                      className="border border-gray-300 rounded px-2 py-1 text-sm ml-1"
+                      className="border border-gray-300 rounded px-3 py-2 text-base w-full"
                     />
                   ) : (
                     <>
                       {bid.project_start_date ? (
-                        <span className="text-gray-900 text-sm font-medium ml-1">
+                        <span className="text-gray-900 text-base font-medium block">
                           {(() => {
                           const dateStr = bid.project_start_date!;
                           const dateOnly = dateStr.includes("T")
@@ -807,108 +1349,109 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           })()}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-sm ml-1">-</span>
+                        <span className="text-gray-400 text-base">-</span>
                       )}
                     </>
                   )}
-                </div>
-
-                {/* GC System and Procore Status */}
-                <div className="mt-2 space-y-1">
-                  {/* GC System */}
-                  <div>
-                    <span className="text-gray-600 text-sm font-medium">
-                      GC System:{" "}
+                  
+                  {/* GC System and Procore Status */}
+                  <div className="mt-4">
+                    <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-2">
+                      GC System & Procore Status
                     </span>
-                    {isEditing ? (
-                      <select
-                        value={formData.gc_system || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setFormData({
-                            ...formData,
-                            gc_system:
-                              value === ""
-                                ? null
-                                : (value as
-                                    | "Procore"
-                                    | "AutoDesk"
-                                    | "Email"
-                                    | "Other"),
-                          });
-                        }}
-                        className="border border-gray-300 rounded px-2 py-1 text-sm ml-1"
-                      >
-                        <option value="">Select system type</option>
-                        <option value="Procore">Procore</option>
-                        <option value="AutoDesk">AutoDesk</option>
-                        <option value="Email">Email</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    ) : (
-                      <>
-                        {bid.gc_system === "Procore" && (
-                          <span className="text-blue-600 text-sm font-medium">
-                            Procore
-                          </span>
-                        )}
-                        {bid.gc_system === "AutoDesk" && (
-                          <span className="text-purple-600 text-sm font-medium">
-                            AutoDesk
-                          </span>
-                        )}
-                        {bid.gc_system === "Email" && (
-                          <span className="text-green-600 text-sm font-medium">
-                            Email
-                          </span>
-                        )}
-                        {bid.gc_system === "Other" && (
-                          <span className="text-gray-600 text-sm font-medium">
-                            Other
-                          </span>
-                        )}
-                        {!bid.gc_system && (
-                          <span className="text-gray-400 text-sm">N/A</span>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Procore Status */}
-                  <div className="flex items-center">
-                    <span className="text-gray-600 text-sm font-medium">
-                      Procore Status:{" "}
-                    </span>
-                    {isEditing ? (
-                      <div className="flex items-center ml-2">
-                        <Checkbox
-                          checked={formData.added_to_procore || false}
-                          onCheckedChange={(checked) =>
-                            setFormData({
-                              ...formData,
-                              added_to_procore: checked === true,
-                            })
-                          }
-                        />
-                        <span className="ml-2 text-sm text-gray-600">
-                          Added to Procore
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                        {bid.added_to_procore ? (
-                          <span className="text-green-600 text-sm font-medium ml-1">
-                            Added to Procore
-                          </span>
+                    <div className="flex items-center gap-4">
+                      {/* GC System */}
+                      <div>
+                        {isEditing ? (
+                          <select
+                            value={formData.gc_system || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setFormData({
+                                ...formData,
+                                gc_system:
+                                  value === ""
+                                    ? null
+                                    : (value as
+                                        | "Procore"
+                                        | "AutoDesk"
+                                        | "Email"
+                                        | "Other"),
+                              });
+                            }}
+                            className="border border-gray-300 rounded px-3 py-2 text-base"
+                          >
+                            <option value="">Select system type</option>
+                            <option value="Procore">Procore</option>
+                            <option value="AutoDesk">AutoDesk</option>
+                            <option value="Email">Email</option>
+                            <option value="Other">Other</option>
+                          </select>
                         ) : (
-                          <span className="text-red-600 text-sm font-medium ml-1">
-                            Not in Procore
-                          </span>
+                          <>
+                            {bid.gc_system === "Procore" && (
+                              <span className="text-blue-600 text-base font-medium">
+                                Procore
+                              </span>
+                            )}
+                            {bid.gc_system === "AutoDesk" && (
+                              <span className="text-purple-600 text-base font-medium">
+                                AutoDesk
+                              </span>
+                            )}
+                            {bid.gc_system === "Email" && (
+                              <span className="text-green-600 text-base font-medium">
+                                Email
+                              </span>
+                            )}
+                            {bid.gc_system === "Other" && (
+                              <span className="text-gray-600 text-base font-medium">
+                                Other
+                              </span>
+                            )}
+                            {!bid.gc_system && (
+                              <span className="text-gray-400 text-base">N/A</span>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
+                      </div>
+
+                      {/* Procore Status */}
+                      <div className="flex items-center gap-2">
+                        {isEditing ? (
+                          <>
+                            <Checkbox
+                              checked={formData.added_to_procore || false}
+                              onCheckedChange={(checked) =>
+                                setFormData({
+                                  ...formData,
+                                  added_to_procore: checked === true,
+                                })
+                              }
+                            />
+                            <span className="text-base text-gray-600">
+                              Added to Procore
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {bid.added_to_procore ? (
+                              <span className="text-green-600 text-base font-medium">
+                                Added to Procore
+                              </span>
+                            ) : (
+                              <span className="text-red-600 text-base font-medium">
+                                Not in Procore
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   </div>
                 </div>
+
               </div>
 
               {/* Project Description */}
@@ -939,59 +1482,14 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
               )}
             </div>
 
-            {/* Three Workflow Progress Cards */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              {/* Card 1: Overall Progress */}
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <div className="text-blue-600 text-sm font-medium mb-2">
-                  Overall Progress
-                </div>
-                <div className="text-2xl font-bold text-blue-700 mb-2">
-                  {(() => {
-                    const completedVendors = projectVendors.filter(
-                      (vendor) => vendor.closeout_received_date !== null
-                    ).length;
-                    const totalVendors = projectVendors.length;
-                    const percentage =
-                      totalVendors > 0
-                        ? Math.round((completedVendors / totalVendors) * 100)
-                        : 0;
-                    return `${percentage}%`;
-                  })()}
-                </div>
-                <div className="w-full bg-blue-200 rounded-full h-2 mb-1">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full"
-                    style={{
-                      width: `${(() => {
-                        const completedVendors = projectVendors.filter(
-                          (vendor) => vendor.closeout_received_date !== null
-                        ).length;
-                        const totalVendors = projectVendors.length;
-                        return totalVendors > 0
-                          ? (completedVendors / totalVendors) * 100
-                          : 0;
-                      })()}%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="text-blue-600 text-xs">
-                  {(() => {
-                    const completedVendors = projectVendors.filter(
-                      (vendor) => vendor.closeout_received_date !== null
-                    ).length;
-                    const totalVendors = projectVendors.length;
-                    return `${completedVendors}/${totalVendors} vendors completed`;
-                  })()}
-                </div>
-              </div>
-
-              {/* Card 2: Critical Follow-ups */}
-              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                <div className="text-amber-600 text-sm font-medium mb-2">
+            {/* Two Workflow Progress Cards */}
+            <div className="grid grid-cols-2 gap-6 mb-6 flex-shrink-0">
+              {/* Card 1: Critical Follow-ups */}
+              <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                <div className="text-gray-700 text-sm font-semibold mb-3 uppercase tracking-wide">
                   Critical Follow-ups
                 </div>
-                <div className="text-2xl font-bold text-amber-700 mb-2">
+                <div className="text-3xl font-bold text-amber-600 mb-3">
                   {(() => {
                     // Count vendors by urgency level using same rules as vendor table
                     let overdueCount = 0;
@@ -1016,7 +1514,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     return totalUrgent;
                   })()}
                 </div>
-                <div className="text-amber-600 text-xs">
+                <div className="text-gray-600 text-sm">
                   {(() => {
                     // Show breakdown with clear business terminology
                     let overdueCount = 0;
@@ -1050,7 +1548,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                 </div>
               </div>
 
-              {/* Card 3: Upcoming Deadlines */}
+              {/* Card 2: Upcoming Deadlines */}
               {(() => {
                 // Determine urgency level for card styling
                 const soonestUrgency = (() => {
@@ -1076,38 +1574,17 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                   return mostUrgent;
                 })();
 
-                // Set card colors based on urgency
-                const cardClasses =
-                  soonestUrgency === "red"
-                    ? "bg-red-50 rounded-lg p-4 border border-red-200"
-                    : soonestUrgency === "orange"
-                    ? "bg-orange-50 rounded-lg p-4 border border-orange-200"
-                    : "bg-green-50 rounded-lg p-4 border border-green-200";
-
-                const titleClasses =
-                  soonestUrgency === "red"
-                    ? "text-red-600 text-sm font-medium mb-2"
-                    : soonestUrgency === "orange"
-                    ? "text-orange-600 text-sm font-medium mb-2"
-                    : "text-green-600 text-sm font-medium mb-2";
-
+                // Set value color based on urgency
                 const valueClasses =
                   soonestUrgency === "red"
-                    ? "text-2xl font-bold text-red-700 mb-2"
+                    ? "text-3xl font-bold text-red-600 mb-3"
                     : soonestUrgency === "orange"
-                    ? "text-2xl font-bold text-orange-700 mb-2"
-                    : "text-2xl font-bold text-green-700 mb-2";
-
-                const subtitleClasses =
-                  soonestUrgency === "red"
-                    ? "text-red-600 text-xs"
-                    : soonestUrgency === "orange"
-                    ? "text-orange-600 text-xs"
-                    : "text-green-600 text-xs";
+                    ? "text-3xl font-bold text-orange-600 mb-3"
+                    : "text-3xl font-bold text-green-600 mb-3";
 
                 return (
-                  <div className={cardClasses}>
-                    <div className={titleClasses}>Next Deadline</div>
+                  <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                    <div className="text-gray-700 text-sm font-semibold mb-3 uppercase tracking-wide">Next Deadline</div>
                     <div className={valueClasses}>
                       {(() => {
                         // Get the soonest deadline using exact same logic as vendor table NEXT FOLLOW-UP column
@@ -1172,7 +1649,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                         return formatDateSafe(earliestDateStr);
                       })()}
                     </div>
-                    <div className={subtitleClasses}>
+                    <div className="text-gray-600 text-sm">
                       {(() => {
                         // Get phase and vendor info for the earliest deadline
                         const allFollowUpDates: string[] = [];
@@ -1236,9 +1713,9 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
             </div>
 
             {/* Tabbed Interface */}
-            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div className="bg-white border-t border-b border-gray-300 flex flex-col -mx-6 flex-1 min-h-0">
               {/* Tab Navigation */}
-              <div className="border-b border-gray-200">
+              <div className="border-b border-gray-200 flex-shrink-0">
                 <div className="flex justify-between items-center px-6">
                   <nav className="flex space-x-8">
                     {[
@@ -1248,6 +1725,16 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                         count: projectVendors.length,
                       },
                       {
+                        id: "equipment",
+                        label: "Equipment",
+                        count: null,
+                      },
+                      {
+                        id: "schedule",
+                        label: "Schedule",
+                        count: null,
+                      },
+                      {
                         id: "notes",
                         label: "Notes",
                         count: filteredProjectNotes.length,
@@ -1255,7 +1742,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     ].map((tab) => (
                       <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                        onClick={() => handleTabChange(tab.id)}
                         className={`py-4 px-1 border-b-2 font-medium text-sm ${
                           activeTab === tab.id
                             ? "border-[#d4af37] text-[#d4af37]"
@@ -1283,22 +1770,13 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     {activeTab === "vendors" && (
                       <>
                         {selectedVendorIds.size === 0 ? (
-                          <>
-                            <button
-                              onClick={handleAddVendor}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                            >
-                              <UserPlusIcon className="w-4 h-4 mr-1" />
-                              Add Vendor
-                            </button>
-                            <button
-                              onClick={handleAddNote}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                            >
-                              <PencilSquareIcon className="w-4 h-4 mr-1" />
-                              Add Note
-                            </button>
-                          </>
+                          <button
+                            onClick={handleAddVendor}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            <UserPlusIcon className="w-4 h-4 mr-1" />
+                            Add Vendor
+                          </button>
                         ) : (
                           <button
                             onClick={() =>
@@ -1308,6 +1786,54 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                           >
                             <TrashIcon className="w-4 h-4 mr-1" />
                             Remove Selected ({selectedVendorIds.size})
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === "equipment" && (
+                      <>
+                        {selectedEquipmentIds.size === 0 ? (
+                          <button
+                            onClick={() => {
+                              // TODO: Implement add equipment functionality
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            <UserPlusIcon className="w-4 h-4 mr-1" />
+                            Add Equipment
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleBulkDeleteEquipment}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            <TrashIcon className="w-4 h-4 mr-1" />
+                            Delete Selected ({selectedEquipmentIds.size})
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === "schedule" && (
+                      <>
+                        {selectedScheduleIds.size === 0 ? (
+                          <button
+                            onClick={() => {
+                              // TODO: Implement add schedule functionality
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            <UserPlusIcon className="w-4 h-4 mr-1" />
+                            Add Schedule
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleBulkDeleteSchedule}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            <TrashIcon className="w-4 h-4 mr-1" />
+                            Delete Selected ({selectedScheduleIds.size})
                           </button>
                         )}
                       </>
@@ -1327,7 +1853,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
               </div>
 
               {/* Tab Content */}
-              <div className="min-h-96">
+              <div className="flex-1 overflow-y-auto min-h-0">
                 {activeTab === "vendors" && (
                   <APMVendorTable
                     bidVendors={projectVendors}
@@ -1338,6 +1864,30 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                     selectedVendors={selectedVendorIds}
                     onVendorSelect={handleVendorSelectionChange}
                     onBulkVendorSelect={handleBulkVendorSelection}
+                    onCreatePhase={handleCreatePhase}
+                    onUpdatePhase={handleUpdatePhase}
+                    onDeletePhase={handleDeletePhase}
+                    onDeleteVendor={handleDeleteVendor}
+                  />
+                )}
+
+                {activeTab === "equipment" && (
+                  <EquipmentTable
+                    bidVendors={projectVendors}
+                    vendors={vendors}
+                    selectedIds={selectedEquipmentIds}
+                    onSelectionChange={handleEquipmentSelectionChange}
+                    onSelectAll={handleEquipmentSelectAll}
+                  />
+                )}
+
+                {activeTab === "schedule" && (
+                  <ScheduleTable
+                    bidVendors={projectVendors}
+                    vendors={vendors}
+                    selectedIds={selectedScheduleIds}
+                    onSelectionChange={handleScheduleSelectionChange}
+                    onSelectAll={handleScheduleSelectAll}
                   />
                 )}
 
@@ -1403,6 +1953,26 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
           vendorsToRemove.length === 1 ? "" : "s"
         } from this APM project?`}
         confirmText="Remove Vendors"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <AlertDialog
+        isOpen={showBulkDeleteModal}
+        onClose={() => {
+          setShowBulkDeleteModal(false);
+          setItemsToDelete([]);
+          setDeleteType(null);
+        }}
+        onConfirm={confirmBulkDelete}
+        title={`Delete ${deleteType === "equipment" ? "Equipment" : "Schedule"} Items`}
+        message={`Are you sure you want to delete ${
+          itemsToDelete.length
+        } ${deleteType === "equipment" ? "equipment" : "schedule"} item${
+          itemsToDelete.length === 1 ? "" : "s"
+        }? This action cannot be undone.`}
+        confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
       />

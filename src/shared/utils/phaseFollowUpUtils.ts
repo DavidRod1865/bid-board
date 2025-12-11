@@ -24,7 +24,9 @@ export const getPhaseFollowUpDate = (vendor: BidVendor): string | null => {
   }
 };
 
-export const getPhaseDisplayName = (phase: string): string => {
+export const getPhaseDisplayName = (phase: string | null | undefined): string => {
+  if (!phase) return 'Unknown Phase';
+  
   switch (phase) {
     case 'buy_number':
       return 'Buy Number';
@@ -47,8 +49,42 @@ export const getPhaseDisplayName = (phase: string): string => {
   }
 };
 
-// Get all phases with the soonest follow-up date (excluding phases with received dates)
+// Get all phases with the soonest follow-up date (excluding phases with received dates) - NEW NORMALIZED VERSION
 export const getCurrentPhasesWithSoonestFollowUp = (vendor: BidVendor) => {
+  // Use apm_phases array if available (normalized structure)
+  if (vendor.apm_phases && vendor.apm_phases.length > 0) {
+    // Filter out phases that are completed or have no follow-up date
+    const pendingPhases = vendor.apm_phases
+      .filter(phase => phase.status !== 'Completed' && phase.follow_up_date)
+      .map(phase => ({
+        name: phase.phase_name.toLowerCase().replace(/\s+/g, '_'),
+        displayName: phase.phase_name,
+        followUpDate: phase.follow_up_date,
+        receivedDate: phase.received_date,
+        status: phase.status
+      }));
+
+    if (pendingPhases.length === 0) {
+      return { phases: [], soonestDate: null };
+    }
+
+    // Find the earliest follow-up date
+    const soonestDate = pendingPhases
+      .map(phase => new Date(phase.followUpDate!))
+      .reduce((earliest, current) => current < earliest ? current : earliest);
+
+    // Get all phases that share this earliest date
+    const phasesWithSoonestDate = pendingPhases.filter(phase => 
+      new Date(phase.followUpDate!).getTime() === soonestDate.getTime()
+    );
+
+    return {
+      phases: phasesWithSoonestDate,
+      soonestDate: soonestDate.toISOString().split('T')[0]
+    };
+  }
+
+  // Fallback to legacy column-based structure
   const phases = [
     {
       name: 'buy_number',
@@ -234,4 +270,64 @@ export const getFollowUpUrgencyClasses = (followUpDate: string | null): string =
 export const getVendorFollowUpUrgency = (vendor: BidVendor) => {
   const { soonestDate } = getCurrentPhasesWithSoonestFollowUp(vendor);
   return getFollowUpUrgency(soonestDate);
+};
+
+// NEW HELPER FUNCTIONS FOR APM PHASES ARRAY
+
+/**
+ * Check if all phases are completed for a vendor using apm_phases array
+ */
+export const areAllAPMPhasesCompleted = (vendor: BidVendor): boolean => {
+  if (!vendor.apm_phases || vendor.apm_phases.length === 0) {
+    return false;
+  }
+  return vendor.apm_phases.every(phase => phase.status === 'Completed');
+};
+
+/**
+ * Check if any APM phases have started (have a follow_up_date or requested_date)
+ */
+export const haveAnyAPMPhasesStarted = (vendor: BidVendor): boolean => {
+  if (!vendor.apm_phases || vendor.apm_phases.length === 0) {
+    return false;
+  }
+  return vendor.apm_phases.some(phase => 
+    phase.follow_up_date || phase.requested_date || phase.received_date
+  );
+};
+
+/**
+ * Get a specific phase by name from apm_phases array
+ */
+export const getAPMPhaseByName = (vendor: BidVendor, phaseName: string) => {
+  if (!vendor.apm_phases || vendor.apm_phases.length === 0) {
+    return null;
+  }
+  return vendor.apm_phases.find(phase => 
+    phase.phase_name === phaseName || 
+    phase.phase_name.toLowerCase().replace(/\s+/g, '_') === phaseName.toLowerCase()
+  );
+};
+
+/**
+ * Get APM phase progress percentage
+ */
+export const getAPMPhaseProgress = (vendor: BidVendor): number => {
+  if (!vendor.apm_phases || vendor.apm_phases.length === 0) {
+    return 0;
+  }
+  
+  const completedPhases = vendor.apm_phases.filter(phase => phase.status === 'Completed');
+  return Math.round((completedPhases.length / vendor.apm_phases.length) * 100);
+};
+
+/**
+ * Get the current active phase (first non-completed phase)
+ */
+export const getCurrentAPMPhase = (vendor: BidVendor) => {
+  if (!vendor.apm_phases || vendor.apm_phases.length === 0) {
+    return null;
+  }
+  
+  return vendor.apm_phases.find(phase => phase.status !== 'Completed') || null;
 };

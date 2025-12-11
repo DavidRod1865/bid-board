@@ -386,7 +386,8 @@ export const getAnalyticsQueries = () => {
       SELECT 
         status,
         COUNT(*) as count
-      FROM bid_vendors
+      FROM project_vendors pv
+      JOIN est_responses er ON pv.id = er.project_vendor_id
       WHERE created_at >= $1
       GROUP BY status
     `,
@@ -396,7 +397,8 @@ export const getAnalyticsQueries = () => {
         DATE_TRUNC('month', created_at) as month,
         COUNT(CASE WHEN status IN ('yes bid', 'no bid') THEN 1 END) * 100.0 / COUNT(*) as response_rate,
         COUNT(*) as total_bids
-      FROM bid_vendors
+      FROM project_vendors pv
+      JOIN est_responses er ON pv.id = er.project_vendor_id
       WHERE created_at >= $1
       GROUP BY month
       ORDER BY month
@@ -411,7 +413,8 @@ export const getAnalyticsQueries = () => {
         COUNT(CASE WHEN bv.status = 'yes bid' THEN 1 END) as positive_responses,
         ROUND(COUNT(CASE WHEN bv.status IN ('yes bid', 'no bid') THEN 1 END) * 100.0 / COUNT(*), 1) as response_rate,
         ROUND(AVG(EXTRACT(days FROM (bv.response_received_date - bv.created_at))), 1) as avg_response_time
-      FROM bid_vendors bv
+      FROM project_vendors pv
+      JOIN est_responses er ON pv.id = er.project_vendor_id bv
       JOIN vendors v ON bv.vendor_id = v.id
       WHERE bv.created_at >= $1
       GROUP BY v.id, v.name
@@ -422,7 +425,8 @@ export const getAnalyticsQueries = () => {
     timeDistribution: `
       SELECT 
         bv.*
-      FROM bid_vendors bv
+      FROM project_vendors pv
+      JOIN est_responses er ON pv.id = er.project_vendor_id bv
       WHERE bv.response_received_date IS NOT NULL
       AND bv.created_at >= $1
     `

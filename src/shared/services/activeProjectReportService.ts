@@ -40,11 +40,10 @@ export class ActiveProjectReportService {
       
       // Query active projects with start dates within 60 days
       const { data: projects, error: projectsError } = await supabase
-        .from('bids')
+        .from('projects')
         .select('*')
         .eq('sent_to_apm', true)
-        .eq('apm_archived', false)
-        .eq('apm_on_hold', false)
+        .eq('apm_activity_cycle', 'Active')
         .not('project_start_date', 'is', null)
         .gte('project_start_date', todayFormatted)
         .lte('project_start_date', sixtyDaysFormatted)
@@ -65,18 +64,18 @@ export class ActiveProjectReportService {
       // Get project IDs for related queries
       const projectIds = projects.map(p => p.id);
 
-      // Get bid vendors for these projects
-      const { data: bidVendors, error: bidVendorsError } = await supabase
-        .from('bid_vendors')
+      // Get project vendors for these projects
+      const { data: projectVendors, error: projectVendorsError } = await supabase
+        .from('project_vendors')
         .select('*')
-        .in('bid_id', projectIds);
+        .in('project_id', projectIds);
 
-      if (bidVendorsError) {
-        throw new Error(`Failed to fetch bid vendors: ${bidVendorsError.message}`);
+      if (projectVendorsError) {
+        throw new Error(`Failed to fetch project vendors: ${projectVendorsError.message}`);
       }
 
       // Get vendor IDs and fetch vendor details
-      const vendorIds = [...new Set(bidVendors?.map(bv => bv.vendor_id) || [])];
+      const vendorIds = [...new Set(projectVendors?.map((pv: any) => pv.vendor_id) || [])];
       
       const { data: vendors, error: vendorsError } = await supabase
         .from('vendors')
@@ -104,7 +103,7 @@ export class ActiveProjectReportService {
       // Process the data (already sorted by project_start_date)
       const processedData = await this.processProjectData(
         projects,
-        bidVendors || [],
+        projectVendors || [],
         vendors || [],
         projectNotes || []
       );
@@ -131,16 +130,16 @@ export class ActiveProjectReportService {
    */
   private static async processProjectData(
     projects: Bid[],
-    bidVendors: BidVendor[],
+    projectVendors: any[],
     vendors: Vendor[],
     projectNotes: ProjectNote[]
   ): Promise<ActiveProjectReportData[]> {
     
     return projects.map(project => {
       // Get vendors for this project
-      const projectBidVendors = bidVendors.filter(bv => bv.bid_id === project.id);
-      const projectVendors = projectBidVendors
-        .map(bv => vendors.find(v => v.id === bv.vendor_id))
+      const projectBidVendors = projectVendors.filter((pv: any) => pv.project_id === project.id);
+      const projectVendorsList = projectBidVendors
+        .map((pv: any) => vendors.find(v => v.id === pv.vendor_id))
         .filter(v => v !== undefined) as Vendor[];
 
       // Get most recent project note
@@ -148,19 +147,19 @@ export class ActiveProjectReportService {
       const mostRecentNote = this.getMostRecentNote(projectSpecificNotes);
 
       // Get equipment request information for each vendor
-      const equipmentRequestInfo = projectBidVendors.map(bv => {
-        const vendor = vendors.find(v => v.id === bv.vendor_id);
+      const equipmentRequestInfo = projectBidVendors.map((pv: any) => {
+        const vendor = vendors.find(v => v.id === pv.vendor_id);
         return {
           vendorName: vendor?.company_name || 'Unknown Vendor',
-          equipmentRequestedDate: bv.equipment_release_requested_date,
-          equipmentReleasedDate: bv.equipment_released_date,
-          equipmentReleaseNotes: bv.equipment_release_notes || ''
+          equipmentRequestedDate: null, // Legacy field not in normalized structure
+          equipmentReleasedDate: null, // Legacy field not in normalized structure  
+          equipmentReleaseNotes: '' // Legacy field not in normalized structure
         };
       });
 
       return {
         project,
-        vendors: projectVendors,
+        vendors: projectVendorsList,
         mostRecentNote,
         equipmentRequestInfo
       };
@@ -195,11 +194,10 @@ export class ActiveProjectReportService {
     const endFormatted = endDate.toISOString().split('T')[0];
 
     const { data: projects, error } = await supabase
-      .from('bids')
+      .from('projects')
       .select('*')
       .eq('sent_to_apm', true)
-      .eq('apm_archived', false)
-      .eq('apm_on_hold', false)
+      .eq('apm_activity_cycle', 'Active')
       .not('project_start_date', 'is', null)
       .gte('project_start_date', startFormatted)
       .lte('project_start_date', endFormatted)
@@ -234,37 +232,33 @@ export class ActiveProjectReportService {
 
       // Get total active APM projects
       const { count: totalActive } = await supabase
-        .from('bids')
+        .from('projects')
         .select('*', { count: 'exact', head: true })
         .eq('sent_to_apm', true)
-        .eq('apm_archived', false)
-        .eq('apm_on_hold', false);
+        .eq('apm_activity_cycle', 'Active');
 
       // Get projects with start dates
       const { count: withStartDates } = await supabase
-        .from('bids')
+        .from('projects')
         .select('*', { count: 'exact', head: true })
         .eq('sent_to_apm', true)
-        .eq('apm_archived', false)
-        .eq('apm_on_hold', false)
+        .eq('apm_activity_cycle', 'Active')
         .not('project_start_date', 'is', null);
 
       // Get projects in 30 days
       const { count: in30Days } = await supabase
-        .from('bids')
+        .from('projects')
         .select('*', { count: 'exact', head: true })
         .eq('sent_to_apm', true)
-        .eq('apm_archived', false)
-        .eq('apm_on_hold', false)
+        .eq('apm_activity_cycle', 'Active')
         .eq('project_start_date', thirtyDaysFormatted);
 
       // Get projects in 60 days
       const { count: in60Days } = await supabase
-        .from('bids')
+        .from('projects')
         .select('*', { count: 'exact', head: true })
         .eq('sent_to_apm', true)
-        .eq('apm_archived', false)
-        .eq('apm_on_hold', false)
+        .eq('apm_activity_cycle', 'Active')
         .eq('project_start_date', sixtyDaysFormatted);
 
       return {

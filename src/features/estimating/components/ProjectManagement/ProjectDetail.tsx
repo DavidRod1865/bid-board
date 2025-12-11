@@ -617,93 +617,57 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             <div className="border-b border-gray-200"></div>
           </div>
 
-          <div className="px-6 py-4">
-            {/* Project Info Section */}
-            <div className="mb-4">
-              {/* Project Info Cards Flex Layout */}
-              <div className="flex justify-between flex-2 mb-4">
-                {/* Project Details Card - Address, GC, File Location, Description */}
-                {/* Project Name */}
-                <div className="flex flex-col flex-1">
-                  {/* Status Badge */}
+          <div className="px-6 py-4 flex flex-col min-h-0 flex-1">
+            {/* Flattened Project Info Header */}
+            <div className="mb-4 space-y-4 flex-shrink-0">
+              {/* Project Name */}
+              <div>
+                <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-2">
+                  Project Details
+                </span>
+                <div className="text-3xl font-bold text-gray-900">
                   {isEditing ? (
-                    <div className="relative">
-                      <select
-                        value={formData.status}
-                        onChange={(e) =>
-                          setFormData({ ...formData, status: e.target.value })
-                        }
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      >
-                        {BID_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                      <StatusBadge
-                        status={formData.status}
-                        variant="badge"
-                        className="w-32 cursor-pointer"
-                      />
-                    </div>
-                  ) : (
-                    <StatusBadge
-                      status={bid.status}
-                      variant="badge"
-                      className="w-32"
+                    <input
+                      type="text"
+                      value={formData.project_name}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          project_name: e.target.value,
+                        })
+                      }
+                      className="border border-gray-300 rounded px-2 py-1 text-3xl w-full"
+                      placeholder="Project name..."
                     />
+                  ) : (
+                    <span>{bid.project_name}</span>
                   )}
-                  
-                  <span className="text-gray-600 text-sm font-medium mt-2">
-                    Project Details:
-                  </span>
+                </div>
+                <div className="text-lg text-gray-700 mb-3">
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.project_address}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          project_address: e.target.value,
+                        })
+                      }
+                      className="border border-gray-300 rounded px-3 py-2 text-lg w-full"
+                      placeholder="Project address..."
+                    />
+                  ) : (
+                    <span>
+                      {bid.project_address || "Address Not Specified"}
+                    </span>
+                  )}
+                </div>
 
-                  <div className="text-2xl font-bold text-gray-900 mt-1">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={formData.project_name}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            project_name: e.target.value,
-                          })
-                        }
-                        className="border border-gray-300 rounded px-2 py-1 text-2xl w-full"
-                        placeholder="Project name..."
-                      />
-                    ) : (
-                      <span>{bid.project_name}</span>
-                    )}
-                  </div>
-
-                  {/* Address */}
+                <div className="grid grid-cols-2 gap-6 mt-4">
                   <div>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={formData.project_address}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            project_address: e.target.value,
-                          })
-                        }
-                        className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                        placeholder="Project address..."
-                      />
-                    ) : (
-                      <span className="text-gray-900 text-lg font-medium">
-                        {bid.project_address || "Address Not Specified"}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* General Contractor */}
-                  <div>
-                    <span className="text-gray-600 text-lg font-medium">
-                      General Contractor:
+                    <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-1">
+                      General Contractor
                     </span>
                     {isEditing ? (
                       <input
@@ -715,141 +679,153 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                             general_contractor: e.target.value,
                           })
                         }
-                        className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
+                        className="border border-gray-300 rounded px-3 py-2 text-base w-full"
                         placeholder="General contractor..."
                       />
                     ) : (
-                      <span className="text-gray-900 font-medium text-lg ml-2">
+                      <span className="text-gray-900 font-medium text-base block">
                         {bid.general_contractor || "Not assigned"}
                       </span>
                     )}
-                  </div>
 
-                  {/* File Location */}
-                  <div>
-                    <span className="text-gray-600 text-sm font-medium">
-                      File Storage Location:
-                    </span>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={formData.file_location}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            file_location: e.target.value,
-                          })
-                        }
-                        className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                        placeholder="File location..."
-                      />
-                    ) : (
-                      <span className="text-gray-900 text-sm font-medium ml-1">
-                        {bid.file_location || "Not specified"}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Project Description */}
-                  {(bid.project_description || isEditing) && (
-                    <div>
-                      <span className="text-gray-600 block mb-1">
-                        Description:
+                    {/* File Location */}
+                    <div className="mt-4">
+                      <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider block mb-1">
+                        File Storage Location
                       </span>
                       {isEditing ? (
-                        <textarea
-                          value={formData.project_description}
+                        <input
+                          type="text"
+                          value={formData.file_location}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              project_description: e.target.value,
+                              file_location: e.target.value,
                             })
                           }
-                          className="border border-gray-300 rounded px-2 py-1 text-lg w-full"
-                          rows={3}
-                          placeholder="Enter project description..."
+                          className="border border-gray-300 rounded px-3 py-2 text-base w-full"
+                          placeholder="File location..."
                         />
                       ) : (
-                        <span className="text-gray-900 text-lg font-medium">
-                          {bid.project_description}
+                        <span className="text-gray-900 font-medium text-base block">
+                          {bid.file_location || "Not specified"}
                         </span>
                       )}
                     </div>
+                  </div>
+
+                  <div>
+                    {/* Empty space to align with left column */}
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Description */}
+              {(bid.project_description || isEditing) && (
+                <div>
+                  <span className="text-gray-600 text-sm font-medium block mb-1">
+                    Project Description:
+                  </span>
+                  {isEditing ? (
+                    <textarea
+                      value={formData.project_description}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          project_description: e.target.value,
+                        })
+                      }
+                      className="border border-gray-300 rounded px-2 py-1 text-md w-full"
+                      rows={2}
+                      placeholder="Enter project description..."
+                    />
+                  ) : (
+                    <span className="text-gray-900 text-md">
+                      {bid.project_description || "No description provided."}
+                    </span>
                   )}
                 </div>
+              )}
+            </div>
 
-                {/* Right Column - Due Date and Vendor Costs */}
-                <div className="flex flex-col flex-1 gap-4">
-                  {/* Due Date Card */}
-                  <div className="bg-yellow-50 rounded-lg p-4 border border-blue-200 flex flex-col items-center justify-center text-center h-[50%]">
-                    <div className="text-yellow-600 text-md font-medium">
-                      Due Date
+            {/* Two Workflow Cards */}
+            <div className="grid grid-cols-2 gap-6 mb-6 flex-shrink-0">
+              {/* Card 1: Due Date */}
+              <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                <div className="text-gray-700 text-sm font-semibold mb-3 uppercase tracking-wide">
+                  Due Date
+                </div>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        due_date: e.target.value,
+                      })
+                    }
+                    className="border border-gray-300 rounded px-3 py-2 text-base w-full"
+                  />
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold text-gray-900 mb-3">
+                      {formatDate(bid.due_date)}
                     </div>
-                    <div className="text-3xl font-bold text-yellow-700 mb-1">
-                      {isEditing ? (
-                        <input
-                          type="date"
-                          value={formData.due_date}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              due_date: e.target.value,
-                            })
-                          }
-                          className="border border-gray-300 rounded px-2 py-1 w-full text-center text-lg"
-                        />
-                      ) : (
-                        formatDate(bid.due_date)
-                      )}
+                    <div className="text-gray-600 text-sm">
+                      Project deadline
                     </div>
-                  </div>
+                  </>
+                )}
+              </div>
 
-                  {/* Vendor Costs Summary Card */}
-                  <div className="bg-green-50 rounded-lg p-4 border border-green-200 flex flex-col items-center justify-center text-center h-[50%]">
-                    <div className="text-3xl font-bold text-green-700 mb-2">
-                      {(() => {
-                        const totalVendorCosts = projectVendors
-                          .filter((bv) => bv.status == "yes bid" || bv.status == "no bid")
-                          .filter(
-                            (bv) =>
-                              bv.cost_amount !== null &&
-                              bv.cost_amount !== undefined
-                          )
-                          .reduce(
-                            (sum, bv) =>
-                              sum + parseFloat(String(bv.cost_amount || 0)),
-                            0
-                          );
+              {/* Card 2: Total Vendor Costs */}
+              <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                <div className="text-gray-700 text-sm font-semibold mb-3 uppercase tracking-wide">
+                  Total Vendor Costs
+                </div>
+                <div className="text-3xl font-bold text-gray-900 mb-3">
+                  {(() => {
+                    const totalVendorCosts = projectVendors
+                      .filter((bv) => bv.status == "yes bid" || bv.status == "no bid")
+                      .filter(
+                        (bv) =>
+                          bv.cost_amount !== null &&
+                          bv.cost_amount !== undefined
+                      )
+                      .reduce(
+                        (sum, bv) =>
+                          sum + parseFloat(String(bv.cost_amount || 0)),
+                        0
+                      );
 
-                        return new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        }).format(totalVendorCosts);
-                      })()}
-                    </div>
-                    <div className="text-green-600 text-md font-medium">
-                      {(() => {
-                        const respondedVendors = projectVendors
-                          .filter((bv) => bv.status == "yes bid" || bv.status == "no bid")
-                          .filter(
-                            (bv) =>
-                              bv.response_received_date !== null ||
-                              (bv.cost_amount !== null &&
-                                bv.cost_amount !== undefined)
-                          ).length;
-                        const totalVendors = projectVendors.length;
-                        return `${respondedVendors}/${totalVendors} responses`;
-                      })()}
-                    </div>
-                  </div>
+                    return new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(totalVendorCosts);
+                  })()}
+                </div>
+                <div className="text-gray-600 text-sm">
+                  {(() => {
+                    const respondedVendors = projectVendors
+                      .filter((bv) => bv.status == "yes bid" || bv.status == "no bid")
+                      .filter(
+                        (bv) =>
+                          bv.response_received_date !== null ||
+                          (bv.cost_amount !== null &&
+                            bv.cost_amount !== undefined)
+                      ).length;
+                    const totalVendors = projectVendors.length;
+                    return `${respondedVendors}/${totalVendors} responses`;
+                  })()}
                 </div>
               </div>
             </div>
 
             {/* Tabbed Interface */}
-            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div className="bg-white border-t border-b border-gray-300 flex flex-col -mx-6 flex-1 min-h-0">
               {/* Tab Navigation */}
               <div className="border-b border-gray-200">
                 <div className="flex justify-between items-center px-6">
@@ -896,22 +872,13 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     {activeTab === "vendors" && (
                       <>
                         {selectedVendorIds.length === 0 ? (
-                          <>
-                            <button
-                              onClick={handleAddVendor}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                            >
-                              <UserPlusIcon className="w-4 h-4 mr-1" />
-                              Add Vendor
-                            </button>
-                            <button
-                              onClick={handleAddNote}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                            >
-                              <PencilIcon className="w-4 h-4 mr-1" />
-                              Add Note
-                            </button>
-                          </>
+                          <button
+                            onClick={handleAddVendor}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            <UserPlusIcon className="w-4 h-4 mr-1" />
+                            Add Vendor
+                          </button>
                         ) : (
                           <button
                             onClick={handleSidebarRemoveVendors}
@@ -938,7 +905,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               </div>
 
               {/* Tab Content */}
-              <div className="min-h-96">
+              <div className="flex-1 overflow-y-auto min-h-0">
                 {activeTab === "vendors" && (
                     <VendorTable
                       projectVendors={projectVendors}

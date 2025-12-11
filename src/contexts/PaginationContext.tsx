@@ -73,7 +73,7 @@ interface PaginationContextValue {
 // Default pagination state - page 0 indicates uninitialized
 const defaultPaginationState: PaginationState = {
   page: 0,
-  limit: 50,
+  limit: 25,
   totalPages: 1,
   totalCount: 0,
   loading: false

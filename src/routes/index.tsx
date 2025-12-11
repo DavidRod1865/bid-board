@@ -39,6 +39,7 @@ interface AppRoutesProps {
   // Handler functions
   handleStatusChange: (bidId: number, newStatus: string) => Promise<void>;
   handleUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
+  handleUpdateAPMBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   handleDeleteBid: (bidId: number) => Promise<void>;
   handleAddBid: (bidData: Omit<Bid, 'id'>) => Promise<void>;
   handleAddProjectWithVendors: (bidData: Omit<Bid, 'id'>, vendorIds: number[]) => Promise<void>;
@@ -62,6 +63,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   isLoading = false,
   handleStatusChange,
   handleUpdateBid,
+  handleUpdateAPMBid,
   handleDeleteBid,
   handleAddBid,
   handleAddProjectWithVendors,
@@ -197,7 +199,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             vendors={vendors}
             bidVendors={bidVendors}
             projectNotes={projectNotes}
-            onUpdateBid={handleUpdateBid}
+            onUpdateBid={handleUpdateAPMBid}
             onDeleteBid={handleDeleteBid}
             onUpdateBidVendor={handleUpdateBidVendor}
           />

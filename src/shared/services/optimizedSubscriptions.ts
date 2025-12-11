@@ -74,10 +74,10 @@ export class OptimizedSubscriptionService {
       if (role === 'APM') {
         // APM users: get assigned projects
         const { data: assignedProjects } = await supabase
-          .from('bids')
+          .from('projects')
           .select('id')
-          .eq('assign_to', userId)
-          .eq('archived', false)
+          .eq('assigned_to', userId)
+          .eq('est_activity_cycle', 'Active')
           .limit(50); // Limit to prevent too many subscriptions
 
         context.activeProjects = assignedProjects?.map(p => p.id) || [];
@@ -94,10 +94,10 @@ export class OptimizedSubscriptionService {
       } else if (role === 'Estimating') {
         // Estimating users: get recent projects they created or are assigned to
         const { data: recentProjects } = await supabase
-          .from('bids')
+          .from('projects')
           .select('id')
-          .or(`created_by.eq.${userId},assign_to.eq.${userId}`)
-          .eq('archived', false)
+          .or(`created_by.eq.${userId},assigned_to.eq.${userId}`)
+          .eq('est_activity_cycle', 'Active')
           .order('updated_at', { ascending: false })
           .limit(30); // Limit to recent projects
 
@@ -143,20 +143,38 @@ export class OptimizedSubscriptionService {
     const channelName = `user_projects_${this.userContext?.userId}`;
     
     // Create filter for user's projects only
-    const projectFilter = `bid_id=in.(${projectIds.join(',')})`;
+    const projectFilter = `project_id=in.(${projectIds.join(',')})`;
     
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'bids',
+        table: 'projects',
         filter: `id=in.(${projectIds.join(',')})`
       }, this.handleProjectUpdate.bind(this))
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'bid_vendors',
+        table: 'project_vendors',
+        filter: projectFilter
+      }, this.handleBidVendorUpdate.bind(this))
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'est_responses',
+        filter: projectFilter
+      }, this.handleBidVendorUpdate.bind(this))
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'project_financials',
+        filter: projectFilter
+      }, this.handleBidVendorUpdate.bind(this))
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'apm_phases',
         filter: projectFilter
       }, this.handleBidVendorUpdate.bind(this))
       .on('postgres_changes', {
@@ -225,8 +243,8 @@ export class OptimizedSubscriptionService {
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'bids',
-        filter: `assign_to=eq.${userId}`
+        table: 'projects',
+        filter: `assigned_to=eq.${userId}`
       }, this.handleUserAssignmentUpdate.bind(this))
       .on('postgres_changes', {
         event: '*',
