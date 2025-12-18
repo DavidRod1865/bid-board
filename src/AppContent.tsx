@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Importing types
-import type { User, Bid, Vendor, VendorWithContact, BidVendor, ProjectNote } from './shared/types';
+import type { User, Bid, Vendor, VendorWithContact, BidVendor, ProjectNote, ProjectEquipment, TimelineEvent, TimelineEventTemplate } from './shared/types';
 import type { ContactData } from './features/estimating/components/VendorManagement/VendorCreationWizard';
 
 // Importing Supabase operations and realtime manager
@@ -28,6 +28,9 @@ const AppContentInternal: React.FC = () => {
   const [bidVendors, setBidVendors] = useState<BidVendor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([]);
+  const [equipment, setEquipment] = useState<ProjectEquipment[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineEventTemplates, setTimelineEventTemplates] = useState<TimelineEventTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { isAppLoading, setAppLoading, isGlobalLoading } = useLoading();
 
@@ -39,11 +42,14 @@ const AppContentInternal: React.FC = () => {
         setError(null);
         
         // Fetch data from normalized tables
-        const [bidsResult, vendorsData, usersData, projectNotesData] = await Promise.all([
+        const [bidsResult, vendorsData, usersData, projectNotesData, equipmentData, timelineEventsData, timelineTemplatesData] = await Promise.all([
           dbOperations.getBids(), // Now uses normalized views internally
           dbOperations.getVendors(),
           userCache.getUsers(),
-          dbOperations.getProjectNotes()
+          dbOperations.getProjectNotes(),
+          dbOperations.getAllProjectEquipment(),
+          dbOperations.getTimelineEvents(),
+          dbOperations.getTimelineEventTemplates()
         ]);
 
         // Extract bids and bidVendors from the result
@@ -54,6 +60,9 @@ const AppContentInternal: React.FC = () => {
         setBidVendors(extractedBidVendors || []); 
         setUsers(usersData || []); 
         setProjectNotes(projectNotesData || []);
+        setEquipment((equipmentData as ProjectEquipment[]) || []);
+        setTimelineEvents(timelineEventsData || []);
+        setTimelineEventTemplates(timelineTemplatesData || []);
         
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -84,11 +93,12 @@ const AppContentInternal: React.FC = () => {
     const handleDataRefresh = () => {
       // Trigger a full data refresh for normalized tables
       const loadData = async () => {
-        const [bidsResult, vendorsData, usersData, projectNotesData] = await Promise.all([
+        const [bidsResult, vendorsData, usersData, projectNotesData, equipmentData] = await Promise.all([
           dbOperations.getBids(),
           dbOperations.getVendors(),
           userCache.getUsers(),
-          dbOperations.getProjectNotes()
+          dbOperations.getProjectNotes(),
+          dbOperations.getAllProjectEquipment()
         ]);
 
         const { bids: transformedBids, bidVendors: extractedBidVendors } = bidsResult;
@@ -98,6 +108,7 @@ const AppContentInternal: React.FC = () => {
         setBidVendors(extractedBidVendors || []); 
         setUsers(usersData || []); 
         setProjectNotes(projectNotesData || []);
+        setEquipment((equipmentData as ProjectEquipment[]) || []);
       };
       
       loadData().catch(console.error);
@@ -156,6 +167,7 @@ const AppContentInternal: React.FC = () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update bid';
       setError(errorMessage);
+      throw err; // Re-throw so the UI component can handle it
     }
   };
 
@@ -225,7 +237,9 @@ const AppContentInternal: React.FC = () => {
         added_to_procore: newBid.added_to_procore || false,
         made_by_apm: newBid.made_by_apm || false,
         project_start_date: newBid.project_start_date || null,
-        gc_contact_id: newBid.gc_contact_id || null
+        gc_contact_id: newBid.gc_contact_id || null,
+        assigned_pm: newBid.assigned_pm || null,
+        binder: newBid.binder || false
       };
       
       setBids(prev => {
@@ -276,7 +290,9 @@ const AppContentInternal: React.FC = () => {
         added_to_procore: newBid.added_to_procore || false,
         made_by_apm: newBid.made_by_apm || false,
         project_start_date: newBid.project_start_date || null,
-        gc_contact_id: newBid.gc_contact_id || null
+        gc_contact_id: newBid.gc_contact_id || null,
+        assigned_pm: newBid.assigned_pm || null,
+        binder: newBid.binder || false
       };
       
       setBids(prev => {
@@ -337,7 +353,9 @@ const AppContentInternal: React.FC = () => {
         added_to_procore: result.project.added_to_procore || false,
         made_by_apm: result.project.made_by_apm || false,
         project_start_date: result.project.project_start_date || null,
-        gc_contact_id: result.project.gc_contact_id || null
+        gc_contact_id: result.project.gc_contact_id || null,
+        assigned_pm: result.project.assigned_pm || null,
+        binder: result.project.binder || false
       };
       
       setBids(prev => {
@@ -521,6 +539,47 @@ const AppContentInternal: React.FC = () => {
     // Real-time subscription will handle UI updates automatically
   };
 
+  // Timeline Event Handlers
+  const handleAddTimelineEvent = async (eventData: Omit<TimelineEvent, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const newEvent = await dbOperations.createTimelineEvent(eventData);
+      
+      // Optimistically update local state
+      setTimelineEvents(prev => {
+        const exists = prev.some(event => event.id === newEvent.id);
+        return exists ? prev : [...prev, newEvent];
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add timeline event');
+    }
+  };
+
+  const handleUpdateTimelineEvent = async (event: TimelineEvent) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, created_at, updated_at, ...updateData } = event;
+      await dbOperations.updateTimelineEvent(id, updateData);
+      
+      // Optimistically update local state
+      setTimelineEvents(prev => 
+        prev.map(e => e.id === event.id ? event : e)
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update timeline event');
+    }
+  };
+
+  const handleDeleteTimelineEvent = async (eventId: number) => {
+    try {
+      await dbOperations.deleteTimelineEvent(eventId);
+      
+      // Remove from local state
+      setTimelineEvents(prev => prev.filter(event => event.id !== eventId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete timeline event');
+    }
+  };
+
   // Show unified loading state for both auth and app loading
   if (isGlobalLoading) {
     return (
@@ -562,6 +621,7 @@ const AppContentInternal: React.FC = () => {
         bidVendors={bidVendors}
         users={users}
         projectNotes={projectNotes}
+        equipment={equipment}
         isLoading={isAppLoading}
         handleStatusChange={handleStatusChange}
         handleUpdateBid={handleUpdateBid}
@@ -578,6 +638,11 @@ const AppContentInternal: React.FC = () => {
         handleRemoveBidVendors={handleRemoveBidVendors}
         handleBidRestored={handleBidRestored}
         handleVendorUpdated={handleVendorUpdated}
+        timelineEvents={timelineEvents}
+        timelineEventTemplates={timelineEventTemplates}
+        handleAddTimelineEvent={handleAddTimelineEvent}
+        handleUpdateTimelineEvent={handleUpdateTimelineEvent}
+        handleDeleteTimelineEvent={handleDeleteTimelineEvent}
       />
     </div>
   );

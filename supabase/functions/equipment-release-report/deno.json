@@ -1,0 +1,16 @@
+{
+  "tasks": {
+    "start": "deno run --allow-all --watch=static/,routes/,components/,islands/ dev.ts",
+    "build": "deno run --allow-all build.ts"
+  },
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.6.0"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window", "dom"],
+    "strict": true
+  }
+}

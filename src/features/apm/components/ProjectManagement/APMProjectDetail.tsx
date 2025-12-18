@@ -6,6 +6,9 @@ import type {
   Vendor,
   BidVendor,
   ProjectNote,
+  ProjectEquipment,
+  TimelineEvent,
+  TimelineEventTemplate,
 } from "../../../../shared/types";
 import Sidebar from "../../../../shared/components/ui/Sidebar";
 import AlertDialog from "../../../../shared/components/ui/AlertDialog";
@@ -13,6 +16,8 @@ import APMVendorTable from "../VendorManagement/APMVendorTable";
 import APMAddVendorToProjectModal from "../modals/APMAddVendorToProjectModal";
 import AddNoteModal from "../../../../shared/components/modals/AddNoteModal";
 import ProjectNotes from "../../../../shared/components/modals/ProjectNotes";
+import HierarchicalProjectView from "./HierarchicalProjectView";
+import { ProjectTimeline } from "../timeline/ProjectTimeline";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -25,7 +30,6 @@ import { dbOperations, supabase } from "../../../../shared/services/supabase";
 // Real-time updates handled by AppContent
 import {
   getCurrentPhasesWithSoonestFollowUp,
-  getVendorFollowUpUrgency,
   getPhaseFollowUpDate,
 } from "../../../../shared/utils/phaseFollowUpUtils";
 import {
@@ -39,6 +43,8 @@ import {
   XMarkIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  PlusIcon,
+  EllipsisVerticalIcon,
 } from "@heroicons/react/24/outline";
 import {
   DropdownMenu,
@@ -48,6 +54,8 @@ import {
   DropdownMenuTrigger,
 } from "../../../../shared/components/ui/dropdown-menu";
 import { Checkbox } from "../../../../shared/components/ui/checkbox";
+import { AddTimelineEventModal } from "../timeline/AddTimelineEventModal";
+import { TimelineEventDropdown } from "../../../../shared/components/ui/TimelineEventDropdown";
 
 interface APMProjectDetailProps {
   bid: Bid;
@@ -55,64 +63,254 @@ interface APMProjectDetailProps {
   projectNotes: ProjectNote[];
   vendors: Vendor[];
   users: User[];
+  timelineEvents?: TimelineEvent[];
+  timelineEventTemplates?: TimelineEventTemplate[];
   onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   onDeleteBid: (bidId: number) => Promise<void>;
   onUpdateBidVendor: (
     bidVendorId: number,
     vendorData: Partial<BidVendor>
   ) => Promise<void>;
+  onTimelineEventAdd?: (event: Omit<TimelineEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  onTimelineEventUpdate?: (event: TimelineEvent) => Promise<void>;
+  onTimelineEventDelete?: (eventId: number) => Promise<void>;
 }
 
-// Equipment Table Component
+// SortableHeader component for EquipmentTable
+interface SortableHeaderProps {
+  field: keyof ProjectEquipment;
+  currentSortField: keyof ProjectEquipment;
+  sortDirection: 'asc' | 'desc';
+  onSort: (field: keyof ProjectEquipment) => void;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const SortableHeader: React.FC<SortableHeaderProps> = ({
+  field,
+  currentSortField,
+  sortDirection,
+  onSort,
+  children,
+  className = ""
+}) => {
+  const alignmentClass = className.includes('text-center') ? 'text-center' : 'text-left';
+  const isActive = currentSortField === field;
+  
+  return (
+    <th
+      className={`px-2 py-1 ${alignmentClass} text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-slate-600 transition-colors border-r border-gray-300 ${className}`}
+      onClick={() => onSort(field)}
+    >
+      <div className={`flex items-center space-x-1 ${alignmentClass === 'text-center' ? 'justify-center' : ''}`}>
+        <span>{children}</span>
+        {isActive && (
+          <span className="text-blue-300">
+            {sortDirection === 'asc' ? '↑' : '↓'}
+          </span>
+        )}
+      </div>
+    </th>
+  );
+};
+
+// Equipment Table Component (normalized structure only)
 interface EquipmentTableProps {
-  bidVendors: BidVendor[];
+  projectId: number;
   vendors: Vendor[];
+  timelineEvents: TimelineEvent[];
 }
 
-const EquipmentTable: React.FC<EquipmentTableProps> = ({ bidVendors, vendors }) => {
+const EquipmentTable: React.FC<EquipmentTableProps> = ({ 
+  projectId,
+  vendors,
+  timelineEvents
+}) => {
   const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
+  const [equipment, setEquipment] = useState<ProjectEquipment[]>([]);
+  const [loadingEquipment, setLoadingEquipment] = useState<Set<number>>(new Set());
+  const [nextFormId, setNextFormId] = useState<number>(1);
+  const [openForms, setOpenForms] = useState<Set<number>>(new Set());
+  const [formVendorMap, setFormVendorMap] = useState<Record<number, number>>({});
+  const [editingEquipment, setEditingEquipment] = useState<ProjectEquipment | null>(null);
+  const [projectVendors, setProjectVendors] = useState<any[]>([]);
+  const [loadingProjectVendors, setLoadingProjectVendors] = useState(true);
+  const [addFormData, setAddFormData] = useState<Record<number, {
+    po_number: string;
+    description: string;
+    quantity: string;
+    unit: string;
+    date_received: string;
+    timeline_event_id: number | null;
+    received_at_wp: boolean;
+  }>>({});
+  const [editFormData, setEditFormData] = useState<Record<number, {
+    po_number: string;
+    description: string;
+    quantity: string;
+    unit: string;
+    date_received: string;
+    timeline_event_id: number | null;
+    received_at_wp: boolean;
+  }>>({});
+  const [sortField, setSortField] = useState<keyof ProjectEquipment>('date_received');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const getVendorName = (vendorId: number) => {
     return vendors.find(v => v.id === vendorId)?.company_name || 'Unknown Vendor';
   };
 
-  const toggleExpanded = (vendorId: number) => {
-    setExpandedVendor(expandedVendor === vendorId ? null : vendorId);
+  // Load project vendors when component mounts
+  useEffect(() => {
+    const loadProjectVendors = async () => {
+      try {
+        setLoadingProjectVendors(true);
+        const vendorData = await dbOperations.getProjectVendors(projectId);
+        setProjectVendors(vendorData);
+      } catch (error) {
+        console.error('Failed to load project vendors:', error);
+      } finally {
+        setLoadingProjectVendors(false);
+      }
+    };
+
+    if (projectId) {
+      loadProjectVendors();
+    }
+  }, [projectId]);
+
+  // Helper function to format date for date input (YYYY-MM-DD)
+  const formatDateForInput = (dateString: string | null): string => {
+    if (!dateString) return '';
+    // Extract just the date part from timestamps
+    const dateOnly = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    return dateOnly;
   };
+
+  // Helper function to format date for display, avoiding timezone conversion issues
+  const formatDateForDisplay = (dateString: string | null): string => {
+    if (!dateString) return '—';
+    // Extract just the date part from timestamps to avoid timezone conversion
+    const dateOnly = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const [year, month, day] = dateOnly.split('-').map(Number);
+    // Create local date to avoid timezone shifts
+    const localDate = new Date(year, month - 1, day);
+    return localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Load equipment when vendor is expanded
+  const toggleExpanded = async (vendorId: number) => {
+    const newExpandedVendor = expandedVendor === vendorId ? null : vendorId;
+    setExpandedVendor(newExpandedVendor);
+    
+    if (newExpandedVendor !== null) {
+      setLoadingEquipment(prev => new Set(prev).add(vendorId));
+      try {
+        const equipmentData = await dbOperations.getProjectEquipment(vendorId);
+        setEquipment(prev => [
+          ...prev.filter(e => e.project_vendor_id !== vendorId),
+          ...equipmentData
+        ]);
+      } catch (error) {
+        console.error('Failed to load equipment:', error);
+      } finally {
+        setLoadingEquipment(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(vendorId);
+          return newSet;
+        });
+      }
+    }
+  };
+
+  const handleSort = (field: keyof ProjectEquipment) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getVendorEquipment = (projectVendorId: number) => {
+    const vendorEquipment = equipment.filter(e => e.project_vendor_id === projectVendorId);
+    
+    return [...vendorEquipment].sort((a, b) => {
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
+      
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+      
+      // Special handling for date_received (string comparison)
+      if (sortField === 'date_received') {
+        const aDate = aValue && typeof aValue === 'string' ? (aValue.includes('T') ? aValue.split('T')[0] : aValue) : '';
+        const bDate = bValue && typeof bValue === 'string' ? (bValue.includes('T') ? bValue.split('T')[0] : bValue) : '';
+        const comparison = aDate.localeCompare(bDate);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+      
+      // Special handling for quantity (numeric)
+      if (sortField === 'quantity') {
+        const comparison = aValue - bValue;
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+      
+      // String comparison for text fields
+      const comparison = String(aValue).localeCompare(String(bValue), undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  if (loadingProjectVendors) {
+    return (
+      <div className="border border-gray-300 p-8 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="text-sm text-gray-500 mt-2">Loading project vendors...</p>
+      </div>
+    );
+  }
+
+  if (!projectVendors || projectVendors.length === 0) {
+    return (
+      <div className="border border-gray-300 p-8 text-center">
+        <p className="text-sm text-gray-500">No vendors assigned to this project.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="border border-gray-300">
       <table className="min-w-full divide-y divide-gray-300">
         <thead className="bg-slate-700">
           <tr>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
+            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-300">
               Vendor
             </th>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
-              Original Quote
-            </th>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
-              Final Quote
+            <th className="px-2 py-2 text-center text-xs font-semibold text-white uppercase tracking-wider">
+              Equipment Count
             </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-300">
-          {bidVendors.map((vendor, index) => {
-            const isExpanded = expandedVendor === vendor.id;
+          {projectVendors.map((projectVendor, index) => {
+            const isExpanded = expandedVendor === projectVendor.id;
             const rowClasses = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+            const equipmentCount = getVendorEquipment(projectVendor.id).length;
             
             return (
-              <React.Fragment key={vendor.id}>
+              <React.Fragment key={projectVendor.id}>
                 <tr 
                   className={`${rowClasses} hover:bg-slate-100 transition-colors cursor-pointer`}
-                  onClick={() => toggleExpanded(vendor.id)}
+                  onClick={() => toggleExpanded(projectVendor.id)}
                 >
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className="px-2 py-2 whitespace-nowrap border-r border-gray-300">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleExpanded(vendor.id);
+                          toggleExpanded(projectVendor.id);
                         }}
                         className="p-0.5 hover:bg-gray-200 rounded transition-colors"
                       >
@@ -123,25 +321,738 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({ bidVendors, vendors }) 
                         )}
                       </button>
                       <span className="text-sm font-semibold text-slate-900">
-                        {getVendorName(vendor.vendor_id)}
+                        {getVendorName(projectVendor.vendor_id)}
                       </span>
                     </div>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
-                    {vendor.cost_amount ? `$${Number(vendor.cost_amount).toLocaleString()}` : '—'}
-                  </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
-                    {vendor.final_quote_amount ? `$${Number(vendor.final_quote_amount).toLocaleString()}` : '—'}
+                  <td className="px-2 py-2 text-center text-sm font-medium text-slate-800">
+                    {equipmentCount > 0 ? equipmentCount : '—'}
                   </td>
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={3} className="px-0 py-0">
+                    <td colSpan={2} className="px-0 py-0">
                       <div className="bg-gray-50 border-t border-gray-200">
-                        <div className="p-4">
-                          <div className="text-sm text-gray-600 mb-2">Equipment items will be added here</div>
-                          {/* Equipment items will be added here later */}
-                        </div>
+                        <table className="min-w-full divide-y divide-gray-300">
+                          <thead className="bg-slate-500">
+                            <tr>
+                              <SortableHeader 
+                                field="po_number" 
+                                currentSortField={sortField}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                                className="text-left"
+                              >
+                                PO Number
+                              </SortableHeader>
+                              <SortableHeader 
+                                field="quantity" 
+                                currentSortField={sortField}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                                className="text-center w-24"
+                              >
+                                QTY
+                              </SortableHeader>
+                              <SortableHeader 
+                                field="unit" 
+                                currentSortField={sortField}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                                className="text-center"
+                              >
+                                Unit
+                              </SortableHeader>
+                              <SortableHeader 
+                                field="description" 
+                                currentSortField={sortField}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                                className="text-left"
+                              >
+                                Description
+                              </SortableHeader>
+                              <SortableHeader 
+                                field="date_received" 
+                                currentSortField={sortField}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                                className="text-center w-36"
+                              >
+                                Date Received
+                              </SortableHeader>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-16 border-r border-gray-300">WP</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-48 border-r border-gray-300">Timeline Event</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-16 border-r border-gray-300">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-300">
+                            {/* Inline Add Equipment Form Rows */}
+                            {Array.from(openForms).filter(formId => formVendorMap[formId] === projectVendor.id).map((formId) => (
+                              <tr key={formId} className="bg-blue-50">
+                                <td className="px-2 py-2 border-r border-gray-300">
+                                  <input
+                                    type="text"
+                                    placeholder="PO Number"
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                    value={addFormData[formId]?.po_number || ''}
+                                    onChange={(e) => setAddFormData(prev => ({
+                                      ...prev,
+                                      [formId]: {
+                                        ...prev[formId],
+                                        po_number: e.target.value,
+                                        description: prev[formId]?.description || '',
+                                        quantity: prev[formId]?.quantity || '',
+                                        unit: prev[formId]?.unit || '',
+                                        date_received: prev[formId]?.date_received || '',
+                                        timeline_event_id: prev[formId]?.timeline_event_id || null,
+                                        received_at_wp: prev[formId]?.received_at_wp || false,
+                                      }
+                                    }))}
+                                  />
+                                </td>
+                                <td className="px-2 py-2 w-24 border-r border-gray-300">
+                                  <input
+                                    type="number"
+                                    placeholder="QTY"
+                                    step="0.01"
+                                    min="0"
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                    value={addFormData[formId]?.quantity || ''}
+                                    onChange={(e) => setAddFormData(prev => ({
+                                      ...prev,
+                                      [formId]: {
+                                        ...prev[formId],
+                                        po_number: prev[formId]?.po_number || '',
+                                        description: prev[formId]?.description || '',
+                                        quantity: e.target.value,
+                                        unit: prev[formId]?.unit || '',
+                                        date_received: prev[formId]?.date_received || '',
+                                        timeline_event_id: prev[formId]?.timeline_event_id || null,
+                                        received_at_wp: prev[formId]?.received_at_wp || false,
+                                      }
+                                    }))}
+                                  />
+                                </td>
+                                <td className="px-2 py-2 border-r border-gray-300">
+                                  <input
+                                    type="text"
+                                    placeholder="Unit"
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                    value={addFormData[formId]?.unit || ''}
+                                    onChange={(e) => setAddFormData(prev => ({
+                                      ...prev,
+                                      [formId]: {
+                                        ...prev[formId],
+                                        po_number: prev[formId]?.po_number || '',
+                                        description: prev[formId]?.description || '',
+                                        quantity: prev[formId]?.quantity || '',
+                                        unit: e.target.value,
+                                        date_received: prev[formId]?.date_received || '',
+                                        timeline_event_id: prev[formId]?.timeline_event_id || null,
+                                        received_at_wp: prev[formId]?.received_at_wp || false,
+                                      }
+                                    }))}
+                                  />
+                                </td>
+                                <td className="px-2 py-2 border-r border-gray-300">
+                                  <input
+                                    type="text"
+                                    placeholder="Description"
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                    value={addFormData[formId]?.description || ''}
+                                    onChange={(e) => setAddFormData(prev => ({
+                                      ...prev,
+                                      [formId]: {
+                                        ...prev[formId],
+                                        po_number: prev[formId]?.po_number || '',
+                                        description: e.target.value,
+                                        quantity: prev[formId]?.quantity || '',
+                                        unit: prev[formId]?.unit || '',
+                                        date_received: prev[formId]?.date_received || '',
+                                        timeline_event_id: prev[formId]?.timeline_event_id || null,
+                                        received_at_wp: prev[formId]?.received_at_wp || false,
+                                      }
+                                    }))}
+                                  />
+                                </td>
+                                <td className="px-2 py-2 w-36 border-r border-gray-300" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="date"
+                                    className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                    value={addFormData[formId]?.date_received || ''}
+                                    onChange={(e) => setAddFormData(prev => ({
+                                      ...prev,
+                                      [formId]: {
+                                        ...prev[formId],
+                                        po_number: prev[formId]?.po_number || '',
+                                        description: prev[formId]?.description || '',
+                                        quantity: prev[formId]?.quantity || '',
+                                        unit: prev[formId]?.unit || '',
+                                        date_received: e.target.value,
+                                        timeline_event_id: prev[formId]?.timeline_event_id || null,
+                                        received_at_wp: prev[formId]?.received_at_wp || false,
+                                      }
+                                    }))}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Explicitly show the date picker if supported
+                                      if ('showPicker' in e.currentTarget && typeof (e.currentTarget as any).showPicker === 'function') {
+                                        try {
+                                          (e.currentTarget as any).showPicker();
+                                        } catch (err) {
+                                          // showPicker might not be available or might throw, ignore
+                                        }
+                                      }
+                                    }}
+                                    onFocus={(e) => e.stopPropagation()}
+                                  />
+                                </td>
+                                <td className="px-2 py-2 text-center w-16 border-r border-gray-300">
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                    checked={addFormData[formId]?.received_at_wp || false}
+                                    onChange={(e) => setAddFormData(prev => ({
+                                      ...prev,
+                                      [formId]: {
+                                        ...prev[formId],
+                                        po_number: prev[formId]?.po_number || '',
+                                        description: prev[formId]?.description || '',
+                                        quantity: prev[formId]?.quantity || '',
+                                        unit: prev[formId]?.unit || '',
+                                        date_received: prev[formId]?.date_received || '',
+                                        timeline_event_id: prev[formId]?.timeline_event_id || null,
+                                        received_at_wp: e.target.checked,
+                                      }
+                                    }))}
+                                  />
+                                </td>
+                                <td className="px-2 py-2 w-48 border-r border-gray-300" onClick={(e) => e.stopPropagation()}>
+                                  <TimelineEventDropdown
+                                    projectId={projectId}
+                                    value={addFormData[formId]?.timeline_event_id || null}
+                                    onChange={(timelineEventId) => setAddFormData(prev => ({
+                                      ...prev,
+                                      [formId]: {
+                                        ...prev[formId],
+                                        po_number: prev[formId]?.po_number || '',
+                                        description: prev[formId]?.description || '',
+                                        quantity: prev[formId]?.quantity || '',
+                                        unit: prev[formId]?.unit || '',
+                                        date_received: prev[formId]?.date_received || '',
+                                        timeline_event_id: timelineEventId,
+                                        received_at_wp: prev[formId]?.received_at_wp || false,
+                                      }
+                                    }))}
+                                    timelineEvents={timelineEvents}
+                                    placeholder="Select timeline event..."
+                                  />
+                                </td>
+                                <td className="px-2 py-2 w-16">
+                                  <div className="flex gap-2 justify-center">
+                                    <button
+                                      onClick={async () => {
+                                        const formData = addFormData[formId] || {
+                                          po_number: '',
+                                          description: '',
+                                          quantity: '',
+                                          unit: '',
+                                          date_received: '',
+                                          timeline_event_id: null,
+                                          received_at_wp: false,
+                                        };
+                                        const quantity = parseFloat(formData.quantity || '0');
+                                        
+                                        if (quantity <= 0) {
+                                          alert('Please enter a quantity greater than 0');
+                                          return;
+                                        }
+                                        
+                                        try {
+                                          const equipmentData = {
+                                            po_number: formData.po_number || null,
+                                            quantity,
+                                            description: formData.description,
+                                            unit: formData.unit || null,
+                                            date_received: formData.date_received || null,
+                                            timeline_event_id: formData.timeline_event_id,
+                                            received_at_wp: formData.received_at_wp || false
+                                          };
+                                          
+                                          await dbOperations.createProjectEquipment({
+                                            project_vendor_id: projectVendor.id,
+                                            ...equipmentData
+                                          });
+                                          
+                                          // Reload equipment data
+                                          const updatedEquipment = await dbOperations.getProjectEquipment(projectVendor.id);
+                                          setEquipment(prev => [
+                                            ...prev.filter(e => e.project_vendor_id !== projectVendor.id),
+                                            ...updatedEquipment
+                                          ]);
+                                          
+                                          // Remove this form
+                                          setOpenForms(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(formId);
+                                            return newSet;
+                                          });
+                                          setFormVendorMap(prev => {
+                                            const newMap = { ...prev };
+                                            delete newMap[formId];
+                                            return newMap;
+                                          });
+                                          setAddFormData(prev => {
+                                            const newData = { ...prev };
+                                            delete newData[formId];
+                                            return newData;
+                                          });
+                                        } catch (error) {
+                                          console.error('Failed to add equipment:', error);
+                                          alert('Failed to add equipment. Please try again.');
+                                        }
+                                      }}
+                                      className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                    >
+                                      Add
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setOpenForms(prev => {
+                                          const newSet = new Set(prev);
+                                          newSet.delete(formId);
+                                          return newSet;
+                                        });
+                                        setFormVendorMap(prev => {
+                                          const newMap = { ...prev };
+                                          delete newMap[formId];
+                                          return newMap;
+                                        });
+                                        setAddFormData(prev => {
+                                          const newData = { ...prev };
+                                          delete newData[formId];
+                                          return newData;
+                                        });
+                                      }}
+                                      className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+
+                            {/* Equipment List */}
+                            {loadingEquipment.has(projectVendor.id) ? (
+                              <tr>
+                                <td colSpan={8} className="px-2 py-4 text-center">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
+                                  <span className="text-xs text-gray-500 mt-1 block">Loading equipment...</span>
+                                </td>
+                              </tr>
+                            ) : getVendorEquipment(projectVendor.id).length === 0 ? (
+                              <tr>
+                                <td colSpan={8} className="px-2 py-4 text-center">
+                                  <button
+                                    onClick={() => {
+                                      const newFormId = nextFormId;
+                                      setNextFormId(prev => prev + 1);
+                                      setOpenForms(prev => new Set(prev).add(newFormId));
+                                      setFormVendorMap(prev => ({ ...prev, [newFormId]: projectVendor.id }));
+                                      setAddFormData(prev => ({
+                                        ...prev,
+                                        [newFormId]: {
+                                          po_number: '',
+                                          description: '',
+                                          quantity: '',
+                                          unit: '',
+                                          date_received: '',
+                                          timeline_event_id: null,
+                                          received_at_wp: false,
+                                        }
+                                      }));
+                                    }}
+                                    className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm transition-colors font-semibold"
+                                  >
+                                    Add New Equipment
+                                  </button>
+                                </td>
+                              </tr>
+                            ) : (
+                              <>
+                                {getVendorEquipment(projectVendor.id).map((eq, eqIndex) => (
+                                  <tr 
+                                    key={eq.id}
+                                    className={`${eqIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${
+                                      editingEquipment?.id === eq.id ? 'ring-2 ring-blue-500' : ''
+                                    }`}
+                                  >
+                                    {editingEquipment?.id === eq.id ? (
+                                      /* Inline Edit Form */
+                                      <>
+                                        <td className="px-2 py-2 border-r border-gray-300">
+                                          <input
+                                            type="text"
+                                            placeholder="PO Number"
+                                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                            value={editFormData[eq.id]?.po_number ?? (eq.po_number || '')}
+                                            onChange={(e) => setEditFormData(prev => ({
+                                              ...prev,
+                                              [eq.id]: {
+                                                ...prev[eq.id],
+                                                po_number: e.target.value,
+                                                description: prev[eq.id]?.description ?? eq.description,
+                                                quantity: prev[eq.id]?.quantity ?? String(eq.quantity),
+                                                unit: prev[eq.id]?.unit ?? (eq.unit || ''),
+                                                date_received: prev[eq.id]?.date_received ?? formatDateForInput(eq.date_received),
+                                                timeline_event_id: prev[eq.id]?.timeline_event_id ?? eq.timeline_event_id,
+                                                received_at_wp: prev[eq.id]?.received_at_wp ?? (eq.received_at_wp || false),
+                                              }
+                                            }))}
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 w-24 border-r border-gray-300">
+                                          <input
+                                            type="number"
+                                            placeholder="Quantity"
+                                            step="0.01"
+                                            min="0"
+                                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                            value={editFormData[eq.id]?.quantity ?? String(eq.quantity)}
+                                            onChange={(e) => setEditFormData(prev => ({
+                                              ...prev,
+                                              [eq.id]: {
+                                                ...prev[eq.id],
+                                                po_number: prev[eq.id]?.po_number ?? (eq.po_number || ''),
+                                                description: prev[eq.id]?.description ?? eq.description,
+                                                quantity: e.target.value,
+                                                unit: prev[eq.id]?.unit ?? (eq.unit || ''),
+                                                date_received: prev[eq.id]?.date_received ?? formatDateForInput(eq.date_received),
+                                                timeline_event_id: prev[eq.id]?.timeline_event_id ?? eq.timeline_event_id,
+                                                received_at_wp: prev[eq.id]?.received_at_wp ?? (eq.received_at_wp || false),
+                                              }
+                                            }))}
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 border-r border-gray-300">
+                                          <input
+                                            type="text"
+                                            placeholder="Unit"
+                                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                            value={editFormData[eq.id]?.unit ?? (eq.unit || '')}
+                                            onChange={(e) => setEditFormData(prev => ({
+                                              ...prev,
+                                              [eq.id]: {
+                                                ...prev[eq.id],
+                                                po_number: prev[eq.id]?.po_number ?? (eq.po_number || ''),
+                                                description: prev[eq.id]?.description ?? eq.description,
+                                                quantity: prev[eq.id]?.quantity ?? String(eq.quantity),
+                                                unit: e.target.value,
+                                                date_received: prev[eq.id]?.date_received ?? formatDateForInput(eq.date_received),
+                                                timeline_event_id: prev[eq.id]?.timeline_event_id ?? eq.timeline_event_id,
+                                                received_at_wp: prev[eq.id]?.received_at_wp ?? (eq.received_at_wp || false),
+                                              }
+                                            }))}
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 border-r border-gray-300">
+                                          <input
+                                            type="text"
+                                            placeholder="Description"
+                                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                            value={editFormData[eq.id]?.description ?? eq.description}
+                                            onChange={(e) => setEditFormData(prev => ({
+                                              ...prev,
+                                              [eq.id]: {
+                                                ...prev[eq.id],
+                                                po_number: prev[eq.id]?.po_number ?? (eq.po_number || ''),
+                                                description: e.target.value,
+                                                quantity: prev[eq.id]?.quantity ?? String(eq.quantity),
+                                                unit: prev[eq.id]?.unit ?? (eq.unit || ''),
+                                                date_received: prev[eq.id]?.date_received ?? formatDateForInput(eq.date_received),
+                                                timeline_event_id: prev[eq.id]?.timeline_event_id ?? eq.timeline_event_id,
+                                                received_at_wp: prev[eq.id]?.received_at_wp ?? (eq.received_at_wp || false),
+                                              }
+                                            }))}
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 w-36 border-r border-gray-300" onClick={(e) => e.stopPropagation()}>
+                                          <input
+                                            type="date"
+                                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                            value={editFormData[eq.id]?.date_received ?? formatDateForInput(eq.date_received)}
+                                            onChange={(e) => setEditFormData(prev => ({
+                                              ...prev,
+                                              [eq.id]: {
+                                                ...prev[eq.id],
+                                                po_number: prev[eq.id]?.po_number ?? (eq.po_number || ''),
+                                                description: prev[eq.id]?.description ?? eq.description,
+                                                quantity: prev[eq.id]?.quantity ?? String(eq.quantity),
+                                                unit: prev[eq.id]?.unit ?? (eq.unit || ''),
+                                                date_received: e.target.value,
+                                                timeline_event_id: prev[eq.id]?.timeline_event_id ?? eq.timeline_event_id,
+                                                received_at_wp: prev[eq.id]?.received_at_wp ?? (eq.received_at_wp || false),
+                                              }
+                                            }))}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              // Explicitly show the date picker if supported
+                                              if ('showPicker' in e.currentTarget && typeof (e.currentTarget as any).showPicker === 'function') {
+                                                try {
+                                                  (e.currentTarget as any).showPicker();
+                                                } catch (err) {
+                                                  // showPicker might not be available or might throw, ignore
+                                                }
+                                              }
+                                            }}
+                                            onFocus={(e) => e.stopPropagation()}
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 text-center w-16 border-r border-gray-300">
+                                          <input
+                                            type="checkbox"
+                                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                            checked={editFormData[eq.id]?.received_at_wp ?? (eq.received_at_wp || false)}
+                                            onChange={(e) => setEditFormData(prev => ({
+                                              ...prev,
+                                              [eq.id]: {
+                                                ...prev[eq.id],
+                                                po_number: prev[eq.id]?.po_number ?? (eq.po_number || ''),
+                                                description: prev[eq.id]?.description ?? eq.description,
+                                                quantity: prev[eq.id]?.quantity ?? String(eq.quantity),
+                                                unit: prev[eq.id]?.unit ?? (eq.unit || ''),
+                                                date_received: prev[eq.id]?.date_received ?? formatDateForInput(eq.date_received),
+                                                timeline_event_id: prev[eq.id]?.timeline_event_id ?? eq.timeline_event_id,
+                                                received_at_wp: e.target.checked,
+                                              }
+                                            }))}
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 w-48 border-r border-gray-300" onClick={(e) => e.stopPropagation()}>
+                                          <TimelineEventDropdown
+                                            projectId={projectId}
+                                            value={editFormData[eq.id]?.timeline_event_id ?? eq.timeline_event_id}
+                                            onChange={(timelineEventId) => setEditFormData(prev => ({
+                                              ...prev,
+                                              [eq.id]: {
+                                                ...prev[eq.id],
+                                                po_number: prev[eq.id]?.po_number ?? (eq.po_number || ''),
+                                                description: prev[eq.id]?.description ?? eq.description,
+                                                quantity: prev[eq.id]?.quantity ?? String(eq.quantity),
+                                                unit: prev[eq.id]?.unit ?? (eq.unit || ''),
+                                                date_received: prev[eq.id]?.date_received ?? formatDateForInput(eq.date_received),
+                                                timeline_event_id: timelineEventId,
+                                                received_at_wp: prev[eq.id]?.received_at_wp ?? (eq.received_at_wp || false),
+                                              }
+                                            }))}
+                                            timelineEvents={timelineEvents}
+                                            placeholder="Select timeline event..."
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 w-16">
+                                          <div className="flex gap-2 justify-center">
+                                            <button
+                                              onClick={async () => {
+                                                const formData = editFormData[eq.id] || {
+                                                  po_number: eq.po_number || '',
+                                                  description: eq.description,
+                                                  quantity: String(eq.quantity),
+                                                  unit: eq.unit || '',
+                                                  date_received: formatDateForInput(eq.date_received),
+                                                  timeline_event_id: eq.timeline_event_id,
+                                                  received_at_wp: eq.received_at_wp || false,
+                                                };
+                                                const quantity = parseFloat(formData.quantity || '0');
+                                                
+                                                if (!formData.description || quantity <= 0) {
+                                                  alert('Please enter a description and quantity greater than 0');
+                                                  return;
+                                                }
+                                                
+                                                try {
+                                                  await dbOperations.updateProjectEquipment(eq.id, {
+                                                    po_number: formData.po_number || null,
+                                                    quantity,
+                                                    description: formData.description,
+                                                    unit: formData.unit || null,
+                                                    date_received: formData.date_received || null,
+                                                    timeline_event_id: formData.timeline_event_id,
+                                                    received_at_wp: formData.received_at_wp || false
+                                                  });
+                                                  
+                                                  // Reload equipment data
+                                                  const updatedEquipment = await dbOperations.getProjectEquipment(projectVendor.id);
+                                                  setEquipment(prev => [
+                                                    ...prev.filter(e => e.project_vendor_id !== projectVendor.id),
+                                                    ...updatedEquipment
+                                                  ]);
+                                                  
+                                                  // Clear edit form data
+                                                  setEditFormData(prev => {
+                                                    const newData = { ...prev };
+                                                    delete newData[eq.id];
+                                                    return newData;
+                                                  });
+                                                  setEditingEquipment(null);
+                                                } catch (error) {
+                                                  console.error('Failed to update equipment:', error);
+                                                  alert('Failed to update equipment. Please try again.');
+                                                }
+                                              }}
+                                              className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                            >
+                                              Save
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                setEditFormData(prev => {
+                                                  const newData = { ...prev };
+                                                  delete newData[eq.id];
+                                                  return newData;
+                                                });
+                                                setEditingEquipment(null);
+                                              }}
+                                              className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </>
+                                    ) : (
+                                      /* Display Mode */
+                                      <>
+                                        <td className="px-2 py-2 text-sm text-slate-800 border-r border-gray-300">
+                                          {eq.po_number || '—'}
+                                        </td>
+                                        <td className="px-2 py-2 text-sm text-slate-800 text-center w-24 border-r border-gray-300">
+                                          {eq.quantity}
+                                        </td>
+                                        <td className="px-2 py-2 text-sm text-slate-800 text-center border-r border-gray-300">
+                                          {eq.unit || '—'}
+                                        </td>
+                                        <td className="px-2 py-2 text-sm font-medium text-slate-900 border-r border-gray-300">
+                                          {eq.description}
+                                        </td>
+                                        <td className="px-2 py-2 text-sm text-slate-800 text-center w-36 border-r border-gray-300">
+                                          {formatDateForDisplay(eq.date_received)}
+                                        </td>
+                                        <td className="px-2 py-2 text-sm text-center w-16 border-r border-gray-300">
+                                          {eq.received_at_wp ? (
+                                            <span className="text-green-600 font-bold text-lg">✓</span>
+                                          ) : (
+                                            <span className="text-red-600 font-bold text-lg">✗</span>
+                                          )}
+                                        </td>
+                                        <td className="px-2 py-2 text-sm text-center w-48 border-r border-gray-300">
+                                          <TimelineEventDropdown
+                                            projectId={projectId}
+                                            value={eq.timeline_event_id}
+                                            onChange={async (timelineEventId) => {
+                                              try {
+                                                await dbOperations.updateProjectEquipment(eq.id, {
+                                                  timeline_event_id: timelineEventId
+                                                });
+                                                // Reload equipment data
+                                                const updatedEquipment = await dbOperations.getProjectEquipment(projectVendor.id);
+                                                setEquipment(prev => [
+                                                  ...prev.filter(e => e.project_vendor_id !== projectVendor.id),
+                                                  ...updatedEquipment
+                                                ]);
+                                              } catch (error) {
+                                                console.error('Failed to update equipment timeline event:', error);
+                                                alert('Failed to update timeline event. Please try again.');
+                                              }
+                                            }}
+                                            timelineEvents={timelineEvents}
+                                            placeholder="Select timeline event..."
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2 text-sm text-center w-16" onClick={(e) => e.stopPropagation()}>
+                                          <div className="flex items-center justify-center">
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <button
+                                                  className="inline-flex items-center justify-center p-1.5 rounded hover:bg-gray-100 focus:outline-none"
+                                                  aria-label="Equipment actions"
+                                                >
+                                                  <EllipsisVerticalIcon className="w-5 h-5 text-gray-600" />
+                                                </button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end" className="w-40">
+                                                <DropdownMenuItem
+                                                  className="cursor-pointer"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingEquipment(eq);
+                                                  }}
+                                                >
+                                                  <PencilSquareIcon className="w-4 h-4 mr-2" />
+                                                  Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                  className="cursor-pointer text-red-600 focus:text-red-700"
+                                                  onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('Are you sure you want to delete this equipment?')) {
+                                                      try {
+                                                        await dbOperations.deleteProjectEquipment(eq.id);
+                                                        setEquipment(prev => prev.filter(e => e.id !== eq.id));
+                                                      } catch (error) {
+                                                        console.error('Failed to delete equipment:', error);
+                                                        alert('Failed to delete equipment. Please try again.');
+                                                      }
+                                                    }
+                                                  }}
+                                                >
+                                                  <TrashIcon className="w-4 h-4 mr-2" />
+                                                  Delete
+                                                </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </div>
+                                        </td>
+                                      </>
+                                    )}
+                                  </tr>
+                                ))}
+                                
+                                {/* Add Equipment Button Row (when equipment exists) */}
+                                {getVendorEquipment(projectVendor.id).length > 0 && (
+                                  <tr className="bg-slate-100">
+                                    <td colSpan={8} className="px-2 py-2 text-center">
+                                      <button 
+                                        className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm transition-colors font-semibold"
+                                        onClick={() => {
+                                          const newFormId = nextFormId;
+                                          setNextFormId(prev => prev + 1);
+                                          setOpenForms(prev => new Set(prev).add(newFormId));
+                                          setFormVendorMap(prev => ({ ...prev, [newFormId]: projectVendor.id }));
+                                          setAddFormData(prev => ({
+                                            ...prev,
+                                            [newFormId]: {
+                                              po_number: '',
+                                              description: '',
+                                              quantity: '',
+                                              unit: '',
+                                              date_received: '',
+                                              timeline_event_id: null,
+                                              received_at_wp: false,
+                                            }
+                                          }));
+                                        }}
+                                      >
+                                        Add New Equipment
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </td>
                   </tr>
@@ -155,97 +1066,7 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({ bidVendors, vendors }) 
   );
 };
 
-// Schedule Table Component
-interface ScheduleTableProps {
-  bidVendors: BidVendor[];
-  vendors: Vendor[];
-}
-
-const ScheduleTable: React.FC<ScheduleTableProps> = ({ bidVendors, vendors }) => {
-  const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
-
-  const getVendorName = (vendorId: number) => {
-    return vendors.find(v => v.id === vendorId)?.company_name || 'Unknown Vendor';
-  };
-
-  const toggleExpanded = (vendorId: number) => {
-    setExpandedVendor(expandedVendor === vendorId ? null : vendorId);
-  };
-
-  return (
-    <div className="border border-gray-300">
-      <table className="min-w-full divide-y divide-gray-300">
-        <thead className="bg-slate-700">
-          <tr>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
-              Vendor
-            </th>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
-              Original Quote
-            </th>
-            <th className="px-2 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">
-              Final Quote
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-300">
-          {bidVendors.map((vendor, index) => {
-            const isExpanded = expandedVendor === vendor.id;
-            const rowClasses = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
-            
-            return (
-              <React.Fragment key={vendor.id}>
-                <tr 
-                  className={`${rowClasses} hover:bg-slate-100 transition-colors cursor-pointer`}
-                  onClick={() => toggleExpanded(vendor.id)}
-                >
-                  <td className="px-2 py-2 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleExpanded(vendor.id);
-                        }}
-                        className="p-0.5 hover:bg-gray-200 rounded transition-colors"
-                      >
-                        {isExpanded ? (
-                          <ChevronDownIcon className="h-4 w-4 text-gray-600" />
-                        ) : (
-                          <ChevronRightIcon className="h-4 w-4 text-gray-600" />
-                        )}
-                      </button>
-                      <span className="text-sm font-semibold text-slate-900">
-                        {getVendorName(vendor.vendor_id)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
-                    {vendor.cost_amount ? `$${Number(vendor.cost_amount).toLocaleString()}` : '—'}
-                  </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800">
-                    {vendor.final_quote_amount ? `$${Number(vendor.final_quote_amount).toLocaleString()}` : '—'}
-                  </td>
-                </tr>
-                {isExpanded && (
-                  <tr>
-                    <td colSpan={3} className="px-0 py-0">
-                      <div className="bg-gray-50 border-t border-gray-200">
-                        <div className="p-4">
-                          <div className="text-sm text-gray-600 mb-2">Schedule items will be added here</div>
-                          {/* Schedule items will be added here later */}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-};
+// Schedule tab removed (per product request)
 
 const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   bid,
@@ -253,9 +1074,14 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   projectNotes,
   vendors,
   users,
+  timelineEvents = [],
+  timelineEventTemplates = [],
   onUpdateBid,
   onDeleteBid,
   onUpdateBidVendor,
+  onTimelineEventAdd,
+  onTimelineEventUpdate,
+  onTimelineEventDelete,
 }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
@@ -264,6 +1090,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showRemoveVendorsModal, setShowRemoveVendorsModal] = useState(false);
+  const [showTimelineAddModal, setShowTimelineAddModal] = useState(false);
   const [vendorsToRemove, setVendorsToRemove] = useState<number[]>([]);
   const [editingBidVendor, setEditingBidVendor] = useState<BidVendor | null>(
     null
@@ -274,12 +1101,21 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   const [error, setError] = useState<string | null>(null);
   // const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+  // Local state for project notes so new notes appear immediately
+  const [projectNotesState, setProjectNotesState] = useState<ProjectNote[]>(projectNotes || []);
+
   // Filter bid vendors for this specific project
   const projectVendors = bidVendors.filter((bv) => bv.bid_id === bid.id);
+
   // Filter project notes for this specific project
-  const filteredProjectNotes = projectNotes.filter(
+  const filteredProjectNotes = projectNotesState.filter(
     (note) => note.bid_id === bid.id
   );
+
+  // Keep local notes state in sync when prop changes
+  useEffect(() => {
+    setProjectNotesState(projectNotes || []);
+  }, [projectNotes]);
 
   // Set current user from users prop
   useEffect(() => {
@@ -287,11 +1123,39 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   }, [users]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+  // Load equipment data for hierarchical view
+  useEffect(() => {
+    const loadEquipment = async () => {
+      try {
+        // Get all equipment for this project
+        const allEquipment = await dbOperations.getAllProjectEquipment();
+        const projectEquipmentList = allEquipment.filter((eq: any) => {
+          // Filter equipment that belongs to vendors in this project
+          const projectVendor = projectVendors.find(bv => bv.id === eq.project_vendor_id);
+          return projectVendor !== undefined;
+        });
+        setProjectEquipment(projectEquipmentList);
+      } catch (error) {
+        console.error('Failed to load equipment:', error);
+        setProjectEquipment([]);
+      }
+    };
+    
+    if (projectVendors.length > 0) {
+      loadEquipment();
+    }
+  }, [bid.id, projectVendors.length]);
+
   // Sidebar state
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   // Tab state for bottom panel
+  // Default to Vendors tab when opening the page
   const [activeTab, setActiveTab] = useState("vendors");
+
+  // Equipment state for hierarchical view
+  const [projectEquipment, setProjectEquipment] = useState<ProjectEquipment[]>([]);
+  const [showAddEquipmentModal, setShowAddEquipmentModal] = useState(false);
 
   // Vendor selection state for APM vendor table
   const [selectedVendorIds, setSelectedVendorIds] = useState<Set<number>>(
@@ -639,11 +1503,22 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
   };
 
   const handleAddNoteSubmit = async (content: string) => {
-    // Let the database function auto-detect current user via Auth
-    await dbOperations.createProjectNote({
-      bid_id: bid.id,
-      content: content
-    });
+    const trimmed = content.trim();
+    if (!trimmed) return;
+
+    try {
+      // Let the database function auto-detect current user via Auth
+      const newNote = await dbOperations.createProjectNote({
+        bid_id: bid.id,
+        content: trimmed,
+      });
+
+      // Update local notes state so the new note appears immediately
+      setProjectNotesState((prev) => [...prev, newNote]);
+      setShowAddNoteModal(false);
+    } catch (error) {
+      console.error("Failed to add project note:", error);
+    }
   };
 
   const confirmDeleteProject = async () => {
@@ -987,9 +1862,6 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
             <div className="mb-4 space-y-4 flex-shrink-0">
               {/* Project Name */}
               <div>
-                <span className="text-gray-600 text-sm font-medium">
-                  Project Details:
-                </span>
                 <div className="text-2xl font-bold text-gray-900 mt-1">
                   {isEditing ? (
                     <input
@@ -1300,234 +2172,99 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
               )}
             </div>
 
-            {/* Two Workflow Progress Cards */}
-            <div className="grid grid-cols-2 gap-6 mb-6 flex-shrink-0">
-              {/* Card 1: Critical Follow-ups */}
-              <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <div className="text-gray-700 text-sm font-semibold mb-3 uppercase tracking-wide">
-                  Critical Follow-ups
-                </div>
-                <div className="text-3xl font-bold text-amber-600 mb-3">
-                  {(() => {
-                    // Count vendors by urgency level using same rules as vendor table
-                    let overdueCount = 0;
-                    let dueTodayCount = 0;
-                    let dueSoonCount = 0;
-
-                    projectVendors.forEach((vendor) => {
-                      if (vendor.closeout_received_date) return; // Skip completed vendors
-
-                      const urgency = getVendorFollowUpUrgency(vendor);
-                      if (urgency.level === "overdue") {
-                        overdueCount++;
-                      } else if (urgency.level === "due_today") {
-                        dueTodayCount++;
-                      } else if (urgency.level === "critical") {
-                        dueSoonCount++; // 1-3 business days = "due soon"
-                      }
-                    });
-
-                    const totalUrgent =
-                      overdueCount + dueTodayCount + dueSoonCount;
-                    return totalUrgent;
-                  })()}
-                </div>
-                <div className="text-gray-600 text-sm">
-                  {(() => {
-                    // Show breakdown with clear business terminology
-                    let overdueCount = 0;
-                    let dueTodayCount = 0;
-                    let dueSoonCount = 0;
-
-                    projectVendors.forEach((vendor) => {
-                      if (vendor.closeout_received_date) return; // Skip completed vendors
-
-                      const urgency = getVendorFollowUpUrgency(vendor);
-                      if (urgency.level === "overdue") {
-                        overdueCount++;
-                      } else if (urgency.level === "due_today") {
-                        dueTodayCount++;
-                      } else if (urgency.level === "critical") {
-                        dueSoonCount++; // 1-3 business days = "due soon"
-                      }
-                    });
-
-                    const parts = [];
-                    if (overdueCount > 0) parts.push(`${overdueCount} overdue`);
-                    if (dueTodayCount > 0)
-                      parts.push(`${dueTodayCount} due today`);
-                    if (dueSoonCount > 0)
-                      parts.push(`${dueSoonCount} due within 4 days`);
-
-                    return parts.length > 0
-                      ? parts.join(", ")
-                      : "No urgent follow-ups";
-                  })()}
-                </div>
-              </div>
-
-              {/* Card 2: Upcoming Deadlines */}
-              {(() => {
-                // Determine urgency level for card styling
-                const soonestUrgency = (() => {
-                  let mostUrgent = "normal";
+            {/* Next Vendor Deadline - inline info row */}
+            <div className="mt-2 mb-6">
+              <span className="text-gray-600 text-sm font-medium">
+                Next Vendor Deadline:
+              </span>{" "}
+              <span className="text-sm text-gray-900">
+                {(() => {
+                  // Collect all relevant follow-up dates across vendors
+                  const allFollowUpDates: string[] = [];
 
                   projectVendors.forEach((vendor) => {
                     if (vendor.closeout_received_date) return; // Skip completed vendors
 
-                    const urgency = getVendorFollowUpUrgency(vendor);
-                    if (
-                      urgency.level === "overdue" ||
-                      urgency.level === "due_today"
-                    ) {
-                      mostUrgent = "red";
-                    } else if (
-                      urgency.level === "critical" &&
-                      mostUrgent === "normal"
-                    ) {
-                      mostUrgent = "orange";
+                    const { soonestDate } =
+                      getCurrentPhasesWithSoonestFollowUp(vendor);
+                    let followUpDate = soonestDate;
+
+                    // Fallback to getPhaseFollowUpDate if no soonest date (same as vendor table)
+                    if (!followUpDate) {
+                      followUpDate = getPhaseFollowUpDate(vendor);
+                    }
+
+                    if (followUpDate) {
+                      allFollowUpDates.push(followUpDate);
                     }
                   });
 
-                  return mostUrgent;
-                })();
+                  if (allFollowUpDates.length === 0) {
+                    return "None scheduled";
+                  }
 
-                // Set value color based on urgency
-                const valueClasses =
-                  soonestUrgency === "red"
-                    ? "text-3xl font-bold text-red-600 mb-3"
-                    : soonestUrgency === "orange"
-                    ? "text-3xl font-bold text-orange-600 mb-3"
-                    : "text-3xl font-bold text-green-600 mb-3";
+                  // Find the earliest date using safe date comparison (avoiding timezone issues)
+                  const earliestDateStr = allFollowUpDates.sort((a, b) => {
+                    const parseDate = (dateString: string) => {
+                      const dateOnly = dateString.includes("T")
+                        ? dateString.split("T")[0]
+                        : dateString;
+                      const [year, month, day] = dateOnly
+                        .split("-")
+                        .map(Number);
+                      return new Date(year, month - 1, day);
+                    };
+                    return parseDate(a).getTime() - parseDate(b).getTime();
+                  })[0];
 
-                return (
-                  <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                    <div className="text-gray-700 text-sm font-semibold mb-3 uppercase tracking-wide">Next Deadline</div>
-                    <div className={valueClasses}>
-                      {(() => {
-                        // Get the soonest deadline using exact same logic as vendor table NEXT FOLLOW-UP column
-                        const allFollowUpDates: string[] = [];
+                  // Find vendors and phases associated with that earliest date
+                  const vendorsWithEarliestDate: {
+                    vendor: BidVendor;
+                    phases: { displayName: string }[];
+                  }[] = [];
 
-                        projectVendors.forEach((vendor) => {
-                          if (vendor.closeout_received_date) return; // Skip completed vendors
+                  projectVendors.forEach((vendor) => {
+                    if (vendor.closeout_received_date) return;
+                    const { soonestDate, phases } =
+                      getCurrentPhasesWithSoonestFollowUp(vendor);
+                    if (soonestDate === earliestDateStr && phases.length > 0) {
+                      vendorsWithEarliestDate.push({ vendor, phases });
+                    }
+                  });
 
-                          // Use EXACT same logic as vendor table "Next Follow-up" column
-                          const { soonestDate } =
-                            getCurrentPhasesWithSoonestFollowUp(vendor);
-                          let followUpDate = soonestDate;
+                  // Format the earliest date
+                  const formatDateSafe = (dateString: string): string => {
+                    const dateOnly = dateString.includes("T")
+                      ? dateString.split("T")[0]
+                      : dateString;
+                    const [year, month, day] = dateOnly
+                      .split("-")
+                      .map(Number);
+                    const localDate = new Date(year, month - 1, day);
+                    return localDate.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    });
+                  };
 
-                          // Fallback to getPhaseFollowUpDate if no soonest date (same as table)
-                          if (!followUpDate) {
-                            followUpDate = getPhaseFollowUpDate(vendor);
-                          }
+                  const dateLabel = formatDateSafe(earliestDateStr);
 
-                          if (followUpDate) {
-                            allFollowUpDates.push(followUpDate);
-                          }
-                        });
+                  if (vendorsWithEarliestDate.length === 0) {
+                    return `${dateLabel} – No deadlines upcoming`;
+                  }
 
-                        if (allFollowUpDates.length === 0) {
-                          return "None scheduled";
-                        }
+                  // Collect unique phase names
+                  const phaseNames = new Set<string>();
+                  vendorsWithEarliestDate.forEach(({ phases }) => {
+                    phases.forEach((phase) =>
+                      phaseNames.add(phase.displayName)
+                    );
+                  });
 
-                        // Find the earliest date using safe date comparison (avoiding timezone issues)
-                        const earliestDateStr = allFollowUpDates.sort(
-                          (a, b) => {
-                            // Parse dates safely without timezone conversion
-                            const parseDate = (dateString: string) => {
-                              const dateOnly = dateString.includes("T")
-                                ? dateString.split("T")[0]
-                                : dateString;
-                              const [year, month, day] = dateOnly
-                                .split("-")
-                                .map(Number);
-                              return new Date(year, month - 1, day);
-                            };
-                            return (
-                              parseDate(a).getTime() - parseDate(b).getTime()
-                            );
-                          }
-                        )[0];
-
-                        // Format the date safely (same approach as vendor table)
-                        const formatDateSafe = (dateString: string): string => {
-                          const dateOnly = dateString.includes("T")
-                            ? dateString.split("T")[0]
-                            : dateString;
-                          const [year, month, day] = dateOnly
-                            .split("-")
-                            .map(Number);
-                          const localDate = new Date(year, month - 1, day);
-                          return localDate.toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          });
-                        };
-
-                        return formatDateSafe(earliestDateStr);
-                      })()}
-                    </div>
-                    <div className="text-gray-600 text-sm">
-                      {(() => {
-                        // Get phase and vendor info for the earliest deadline
-                        const allFollowUpDates: string[] = [];
-
-                        projectVendors.forEach((vendor) => {
-                          if (vendor.closeout_received_date) return;
-                          const { soonestDate } =
-                            getCurrentPhasesWithSoonestFollowUp(vendor);
-                          if (soonestDate) {
-                            allFollowUpDates.push(soonestDate);
-                          }
-                        });
-
-                        if (allFollowUpDates.length === 0) {
-                          return "No deadlines upcoming";
-                        }
-
-                        // Find the earliest date
-                        const earliestDateStr = allFollowUpDates.sort(
-                          (a, b) =>
-                            new Date(a).getTime() - new Date(b).getTime()
-                        )[0];
-
-                        // Count vendors and phases for that earliest date
-                        const vendorsWithEarliestDate: {
-                          vendor: BidVendor;
-                          phases: { displayName: string }[];
-                        }[] = [];
-
-                        projectVendors.forEach((vendor) => {
-                          if (vendor.closeout_received_date) return;
-                          const { soonestDate, phases } =
-                            getCurrentPhasesWithSoonestFollowUp(vendor);
-                          if (
-                            soonestDate === earliestDateStr &&
-                            phases.length > 0
-                          ) {
-                            vendorsWithEarliestDate.push({ vendor, phases });
-                          }
-                        });
-
-                        if (vendorsWithEarliestDate.length === 0) {
-                          return "No deadlines upcoming";
-                        }
-
-                        // Collect unique phase names for the earliest date
-                        const phaseNames = new Set<string>();
-                        vendorsWithEarliestDate.forEach(({ phases }) => {
-                          phases.forEach((phase) =>
-                            phaseNames.add(phase.displayName)
-                          );
-                        });
-
-                        const phaseText = Array.from(phaseNames).join(", ");
-                        return `${phaseText} (${vendorsWithEarliestDate.length} vendors)`;
-                      })()}
-                    </div>
-                  </div>
-                );
-              })()}
+                  const phaseText = Array.from(phaseNames).join(", ");
+                  return `${dateLabel} – ${phaseText} (${vendorsWithEarliestDate.length} vendors)`;
+                })()}
+              </span>
             </div>
 
             {/* Tabbed Interface */}
@@ -1548,13 +2285,13 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                         count: null,
                       },
                       {
-                        id: "schedule",
-                        label: "Schedule",
-                        count: null,
+                        id: "timeline",
+                        label: "Timeline",
+                        count: timelineEvents.length,
                       },
                       {
                         id: "notes",
-                        label: "Notes",
+                        label: "Project Notes",
                         count: filteredProjectNotes.length,
                       },
                     ].map((tab) => (
@@ -1609,11 +2346,9 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                       </>
                     )}
 
-                    {activeTab === "equipment" && (
+                    {activeTab === "hierarchy" && (
                       <button
-                        onClick={() => {
-                          // TODO: Implement add equipment functionality
-                        }}
+                        onClick={() => setShowAddEquipmentModal(true)}
                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                       >
                         <UserPlusIcon className="w-4 h-4 mr-1" />
@@ -1621,15 +2356,13 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                       </button>
                     )}
 
-                    {activeTab === "schedule" && (
+                    {activeTab === "timeline" && onTimelineEventAdd && (
                       <button
-                        onClick={() => {
-                          // TODO: Implement add schedule functionality
-                        }}
+                        onClick={() => setShowTimelineAddModal(true)}
                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                       >
-                        <UserPlusIcon className="w-4 h-4 mr-1" />
-                        Add Schedule
+                        <PlusIcon className="w-4 h-4 mr-1" />
+                        Add Event
                       </button>
                     )}
 
@@ -1665,18 +2398,50 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                   />
                 )}
 
-                {activeTab === "equipment" && (
-                  <EquipmentTable
+                {activeTab === "hierarchy" && (
+                  <HierarchicalProjectView
+                    projectId={bid.id}
                     bidVendors={projectVendors}
                     vendors={vendors}
+                    equipment={projectEquipment}
+                    showAddEquipmentModal={showAddEquipmentModal}
+                    onCloseAddEquipmentModal={() => setShowAddEquipmentModal(false)}
+                    onEquipmentAdded={async () => {
+                      // Reload equipment data
+                      try {
+                        const allEquipment = await dbOperations.getAllProjectEquipment();
+                        const projectEquipmentList = allEquipment.filter((eq: any) => {
+                          const projectVendor = projectVendors.find(bv => bv.id === eq.project_vendor_id);
+                          return projectVendor !== undefined;
+                        });
+                        setProjectEquipment(projectEquipmentList);
+                        setShowAddEquipmentModal(false);
+                      } catch (error) {
+                        console.error('Failed to reload equipment:', error);
+                      }
+                    }}
                   />
                 )}
 
-                {activeTab === "schedule" && (
-                  <ScheduleTable
-                    bidVendors={projectVendors}
+                {activeTab === "equipment" && (
+                  <EquipmentTable
+                    projectId={bid.id}
                     vendors={vendors}
+                    timelineEvents={timelineEvents || []}
                   />
+                )}
+
+                {activeTab === "timeline" && onTimelineEventAdd && onTimelineEventUpdate && onTimelineEventDelete && (
+                  <div>
+                    <ProjectTimeline
+                      projectId={bid.id}
+                      events={timelineEvents}
+                      eventTemplates={timelineEventTemplates}
+                      onEventAdd={onTimelineEventAdd}
+                      onEventUpdate={onTimelineEventUpdate}
+                      onEventDelete={onTimelineEventDelete}
+                    />
+                  </div>
                 )}
 
                 {activeTab === "notes" && (
@@ -1686,7 +2451,7 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
                         bid={bid}
                         users={users}
                         projectNotes={filteredProjectNotes}
-                        setProjectNotes={() => {}} // Read-only for now, notes updated via real-time
+                        setProjectNotes={setProjectNotesState}
                       />
                     )}
                     {!currentUser && (
@@ -1765,6 +2530,17 @@ const APMProjectDetail: React.FC<APMProjectDetailProps> = ({
         onClose={() => setShowAddNoteModal(false)}
         onAddNote={handleAddNoteSubmit}
       />
+
+      {/* Timeline Add Event Modal */}
+      {onTimelineEventAdd && timelineEventTemplates && (
+        <AddTimelineEventModal
+          open={showTimelineAddModal}
+          onOpenChange={setShowTimelineAddModal}
+          projectId={bid.id}
+          eventTemplates={timelineEventTemplates}
+          onSubmit={onTimelineEventAdd}
+        />
+      )}
     </div>
   );
 };

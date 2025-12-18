@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import type { Bid, BidVendor, Vendor, User } from "../../types";
+import type { Bid, BidVendor, VendorWithContact, User } from "../../types";
 import { getStatusColor } from "../../utils/statusUtils";
 import DialogModal from "../ui/DialogModal";
 import {
@@ -20,7 +20,7 @@ interface CalendarEvent {
   date: Date;
   status?: string;
   bid?: Bid;
-  vendor?: Vendor;
+  vendor?: VendorWithContact;
   bidVendor?: BidVendor;
   user?: User;
   phase?: string;
@@ -260,9 +260,9 @@ const DayEventsModal: React.FC<DayEventsModalProps> = ({
                       </h4>
                       {event.vendor && (
                         <p className="text-sm text-gray-600">
-                          {event.vendor.contact_person &&
-                            `Contact: ${event.vendor.contact_person}`}
-                          {event.vendor.phone && ` • ${event.vendor.phone}`}
+                          {event.vendor.primary_contact?.contact_name &&
+                            `Contact: ${event.vendor.primary_contact.contact_name}`}
+                          {event.vendor.primary_contact?.phone && ` • ${event.vendor.primary_contact.phone}`}
                         </p>
                       )}
                     </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Bid, Vendor, BidVendor } from '../../types';
+import type { Bid, VendorWithContact, BidVendor } from '../../types';
 import DialogModal from '../ui/DialogModal';
 import { Button } from '../ui/Button';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
@@ -9,7 +9,7 @@ interface BidPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   bid?: Bid;
-  vendor?: Vendor;
+  vendor?: VendorWithContact;
   bidVendor?: BidVendor;
   eventType: 'bid_due' | 'vendor_due' | 'apm_task';
 }
@@ -113,11 +113,11 @@ const BidPreviewModal: React.FC<BidPreviewModalProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
-                <p className="text-gray-900">{vendor.phone || 'Not specified'}</p>
+                <p className="text-gray-900">{vendor.primary_contact?.phone || vendor.phone || 'Not specified'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
-                <p className="text-gray-900">{vendor.email || 'Not specified'}</p>
+                <p className="text-gray-900">{vendor.primary_contact?.email || vendor.email || 'Not specified'}</p>
               </div>
             </div>
           </div>

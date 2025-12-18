@@ -39,9 +39,13 @@ const VendorTable: React.FC<VendorTableProps> = ({
   const [editValues, setEditValues] = useState<{
     cost_amount: number | string | null;
     status: string;
+    response_received_date: string | null;
+    due_date: string | null;
   }>({
     cost_amount: null,
     status: '',
+    response_received_date: null,
+    due_date: null,
   });
 
   // Dynamic page size management
@@ -82,6 +86,14 @@ const VendorTable: React.FC<VendorTableProps> = ({
     onUpdateBidVendor?.(bidVendorId, { is_priority: isPriority });
   }, [onUpdateBidVendor]);
 
+  // Helper to format date for input (YYYY-MM-DD)
+  const formatDateForInput = useCallback((date: string | null): string => {
+    if (!date) return '';
+    // Handle both ISO strings and date-only strings
+    const dateOnly = date.includes('T') ? date.split('T')[0] : date;
+    return dateOnly;
+  }, []);
+
   // Inline editing handlers
   const handleStartEdit = useCallback((bidVendorId: number) => {
     const vendor = vendorsWithData.find(v => v.id === bidVendorId);
@@ -90,15 +102,19 @@ const VendorTable: React.FC<VendorTableProps> = ({
       setEditValues({
         cost_amount: vendor.cost_amount,
         status: vendor.status,
+        response_received_date: formatDateForInput(vendor.response_received_date),
+        due_date: formatDateForInput(vendor.due_date),
       });
     }
-  }, [vendorsWithData]);
+  }, [vendorsWithData, formatDateForInput]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingVendorId(null);
     setEditValues({
       cost_amount: null,
       status: '',
+      response_received_date: null,
+      due_date: null,
     });
   }, []);
 
@@ -109,11 +125,38 @@ const VendorTable: React.FC<VendorTableProps> = ({
     try {
       const updates: Partial<BidVendor> = {};
       
-      if (editValues.cost_amount !== vendor.cost_amount) {
-        updates.cost_amount = editValues.cost_amount;
+      // Parse cost_amount - convert string to decimal number for Supabase
+      let finalCostAmount: number | null = null;
+      if (editValues.cost_amount !== null && editValues.cost_amount !== undefined && editValues.cost_amount !== '') {
+        if (typeof editValues.cost_amount === 'number') {
+          // Unchanged from initial load
+          finalCostAmount = editValues.cost_amount;
+        } else {
+          // User modified - parse the string to a number
+          const cleanedValue = String(editValues.cost_amount).replace(/[^0-9.]/g, '');
+          const parsed = parseFloat(cleanedValue);
+          if (!isNaN(parsed)) {
+            finalCostAmount = parsed;
+          }
+        }
+      }
+      
+      if (finalCostAmount !== vendor.cost_amount) {
+        updates.cost_amount = finalCostAmount;
       }
       if (editValues.status !== vendor.status) {
         updates.status = editValues.status;
+      }
+      
+      // Compare dates - need to normalize for comparison
+      const vendorResponseDate = formatDateForInput(vendor.response_received_date);
+      const vendorDueDate = formatDateForInput(vendor.due_date);
+      
+      if (editValues.response_received_date !== vendorResponseDate) {
+        updates.response_received_date = editValues.response_received_date || null;
+      }
+      if (editValues.due_date !== vendorDueDate) {
+        updates.due_date = editValues.due_date || null;
       }
 
       if (Object.keys(updates).length > 0) {
@@ -124,13 +167,15 @@ const VendorTable: React.FC<VendorTableProps> = ({
       setEditValues({
         cost_amount: null,
         status: '',
+        response_received_date: null,
+        due_date: null,
       });
     } catch (error) {
       console.error('Failed to save vendor updates:', error);
     }
-  }, [editValues, vendorsWithData, onUpdateBidVendor]);
+  }, [editValues, vendorsWithData, onUpdateBidVendor, formatDateForInput]);
 
-  const handleEditValueChange = useCallback((field: 'cost_amount' | 'status', value: any) => {
+  const handleEditValueChange = useCallback((field: 'cost_amount' | 'status' | 'response_received_date' | 'due_date', value: any) => {
     setEditValues(prev => ({
       ...prev,
       [field]: value,
@@ -156,23 +201,19 @@ const VendorTable: React.FC<VendorTableProps> = ({
     return isNaN(parsed) ? null : parsed;
   }, []);
 
-  // Helper to format amount for input display (with decimals)
+  // Helper to format amount for input display - returns raw value for typing, no reformatting
   const formatAmountForInput = useCallback((amount: number | string | null): string => {
-    if (!amount && amount !== 0) return '';
-    let numValue: number;
-    if (typeof amount === 'number') {
-      numValue = amount;
-    } else if (typeof amount === 'string') {
-      const cleaned = amount.replace(/[$,]/g, '');
-      numValue = parseFloat(cleaned);
-      if (isNaN(numValue)) return '';
-    } else {
-      return '';
+    if (amount === null || amount === undefined) return '';
+    if (amount === 0) return '0';
+    // Return as-is for strings (user is typing)
+    if (typeof amount === 'string') {
+      return amount;
     }
-    return numValue.toFixed(2);
+    // For numbers, convert to string without forced decimal places
+    return String(amount);
   }, []);
 
-  // Create column definitions
+  // Create column definitions - note: editValues intentionally not in deps to prevent re-renders while typing
   const columns = useMemo(() => createBidVendorColumns(
     onEdit,
     handlePriorityUpdate,
@@ -189,7 +230,6 @@ const VendorTable: React.FC<VendorTableProps> = ({
     onEdit,
     handlePriorityUpdate,
     editingVendorId,
-    editValues,
     handleStartEdit,
     handleSaveEdit,
     handleCancelEdit,

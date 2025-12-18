@@ -48,12 +48,12 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
     setUpdatingNote(true);
     try {
       // Update note in database
-      const updatedNote = await dbOperations.updateProjectNote(noteToEdit.id, editContent.trim());
+      await dbOperations.updateProjectNote(noteToEdit.id, {
+        content: editContent.trim(),
+        updated_at: new Date().toISOString()
+      });
 
-      // Update local state with the response from database
-      setProjectNotes(prev => prev.map(note => 
-        note.id === noteToEdit.id ? updatedNote : note
-      ));
+      // Real-time subscription will handle the UI update automatically
 
       handleCloseEditModal();
       showSuccess('Note Updated', 'Successfully updated project note');
@@ -78,8 +78,7 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({
     try {
       await dbOperations.deleteProjectNote(noteToDelete);
       
-      // Manually remove the note for immediate UI feedback
-      setProjectNotes(prev => prev.filter(note => note.id !== noteToDelete));
+      // Real-time subscription will handle the UI update automatically
       
       setShowDeleteModal(false);
       setNoteToDelete(null);

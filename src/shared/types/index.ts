@@ -101,6 +101,7 @@ export interface Bid {
   added_to_procore: boolean;
   made_by_apm: boolean;
   project_start_date: string | null;
+  binder?: boolean;
   
   // Legacy compatibility fields (required for existing components)
   title: string;  // Alias for project_name
@@ -110,6 +111,7 @@ export interface Bid {
   // Database field names (optional for backward compatibility during transition)
   est_due_date?: string;  // Optional during transition
   assigned_to?: string | null;  // Optional during transition
+  assigned_pm?: string | null;  // Project Manager assignment
   
   // Timestamps
   created_at?: string;
@@ -119,10 +121,9 @@ export interface Bid {
 // New normalized table types
 export interface ProjectVendor {
   id: number;
-  bid_id: number;
+  project_id: number;
   vendor_id: number;
-  assigned_apm_user: string | null;
-  assigned_date: string | null;
+  assigned_by_user: string | null;
   is_priority: boolean;
   created_at: string;
   updated_at: string;
@@ -162,6 +163,67 @@ export interface VendorFollowUp {
   follow_up_count: number;
   notes: string | null;
   created_at: string;
+}
+
+export interface ProjectEquipment {
+  id: number;
+  project_vendor_id: number;
+  po_number: string | null;
+  quantity: number;
+  description: string;
+  unit: string | null;
+  date_received: string | null;
+  received_at_wp: boolean | null;
+  timeline_event_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Equipment with timeline event details for display
+export interface ProjectEquipmentWithTimeline extends ProjectEquipment {
+  timeline_event?: {
+    id: number;
+    event_name: string;
+    event_category: string;
+    status: string;
+    order_by: string | null;
+    required_by: string | null;
+  } | null;
+}
+
+// Equipment Overview from the comprehensive view - includes all related data
+export interface EquipmentOverview {
+  equipment_id: number;
+  equipment_description: string;
+  quantity: number;
+  unit: string | null;
+  po_number: string | null;
+  date_received: string | null;
+  equipment_created_at: string;
+  equipment_updated_at: string;
+  
+  // Project information
+  project_id: number;
+  project_name: string;
+  project_address: string | null;
+  project_start_date: string | null;
+  project_created_at: string;
+  
+  // Vendor information
+  vendor_id: number;
+  vendor_name: string;
+  vendor_specialty: string | null;
+  vendor_type: VendorType;
+  
+  // Project vendor relationship info
+  project_vendor_id: number;
+  assigned_by_user: string | null;
+  vendor_is_priority: boolean;
+  vendor_assigned_at: string;
+  
+  // User who assigned the vendor (if any)
+  assigned_by_name: string | null;
+  assigned_by_email: string | null;
 }
 
 // Composite type that combines all normalized data for a project-vendor relationship
@@ -455,4 +517,31 @@ export interface ChartDimensions {
     bottom: number;
     left: number;
   };
+}
+
+// Timeline Event Types
+export interface TimelineEvent {
+  id: number;
+  project_id: number;
+  event_category: 'demo' | 'mechanical' | 'equipment' | 'controls' | 'startup' | 'commissioning' | 'custom';
+  event_name: string;
+  event_type: 'predefined' | 'custom';
+  order_by: string | null;
+  required_by: string | null;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface TimelineEventTemplate {
+  id: number;
+  event_category: string;
+  event_name: string;
+  sort_order: number;
+  description: string | null;
+  created_at: string;
 }

@@ -3,7 +3,12 @@ import { DATE_FORMATS, CURRENCY_FORMAT } from './constants';
 /**
  * Helper function to properly parse date strings avoiding timezone issues
  */
-const parseDate = (dateString: string): Date => {
+const parseDate = (dateString: string | null | undefined): Date => {
+  // Handle null/undefined dateString
+  if (!dateString) {
+    return new Date();
+  }
+  
   // If the date string doesn't include time, treat it as local date
   if (!dateString.includes('T') && !dateString.includes(' ')) {
     // For date-only strings like "2025-10-09", create local date to avoid timezone shifts
@@ -17,11 +22,35 @@ const parseDate = (dateString: string): Date => {
  * Format a date string to a readable format
  */
 export const formatDate = (
-  dateString: string, 
+  dateString: string | null | undefined, 
   format: keyof typeof DATE_FORMATS = 'short'
 ): string => {
+  if (!dateString) return "—";
   const date = parseDate(dateString);
   return date.toLocaleDateString('en-US', DATE_FORMATS[format]);
+};
+
+/**
+ * Format a date string safely, handling null values
+ * Returns "—" for null dates
+ */
+export const formatDateSafe = (dateString: string | null): string => {
+  if (!dateString) return "—";
+  
+  // Extract just the date part from timestamps to avoid timezone conversion
+  const dateOnly = dateString.includes("T")
+    ? dateString.split("T")[0]
+    : dateString;
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  
+  // Create local date to avoid timezone shifts
+  const date = new Date(year, month - 1, day);
+  
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 /**
@@ -232,7 +261,12 @@ export const getBusinessDaysBetween = (startDate: Date, endDate: Date): number =
 /**
  * Get bid urgency level and highlighting info with business days awareness
  */
-export const getBidUrgency = (dueDateString: string, status: string) => {
+export const getBidUrgency = (dueDateString: string | null | undefined, status: string) => {
+  // If no due date provided, return no urgency
+  if (!dueDateString) {
+    return { level: 'none', isOverdue: false, businessDaysRemaining: 0 };
+  }
+
   // If bid is submitted/won/lost, no highlighting
   const completedStatuses = ['Bid Sent', 'Won Bid', 'Lost Bid'];
   if (completedStatuses.includes(status)) {

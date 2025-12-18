@@ -135,3 +135,38 @@ textarea:focus {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom horizontal scrollbar styling for data tables - always visible */
+.data-table-scroll {
+  overflow-x: scroll !important;
+  overflow-y: auto !important;
+}
+
+.data-table-scroll::-webkit-scrollbar {
+  height: 12px;
+  display: block !important;
+  -webkit-appearance: none;
+}
+
+.data-table-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+  display: block !important;
+}
+
+.data-table-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+  display: block !important;
+}
+
+.data-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Force scrollbar to always be visible in Firefox */
+.data-table-scroll {
+  scrollbar-width: thin !important;
+  scrollbar-color: #94a3b8 #f1f5f9 !important;
+}

@@ -39,6 +39,7 @@ interface APMPhaseModalProps {
   onClose: () => void;
   onSubmit: (phaseData: Omit<APMPhaseData, 'id'>) => Promise<void>;
   vendor: BidVendor | null;
+  vendorName?: string;
   existingPhase?: APMPhaseData | null; // For edit mode
   mode: 'add' | 'edit';
   isLoading?: boolean;
@@ -49,6 +50,7 @@ const APMPhaseModal: React.FC<APMPhaseModalProps> = ({
   onClose,
   onSubmit,
   vendor,
+  vendorName,
   existingPhase,
   mode,
   isLoading = false,
@@ -94,6 +96,7 @@ const APMPhaseModal: React.FC<APMPhaseModalProps> = ({
 
   // Get vendor name for display
   const getVendorName = () => {
+    if (vendorName) return vendorName;
     return vendor ? `Vendor ID ${vendor.vendor_id}` : 'Unknown Vendor';
   };
 
@@ -299,6 +302,7 @@ const APMPhaseModal: React.FC<APMPhaseModalProps> = ({
               type="date"
               value={formData.requested_date || ''}
               onChange={(e) => handleInputChange('requested_date', e.target.value)}
+              onClick={(e) => (e.currentTarget as any).showPicker?.()}
               disabled={isLoading || isSubmitting}
             />
             {errors.requested_date && (
@@ -315,6 +319,7 @@ const APMPhaseModal: React.FC<APMPhaseModalProps> = ({
               type="date"
               value={formData.follow_up_date || ''}
               onChange={(e) => handleInputChange('follow_up_date', e.target.value)}
+              onClick={(e) => (e.currentTarget as any).showPicker?.()}
               disabled={isLoading || isSubmitting}
             />
             {errors.follow_up_date && (
@@ -331,6 +336,7 @@ const APMPhaseModal: React.FC<APMPhaseModalProps> = ({
               type="date"
               value={formData.received_date || ''}
               onChange={(e) => handleInputChange('received_date', e.target.value)}
+              onClick={(e) => (e.currentTarget as any).showPicker?.()}
               disabled={isLoading || isSubmitting}
             />
             {errors.received_date && (

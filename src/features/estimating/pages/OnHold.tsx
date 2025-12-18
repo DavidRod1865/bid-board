@@ -213,7 +213,7 @@ const OnHold: React.FC<OnHoldProps> = ({ bids = [], projectNotes = [] }) => {
         <div className="flex-shrink-0">
           {/* Page Title */}
           <div className="px-6 pt-4">
-            <h1 className="text-2xl font-bold text-gray-900">Bids On Hold</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Estimating - On Hold</h1>
           </div>
           
           <PageHeader

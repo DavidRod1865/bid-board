@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import NoDataFound from '../../../shared/components/ui/NoDataFound';
 import type { User, Bid, BidVendor, Vendor, ProjectNote } from '../../../shared/types';
 import BidTable from '../components/BidPricing/BidTable';
 import PageHeader from '../../../shared/components/ui/PageHeader';
@@ -272,7 +271,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex-shrink-0">
           {/* Page Title */}
           <div className="px-6 pt-4">
-            <h1 className="text-2xl font-bold text-gray-900">Active Bids</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Estimating - Active Bids</h1>
           </div>
           
           <PageHeader
@@ -316,26 +315,22 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
         
         <div className="flex-1 overflow-auto">
-          {!isLoading && estimatingBids.length === 0 ? (
-            <NoDataFound 
-              onAddNew={handleNewProject}
-              actionLabel="Create Project"
-            />
-          ) : (
-            <BidTable 
-              bids={filteredBids} 
-              bidVendors={bidVendors}
-              projectNotes={projectNotes}
-              onStatusChange={handleStatusChange}
-              isLoading={isLoading}
-              selectedBids={selectedBids}
-              onBidSelect={handleBidSelect}
-              pageSize={pageSize}
-              enablePageSizeSelector={true}
-              availablePageSizes={availablePageSizes}
-              onPageSizeChange={setManualPageSize}
-            />
-          )}
+          <BidTable 
+            bids={filteredBids} 
+            bidVendors={bidVendors}
+            projectNotes={projectNotes}
+            users={users}
+            onStatusChange={handleStatusChange}
+            isLoading={isLoading}
+            selectedBids={selectedBids}
+            onBidSelect={handleBidSelect}
+            pageSize={pageSize}
+            enablePageSizeSelector={true}
+            availablePageSizes={availablePageSizes}
+            onPageSizeChange={setManualPageSize}
+            emptyActionLabel="Create Project"
+            onEmptyAction={handleNewProject}
+          />
         </div>
       </div>
 

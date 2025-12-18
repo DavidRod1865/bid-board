@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dbOperations } from '../../../../shared/services/supabase';
 import APMProjectDetail from './APMProjectDetail';
-import type { User, Bid, Vendor, BidVendor } from '../../../../shared/types';
+import type { User, Bid, Vendor, BidVendor, TimelineEvent, TimelineEventTemplate } from '../../../../shared/types';
 
 // APMProjectDetailWrapper component to handle APM project fetching and filtering
 interface APMProjectDetailWrapperProps {
@@ -11,9 +11,14 @@ interface APMProjectDetailWrapperProps {
   vendors: Vendor[];
   bidVendors: BidVendor[];
   projectNotes: import('../../../../shared/types').ProjectNote[];
+  timelineEvents: TimelineEvent[];
+  timelineEventTemplates: TimelineEventTemplate[];
   onUpdateBid: (bidId: number, updatedBid: Partial<Bid>) => Promise<void>;
   onDeleteBid: (bidId: number) => Promise<void>;
   onUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
+  onTimelineEventAdd: (eventData: Omit<TimelineEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  onTimelineEventUpdate: (event: TimelineEvent) => Promise<void>;
+  onTimelineEventDelete: (eventId: number) => Promise<void>;
 }
 
 // APMProjectDetailWrapper component definition
@@ -98,6 +103,9 @@ const APMProjectDetailWrapper: React.FC<APMProjectDetailWrapperProps> = (props) 
     );
   }
   
+  // Filter timeline events for this specific project
+  const projectTimelineEvents = props.timelineEvents.filter(event => event.project_id === projectToShow.id);
+
   return (
     // Render APMProjectDetail component with the determined APM project
     <APMProjectDetail 
@@ -106,9 +114,14 @@ const APMProjectDetailWrapper: React.FC<APMProjectDetailWrapperProps> = (props) 
       projectNotes={props.projectNotes}
       vendors={props.vendors}
       users={props.users}
+      timelineEvents={projectTimelineEvents}
+      timelineEventTemplates={props.timelineEventTemplates}
       onUpdateBid={props.onUpdateBid}
       onDeleteBid={props.onDeleteBid}
       onUpdateBidVendor={props.onUpdateBidVendor}
+      onTimelineEventAdd={props.onTimelineEventAdd}
+      onTimelineEventUpdate={props.onTimelineEventUpdate}
+      onTimelineEventDelete={props.onTimelineEventDelete}
     />
   );
 };

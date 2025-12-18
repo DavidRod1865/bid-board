@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Bid, BidVendor, Vendor, User } from '../../shared/types';
+import type { Bid, BidVendor, VendorWithContact, User } from '../../shared/types';
 import Sidebar from '../../shared/components/ui/Sidebar';
 import BidPreviewModal from '../../shared/components/modals/BidPreviewModal';
 import DayEventsModal from '../../shared/components/modals/DayEventsModal';
@@ -8,7 +8,7 @@ import { useUserProfile } from '../../contexts/UserContext';
 interface CalendarProps {
   bids: Bid[];
   bidVendors: BidVendor[];
-  vendors: Vendor[];
+  vendors: VendorWithContact[];
   users: User[];
 }
 
@@ -19,7 +19,7 @@ interface CalendarEvent {
   date: Date;
   status?: string;
   bid?: Bid;
-  vendor?: Vendor;
+  vendor?: VendorWithContact;
   bidVendor?: BidVendor;
   user?: User;
   phase?: string;
@@ -82,7 +82,7 @@ const Calendar: React.FC<CalendarProps> = ({ bids, bidVendors, vendors, users })
   };
 
   // Get vendor by ID helper
-  const getVendorById = (vendorId: number): Vendor | undefined => {
+  const getVendorById = (vendorId: number): VendorWithContact | undefined => {
     return vendors.find(v => v.id === vendorId);
   };
 

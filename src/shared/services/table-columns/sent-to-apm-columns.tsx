@@ -39,6 +39,9 @@ export function createSentToAPMColumns(
                   {bid.title}
                 </div>
               )}
+              <div className="text-gray-600 text-xs truncate">
+                {bid.project_address || "No address provided"}
+              </div>
             </div>
           </div>
         );
@@ -92,24 +95,6 @@ export function createSentToAPMColumns(
         return (
           <div className="text-sm text-gray-900">
             {formatDate(dueDate)}
-          </div>
-        );
-      },
-    },
-    {
-      id: "sent_to_apm_at",
-      accessorKey: "sent_to_apm_at",
-      meta: {
-        width: "w-[9%]",
-      },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Sent Date" />
-      ),
-      cell: ({ row }) => {
-        const sentDate = row.getValue("sent_to_apm_at") as string;
-        return (
-          <div className="text-sm text-gray-900">
-            {sentDate ? formatDate(sentDate) : "—"}
           </div>
         );
       },

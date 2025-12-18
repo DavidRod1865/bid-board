@@ -220,26 +220,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
   const getAPMItems = (): NavigationItem[] => {
     return [
       {
-        id: "apm-dashboard",
-        label: "Follow Ups",
-        shortLabel: "DAILY",
-        icon: (
-          <div className="w-6 h-6 flex items-center justify-center">
-            <Folder
-              size={0.2}
-              color={getViewAccentColor(
-                isActive("/apm"),
-                hoveredItem === "apm-dashboard"
-              )}
-              isActive={isActive("/apm")}
-              isHovered={hoveredItem === "apm-dashboard"}
-            />
-          </div>
-        ),
-        path: "/apm",
-        disabled: false,
-      },
-      {
         id: "apm-projects",
         label: "Active Projects",
         shortLabel: "ACTIVE",
@@ -356,26 +336,6 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
     // Admin users see items based on current view, including admin button
     if (view === "apm") {
       const apmItems: NavigationItem[] = [
-        {
-          id: "apm-dashboard",
-          label: "Follow Ups",
-          shortLabel: "DAILY",
-          icon: (
-            <div className="w-6 h-6 flex items-center justify-center">
-              <Folder
-                size={0.2}
-                color={getViewAccentColor(
-                  isActive("/apm"),
-                  hoveredItem === "apm-dashboard"
-                )}
-                isActive={isActive("/apm")}
-                isHovered={hoveredItem === "apm-dashboard"}
-              />
-            </div>
-          ),
-          path: "/apm",
-          disabled: false,
-        },
         {
           id: "apm-projects",
           label: "Active Projects",

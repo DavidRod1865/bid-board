@@ -23,7 +23,7 @@ import OnHold from '../features/estimating/pages/OnHold';
 import Admin from '../shared/pages/Admin';
 
 // Types
-import type { User, Bid, Vendor, VendorWithContact, BidVendor, ProjectNote } from '../shared/types';
+import type { User, Bid, Vendor, VendorWithContact, BidVendor, ProjectNote, ProjectEquipment, TimelineEvent, TimelineEventTemplate } from '../shared/types';
 import type { ContactData } from '../features/estimating/components/VendorManagement/VendorCreationWizard';
 import { ProtectedRoute } from '../shared/components/RouteProtection';
 
@@ -34,6 +34,9 @@ interface AppRoutesProps {
   bidVendors: BidVendor[];
   users: User[];
   projectNotes: ProjectNote[];
+  equipment: ProjectEquipment[];
+  timelineEvents: TimelineEvent[];
+  timelineEventTemplates: TimelineEventTemplate[];
   isLoading?: boolean;
   
   // Handler functions
@@ -52,6 +55,9 @@ interface AppRoutesProps {
   handleRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
   handleBidRestored: (restoredBid: Bid) => void;
   handleVendorUpdated: () => void;
+  handleAddTimelineEvent: (eventData: Omit<TimelineEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  handleUpdateTimelineEvent: (event: TimelineEvent) => Promise<void>;
+  handleDeleteTimelineEvent: (eventId: number) => Promise<void>;
 }
 
 const AppRoutes: React.FC<AppRoutesProps> = ({
@@ -60,6 +66,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   bidVendors,
   users,
   projectNotes,
+  equipment,
+  timelineEvents,
+  timelineEventTemplates,
   isLoading = false,
   handleStatusChange,
   handleUpdateBid,
@@ -75,7 +84,10 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   handleUpdateBidVendor,
   handleRemoveBidVendors,
   handleBidRestored,
-  handleVendorUpdated
+  handleVendorUpdated,
+  handleAddTimelineEvent,
+  handleUpdateTimelineEvent,
+  handleDeleteTimelineEvent
 }) => {
   return (
     <Routes>
@@ -179,6 +191,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
               bidVendors={bidVendors}
               vendors={vendors}
               projectNotes={projectNotes}
+              equipment={equipment}
               handleStatusChange={handleStatusChange}
               users={users}
               isLoading={isLoading}
@@ -199,9 +212,14 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             vendors={vendors}
             bidVendors={bidVendors}
             projectNotes={projectNotes}
+            timelineEvents={timelineEvents}
+            timelineEventTemplates={timelineEventTemplates}
             onUpdateBid={handleUpdateAPMBid}
             onDeleteBid={handleDeleteBid}
             onUpdateBidVendor={handleUpdateBidVendor}
+            onTimelineEventAdd={handleAddTimelineEvent}
+            onTimelineEventUpdate={handleUpdateTimelineEvent}
+            onTimelineEventDelete={handleDeleteTimelineEvent}
           />
         } 
       />

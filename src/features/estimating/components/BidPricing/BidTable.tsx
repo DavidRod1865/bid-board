@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Bid, ProjectNote } from "../../../../shared/types";
+import type { Bid, ProjectNote, User } from "../../../../shared/types";
 import { DataTable } from "../../../../shared/components/ui/data-table";
 import { createBidColumns } from "../../../../shared/services/table-columns/bid-columns";
 import { getBidUrgencyClasses, getBidUrgency } from "../../../../shared/utils/formatters";
@@ -18,6 +18,7 @@ interface ProjectTableProps {
   bids: Bid[];
   bidVendors?: BidVendor[];
   projectNotes?: ProjectNote[];
+  users?: User[];
   onStatusChange?: (bidId: number, newStatus: string) => Promise<void>;
   isLoading?: boolean;
   // Bulk selection props (back to original Set + individual callback pattern)
@@ -31,12 +32,18 @@ interface ProjectTableProps {
   enablePageSizeSelector?: boolean;
   availablePageSizes?: number[];
   onPageSizeChange?: (size: number | null) => void;
+  // Row click handler
+  onRowClick?: (bid: Bid) => void;
+  // Empty state props
+  emptyActionLabel?: string;
+  onEmptyAction?: () => void;
 }
 
 const ProjectTable: React.FC<ProjectTableProps> = ({
   bids,
   bidVendors = [],
   projectNotes = [],
+  users,
   onStatusChange,
   isLoading = false,
   selectedBids = new Set(),
@@ -46,6 +53,9 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   enablePageSizeSelector = false,
   availablePageSizes = [10, 15, 20, 25, 30, 50],
   onPageSizeChange,
+  onRowClick,
+  emptyActionLabel,
+  onEmptyAction,
 }) => {
   const [statusErrors, setStatusErrors] = useState<Map<number, string>>(
     new Map()
@@ -95,9 +105,16 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       onStatusChange: handleStatusChange,
       statusErrors,
       isOperationLoading: (bidId: number) => isOperationLoading(`status-update-${bidId}`),
-      showEstimatingColumns: !useAPMRouting
+      showEstimatingColumns: !useAPMRouting,
+      onProjectNameClick: (bidId: number) => {
+        navigate(useAPMRouting ? `/apm/project/${bidId}` : `/project/${bidId}`);
+      },
+      useAPMRouting,
+      apmUsers: users?.filter(
+        (u) => u.role === "APM" || u.role === "Admin"
+      ),
     });
-  }, [bidVendors, projectNotes, handleStatusChange, statusErrors, isOperationLoading, useAPMRouting]);
+  }, [bidVendors, projectNotes, handleStatusChange, statusErrors, isOperationLoading, useAPMRouting, navigate, users]);
 
   // Convert Set to TanStack Table row selection format (same as OnHold)
   const rowSelection = useMemo(() => {
@@ -170,6 +187,16 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     return {};
   };
 
+  // Handle row click - use provided handler or default to navigation
+  const handleRowClick = useCallback((bid: Bid) => {
+    if (onRowClick) {
+      onRowClick(bid);
+    } else {
+      // Default behavior: navigate to project details
+      navigate(useAPMRouting ? `/apm/project/${bid.id}` : `/project/${bid.id}`);
+    }
+  }, [onRowClick, navigate, useAPMRouting]);
+
   return (
     <DataTable
       columns={columns}
@@ -179,9 +206,11 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
       initialSorting={useAPMRouting ? [{ id: "project", desc: false }] : [{ id: "due_date", desc: false }]}
       rowSelection={rowSelection}
       onRowSelectionChange={handleRowSelectionChange}
-      onRowClick={(bid) => navigate(useAPMRouting ? `/apm/project/${bid.id}` : `/project/${bid.id}`)}
+      onRowClick={handleRowClick}
       isLoading={isLoading}
       emptyMessage="No projects found"
+      emptyActionLabel={emptyActionLabel}
+      onEmptyAction={onEmptyAction}
       getRowClassName={getRowClassName}
       getRowStyle={getRowStyle}
       pageSize={pageSize}

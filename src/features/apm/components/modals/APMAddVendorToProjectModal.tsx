@@ -163,13 +163,30 @@ const APMAddVendorToProjectModal: React.FC<APMAddVendorToProjectModalProps> = ({
         {selectedVendor && (
           <div className="bg-gray-50 p-3 rounded-lg">
             <p className="text-sm text-gray-600">
-              <span className="font-medium">Contact:</span> {selectedVendor.contact_person}
+              <span className="font-medium">Contact:</span> {
+                (selectedVendor as any).primary_contact?.contact_name || 
+                selectedVendor.contact_person || 
+                'N/A'
+              }
+            </p>
+            {(selectedVendor as any).primary_contact?.contact_title && (
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Title:</span> {(selectedVendor as any).primary_contact.contact_title}
+              </p>
+            )}
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Email:</span> {
+                (selectedVendor as any).primary_contact?.email || 
+                selectedVendor.email || 
+                'N/A'
+              }
             </p>
             <p className="text-sm text-gray-600">
-              <span className="font-medium">Email:</span> {selectedVendor.email}
-            </p>
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">Phone:</span> {selectedVendor.phone}
+              <span className="font-medium">Phone:</span> {
+                (selectedVendor as any).primary_contact?.phone || 
+                selectedVendor.phone || 
+                'N/A'
+              }
             </p>
           </div>
         )}

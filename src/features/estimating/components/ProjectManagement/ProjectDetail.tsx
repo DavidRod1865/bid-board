@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUserProfile } from "../../../../contexts/UserContext";
 import type {
   Bid,
   User,
@@ -21,9 +22,16 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "../../../../shared/components/ui/breadcrumb";
+import { Calendar } from "../../../../shared/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../../../../shared/components/ui/popover";
 import { dbOperations } from "../../../../shared/services/supabase";
 // Real-time updates handled by AppContent
 import { formatDate } from "../../../../shared/utils/formatters";
+import { CalendarIcon } from "@heroicons/react/24/outline";
 import {
   UserPlusIcon,
   PencilIcon,
@@ -76,7 +84,9 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   onRemoveBidVendors,
 }) => {
   const navigate = useNavigate();
+  const { userProfile } = useUserProfile();
   const [isEditing, setIsEditing] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   // projectNotes now comes from props
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
@@ -88,16 +98,17 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     null
   );
   const [isVendorLoading, setIsVendorLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Error state
   const [error, setError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Data comes from props - create filtered/derived state
   const projectVendors = bidVendors.filter((bv) => bv.bid_id === bid.id);
   const filteredProjectNotes = projectNotes.filter(
     (note) => note.bid_id === bid.id
   );
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Sidebar state
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -126,10 +137,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
     file_location: bid.file_location || "",
   });
 
-  // Set current user from users prop
-  useEffect(() => {
-    setCurrentUser(users[0] || null);
-  }, [users]);
 
   // Real-time updates are now handled by the centralized AppContent subscription system
   // Individual component subscriptions have been removed to prevent conflicts
@@ -153,18 +160,38 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   }, [bid]);
 
   const handleSave = async () => {
+    if (isSaving) return; // Prevent double-click saves
+    
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
     try {
       // Convert empty created_by to null for database
+      // Sync title with project_name since title is an alias
       const dataToSave = {
         ...formData,
+        title: formData.project_name,
         created_by: formData.created_by || null,
       };
+      
       await onUpdateBid(bid.id, dataToSave);
+      
       setIsEditing(false);
+      setSaveSuccess(true);
+      
+      // Clear any previous errors on successful save
+      if (error) {
+        setError(null);
+      }
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Failed to update project"
+        error instanceof Error ? error.message : "Failed to update project. Please try again."
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -286,11 +313,30 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   };
 
   const handleAddNoteSubmit = async (content: string) => {
-    // Let the database function auto-detect current user via Auth
-    await dbOperations.createProjectNote({
-      bid_id: bid.id,
-      content: content
-    });
+    try {
+      // Get current authenticated user from UserContext
+      const currentUserId = userProfile?.id;
+      
+      // Let the database function auto-detect current user via Auth, with fallback
+      const newNote = await dbOperations.createProjectNote({
+        bid_id: bid.id,
+        content: content,
+        user_id: currentUserId // Provide correct authenticated user_id
+      });
+      
+      // Close the modal after successful save
+      setShowAddNoteModal(false);
+      
+      // Clear any previous errors
+      if (error) {
+        setError(null);
+      }
+    } catch (error) {
+      console.error('Failed to add project note:', error);
+      setError(
+        error instanceof Error ? error.message : "Failed to add note. Please try again."
+      );
+    }
   };
 
   const confirmDeleteProject = async () => {
@@ -306,7 +352,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
   const confirmArchiveProject = async () => {
     try {
-      if (!currentUser) {
+      if (!userProfile) {
         setError("Unable to archive project - user not found");
         return;
       }
@@ -315,7 +361,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
       await onUpdateBid(bid.id, {
         archived: true,
         archived_at: new Date().toISOString(),
-        archived_by: currentUser.id,
+        archived_by: userProfile.id,
       });
 
       navigate("/");
@@ -328,7 +374,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
   const handleMoveToOnHold = async () => {
     try {
-      if (!currentUser) {
+      if (!userProfile) {
         setError("Unable to move project to on-hold - user not found");
         return;
       }
@@ -337,7 +383,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
       await onUpdateBid(bid.id, {
         on_hold: true,
         on_hold_at: new Date().toISOString(),
-        on_hold_by: currentUser.id,
+        on_hold_by: userProfile.id,
       });
 
       navigate("/");
@@ -352,7 +398,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
   const handleMoveToActive = async () => {
     try {
-      if (!currentUser) {
+      if (!userProfile) {
         setError("Unable to move project to active - user not found");
         return;
       }
@@ -455,6 +501,21 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
             </div>
           )}
 
+          {/* Success Display */}
+          {saveSuccess && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mx-6 mt-4">
+              <div className="flex justify-between items-center">
+                <span>Project updated successfully!</span>
+                <button
+                  onClick={() => setSaveSuccess(false)}
+                  className="text-green-700 hover:text-green-900"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Custom Page Header with Breadcrumb, Status Badge, and Action Buttons */}
           <div className="bg-slate-100">
             {/* Header with Breadcrumb, Status Badge, and Action Buttons on same line */}
@@ -473,21 +534,9 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     </BreadcrumbItem>
                     <BreadcrumbSeparator className="[&>svg]:size-6" />
                     <BreadcrumbItem>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={formData.title}
-                          onChange={(e) =>
-                            setFormData({ ...formData, title: e.target.value })
-                          }
-                          className="text-2xl font-bold text-gray-900 border border-gray-300 rounded-md px-2 py-1 bg-white"
-                          placeholder="Project title..."
-                        />
-                      ) : (
-                        <BreadcrumbPage className="flex text-2xl h-10 items-center font-bold text-gray-900">
-                          {bid.title}
-                        </BreadcrumbPage>
-                      )}
+                      <BreadcrumbPage className="flex text-2xl h-10 items-center font-bold text-gray-900">
+                        {bid.title}
+                      </BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
@@ -597,14 +646,33 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                   <>
                     <button
                       onClick={handleSave}
-                      className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      disabled={isSaving}
+                      className={`inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                        isSaving 
+                          ? 'bg-green-400 cursor-not-allowed' 
+                          : 'bg-green-600 hover:bg-green-700'
+                      } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
                     >
-                      <CheckIcon className="w-5 h-5 mr-2" />
-                      Save Changes
+                      {isSaving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="w-5 h-5 mr-2" />
+                          Save Changes
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={handleCancel}
-                      className="inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                      disabled={isSaving}
+                      className={`inline-flex items-center px-4 h-10 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                        isSaving 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-gray-600 hover:bg-gray-700'
+                      } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500`}
                     >
                       <XMarkIcon className="w-5 h-5 mr-2" />
                       Cancel
@@ -757,17 +825,38 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                   Due Date
                 </div>
                 {isEditing ? (
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        due_date: e.target.value,
-                      })
-                    }
-                    className="border border-gray-300 rounded px-3 py-2 text-base w-full"
-                  />
+                  <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="border border-gray-300 rounded px-3 py-2 text-base w-full text-left flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:border-transparent"
+                      >
+                        <span className={formData.due_date ? "text-gray-900" : "text-gray-400"}>
+                          {formData.due_date ? formatDate(formData.due_date) : "Select a date"}
+                        </span>
+                        <CalendarIcon className="h-5 w-5 text-gray-400" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.due_date ? new Date(formData.due_date + 'T00:00:00') : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            setFormData({
+                              ...formData,
+                              due_date: `${year}-${month}-${day}`,
+                            });
+                          }
+                          setIsDatePickerOpen(false);
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 ) : (
                   <>
                     <div className="text-3xl font-bold text-gray-900 mb-3">
@@ -803,8 +892,8 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     return new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "USD",
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
                     }).format(totalVendorCosts);
                   })()}
                 </div>
@@ -913,6 +1002,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                       getVendorById={getVendorById}
                       onEdit={handleEditVendor}
                       onUpdateBidVendor={onUpdateBidVendor}
+                      onRemoveVendors={handleRemoveVendors}
                       hideActions={true}
                       onSelectionChange={handleVendorSelectionChange}
                     />
@@ -920,7 +1010,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
 
                 {activeTab === "notes" && (
                   <div className="p-6">
-                    {currentUser && (
+                    {userProfile && (
                       <ProjectNotes
                         bid={bid}
                         users={users}
@@ -928,7 +1018,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                         setProjectNotes={() => {}} // Read-only for now, notes updated via real-time
                       />
                     )}
-                    {!currentUser && (
+                    {!userProfile && (
                       <div className="text-center py-12">
                         <p className="text-gray-500">Loading notes...</p>
                       </div>

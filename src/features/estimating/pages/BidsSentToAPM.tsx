@@ -196,7 +196,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
         <div className="flex-shrink-0">
           {/* Page Title */}
           <div className="px-6 pt-4">
-            <h1 className="text-2xl font-bold text-gray-900">Bids Sent to APM</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Estimating - Sent to APM</h1>
           </div>
           
           <PageHeader
@@ -225,7 +225,7 @@ const BidsSentToAPM: React.FC<BidsSentToAPMProps> = ({ bids = [], projectNotes =
             data={filteredBids}
             enableRowSelection={true}
             enableSorting={true}
-            initialSorting={[{ id: "sent_to_apm_at", desc: true }]}
+            initialSorting={[{ id: "due_date", desc: true }]}
             rowSelection={rowSelection}
             onRowSelectionChange={(selection) => {
               const newSelectedIds = new Set<number>();

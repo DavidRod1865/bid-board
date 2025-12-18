@@ -20,12 +20,14 @@ interface VendorCreationWizardProps {
   onComplete: (vendorData: Omit<Vendor, 'id'>, contacts: ContactData[]) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+  defaultVendorType?: 'Vendor' | 'Subcontractor' | 'General Contractor';
 }
 
 const VendorCreationWizard: React.FC<VendorCreationWizardProps> = ({
   onComplete,
   onCancel,
-  isLoading = false
+  isLoading = false,
+  defaultVendorType = 'Vendor'
 }) => {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [vendorData, setVendorData] = useState<Partial<Vendor>>({
@@ -37,7 +39,7 @@ const VendorCreationWizard: React.FC<VendorCreationWizardProps> = ({
     notes: '',
     specialty: '',
     is_priority: false,
-    vendor_type: 'Vendor',
+    vendor_type: defaultVendorType,
     insurance_expiry_date: null,
     insurance_notes: '',
     primary_contact_id: null,

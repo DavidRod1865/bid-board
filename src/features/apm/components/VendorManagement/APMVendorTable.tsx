@@ -1,9 +1,15 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronRightIcon, DocumentTextIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import type { BidVendor, Vendor, Bid, User } from '../../../../shared/types';
 import APMPhaseModal from '../modals/APMPhaseModal';
 import AlertDialog from '../../../../shared/components/ui/AlertDialog';
 import { Popover, PopoverTrigger, PopoverContent } from '../../../../shared/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../../shared/components/ui/dropdown-menu';
 
 // Helper function to format dates avoiding timezone conversion issues
 const formatDateSafe = (dateString: string | null): string => {
@@ -18,9 +24,8 @@ const formatDateSafe = (dateString: string | null): string => {
   return localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 import { getPhaseFollowUpDate, getPhaseDisplayName, getCurrentPhasesWithSoonestFollowUp, getFollowUpUrgencyClasses, getFollowUpUrgency, areAllAPMPhasesCompleted, haveAnyAPMPhasesStarted } from '../../../../shared/utils/phaseFollowUpUtils';
-import { Checkbox } from '../../../../shared/components/ui/checkbox';
 
-// Helper function to format amount values with decimals
+// Helper function to format amount values (stored as decimal dollars)
 const formatAmount = (amount: number | string | null): string => {
   if (!amount && amount !== 0) return '—';
   
@@ -106,7 +111,8 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
   onDeletePhase,
   onDeleteVendor
 }) => {
-  const [expandedVendor, setExpandedVendor] = useState<number | null>(null);
+  // Track multiple expanded vendors instead of just one
+  const [expandedVendors, setExpandedVendors] = useState<number[]>([]);
   const [sortField, setSortField] = useState<keyof BidVendor | 'vendor_name'>('apm_phase_updated_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [openNotePopover, setOpenNotePopover] = useState<number | null>(null);
@@ -193,11 +199,11 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
   };
 
   const toggleExpanded = (vendorId: number) => {
-    if (expandedVendor === vendorId) {
-      setExpandedVendor(null);
-    } else {
-      setExpandedVendor(vendorId);
-    }
+    setExpandedVendors((prev) =>
+      prev.includes(vendorId)
+        ? prev.filter((id) => id !== vendorId)
+        : [...prev, vendorId]
+    );
   };
 
   const getAssignedUserName = (userId: string | null) => {
@@ -281,15 +287,16 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
     }));
   };
 
-  // Helper to parse amount input (remove $ and commas, preserve decimals)
+  // Helper to parse amount input (convert string to number for storage)
   const parseAmountInput = (value: string): number | null => {
     if (!value || value.trim() === '') return null;
     const cleaned = value.replace(/[$,]/g, '');
     const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? null : parsed;
+    if (isNaN(parsed)) return null;
+    return parsed;
   };
 
-  // Helper to format amount for input display (with decimals)
+  // Helper to format amount for input display
   const formatAmountForInput = (amount: number | string | null): string => {
     if (!amount && amount !== 0) return '';
     let numValue: number;
@@ -395,9 +402,12 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
   }) => {
     const isVendor = field === 'vendor_name';
     const alignmentClass = className.includes('text-center') ? 'text-center' : (isVendor ? 'text-left' : 'text-center');
+    // Extract width classes from className
+    const widthClass = className.match(/w-\S+/)?.[0] || '';
+    const otherClasses = className.replace(/w-\S+/, '').trim();
     return (
       <th 
-        className={`px-2 py-2 ${alignmentClass} text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-slate-600 transition-colors ${className}`}
+        className={`px-2 py-2 ${alignmentClass} text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-slate-600 transition-colors border border-gray-300 ${widthClass} ${otherClasses}`}
         onClick={() => handleSort(field)}
       >
         <div className={`flex items-center space-x-1 ${alignmentClass === 'text-center' ? 'justify-center' : ''}`}>
@@ -414,46 +424,23 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
 
   return (
     <div className="overflow-hidden border border-gray-300">
-      <table className="min-w-full divide-y divide-gray-300">
+      <table className="w-full divide-y divide-gray-300 border-collapse table-auto">
         <thead className="bg-slate-700">
           <tr>
-            <th className="px-2 py-2 text-left">
-              <Checkbox
-                onCheckedChange={(checked) => {
-                  const isChecked = checked === true;
-                  
-                  if (onBulkVendorSelect) {
-                    // Use bulk selection for all vendors at once
-                    const vendorIds = sortedVendors.map(v => v.vendor_id);
-                    onBulkVendorSelect(vendorIds, isChecked);
-                  } else {
-                    // Fallback to individual selection
-                    sortedVendors.forEach(vendor => {
-                      const wasSelected = selectedVendors.has(vendor.vendor_id);
-                      if (wasSelected !== isChecked) {
-                        onVendorSelect(vendor.vendor_id, isChecked);
-                      }
-                    });
-                  }
-                }}
-                checked={sortedVendors.length > 0 && sortedVendors.every(v => selectedVendors.has(v.vendor_id))}
-                disabled={sortedVendors.length === 0}
-              />
-            </th>
             <SortableHeader field="vendor_name">Vendor</SortableHeader>
-            <SortableHeader field="apm_phase" className="text-center">Original Quote</SortableHeader>
-            <SortableHeader field="apm_status" className="text-center">Final Quote</SortableHeader>
-            <SortableHeader field="apm_phase_updated_at" className="text-center">Pending Phase</SortableHeader>
-            <SortableHeader field="next_follow_up_date" className="text-center">Follow-Up</SortableHeader>
-            <SortableHeader field="assigned_apm_user" className="text-center">Assigned To</SortableHeader>
-            <th className="px-2 py-2 text-center text-xs font-semibold text-white uppercase tracking-wider">
+            <SortableHeader field="apm_phase" className="text-center w-32">Original Quote</SortableHeader>
+            <SortableHeader field="apm_status" className="text-center w-32">Final Quote</SortableHeader>
+            <SortableHeader field="apm_phase_updated_at" className="text-center w-36">Pending Phase</SortableHeader>
+            <SortableHeader field="next_follow_up_date" className="text-center w-28">Follow-Up</SortableHeader>
+            <SortableHeader field="assigned_apm_user" className="text-center w-32">Assigned To</SortableHeader>
+            <th className="px-2 py-2 text-center text-xs font-semibold text-white uppercase tracking-wider border border-gray-300 w-20">
               Actions
             </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-300">
           {sortedVendors.map((vendor, index) => {
-            const isExpanded = expandedVendor === vendor.id;
+            const isExpanded = expandedVendors.includes(vendor.id);
             const { soonestDate } = getCurrentPhasesWithSoonestFollowUp(vendor);
             const urgencyClasses = getFollowUpUrgencyClasses(soonestDate);
             
@@ -477,15 +464,8 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 className={`${rowClasses} hover:bg-slate-100 transition-colors cursor-pointer border-l-4 border-l-transparent`}
                 onClick={() => toggleExpanded(vendor.id)}
               >
-                <td className="px-2 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={selectedVendors.has(vendor.vendor_id)}
-                    onCheckedChange={(checked) => onVendorSelect(vendor.vendor_id, checked === true)}
-                  />
-                </td>
-
                 {/* Vendor Name with Expand/Collapse */}
-                <td className="px-2 py-2 whitespace-nowrap">
+                <td className="px-2 py-2 whitespace-nowrap border border-gray-300">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => {
@@ -507,7 +487,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
                 
                 {/* Original Quote Amount */}
-                <td className="px-2 py-2 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                <td className="px-2 py-2 whitespace-nowrap text-center border border-gray-300" onClick={(e) => e.stopPropagation()}>
                   {editingVendorId === vendor.id ? (
                     <input
                       type="text"
@@ -528,7 +508,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Final Quote Amount */}
-                <td className="px-2 py-2 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                <td className="px-2 py-2 whitespace-nowrap text-center border border-gray-300" onClick={(e) => e.stopPropagation()}>
                   {editingVendorId === vendor.id ? (
                     <input
                       type="text"
@@ -549,7 +529,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Pending Phase */}
-                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 text-center">
+                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-800 text-center border border-gray-300">
                   {(() => {
                     // Check if all phases are completed
                     if (areAllPhasesCompleted(vendor)) {
@@ -578,7 +558,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Next Follow-up Date */}
-                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-700 text-center">
+                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-700 text-center border border-gray-300">
                   {(() => {
                     // If all phases completed, no follow-up needed
                     if (areAllPhasesCompleted(vendor)) {
@@ -594,7 +574,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Assigned APM User */}
-                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-700 text-center" onClick={(e) => e.stopPropagation()}>
+                <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-slate-700 text-center border border-gray-300" onClick={(e) => e.stopPropagation()}>
                   {editingVendorId === vendor.id ? (
                     <select
                       value={editValues.assigned_apm_user || ''}
@@ -614,7 +594,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                 </td>
 
                 {/* Actions */}
-                <td className="px-2 py-2 whitespace-nowrap text-sm text-center" onClick={(e) => e.stopPropagation()}>
+                <td className="px-2 py-2 whitespace-nowrap text-sm text-center border border-gray-300" onClick={(e) => e.stopPropagation()}>
                   {editingVendorId === vendor.id ? (
                     <div className="flex items-center justify-center gap-3">
                       <button
@@ -631,22 +611,32 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center gap-3">
-                      <button
-                        className="text-blue-600 hover:text-blue-700 font-semibold text-sm transition-colors cursor-pointer"
-                        onClick={() => handleStartEdit(vendor)}
-                      >
-                        Edit
-                      </button>
-                      {onDeleteVendor && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <button
-                          className="text-red-600 hover:text-red-700 font-semibold text-sm transition-colors cursor-pointer"
-                          onClick={() => handleDeleteVendor(vendor)}
+                          className="inline-flex items-center justify-center p-1.5 rounded hover:bg-gray-100 focus:outline-none"
+                          aria-label="Vendor actions"
                         >
-                          Delete
+                          <EllipsisVerticalIcon className="w-5 h-5 text-gray-600" />
                         </button>
-                      )}
-                    </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => handleStartEdit(vendor)}
+                        >
+                          Edit vendor
+                        </DropdownMenuItem>
+                        {onDeleteVendor && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-red-600 focus:text-red-700"
+                            onClick={() => handleDeleteVendor(vendor)}
+                          >
+                            Delete vendor
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </td>
               </tr>
@@ -654,17 +644,19 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
               {/* Expanded Details Row - APM Phases */}
               {isExpanded && (
                 <tr className={`${index % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-t border-gray-300`}>
-                  <td colSpan={8} className="px-0 py-0">
-                        <table className="min-w-full divide-y divide-gray-300">
+                  <td colSpan={7} className="px-0 py-0">
+                        <table className="min-w-full divide-y divide-gray-300 border-collapse">
                           <thead className="bg-slate-500">
                             <tr>
-                              <th className="px-2 py-1 text-left text-xs font-semibold text-white uppercase tracking-wider w-48">Phase Name</th>
-                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Status</th>
-                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Requested Date</th>
-                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Follow-up Date</th>
-                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-auto">Received Date</th>
-                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-fit">Notes</th>
-                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-fit">Actions</th>
+                              <th className="px-2 py-1 text-left text-xs font-semibold text-white uppercase tracking-wider border border-gray-300">Phase Name</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-24 border border-gray-300">Status</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-32 border border-gray-300">Requested Date</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-32 border border-gray-300">Follow-up Date</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-32 border border-gray-300">Received Date</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-16 border border-gray-300">Notes</th>
+                              <th className="px-2 py-1 text-center text-xs font-semibold text-white uppercase tracking-wider w-20 border border-gray-300">
+                                Actions
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-300">
@@ -675,7 +667,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                                   key={phase.id} 
                                   className={`${phaseIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${getPhaseUrgencyClasses(phase.follow_up_date, phase.received_date)}`}
                                 >
-                                  <td className="px-2 py-1 text-sm font-semibold text-slate-900 text-left">
+                                  <td className="px-2 py-1 text-sm font-semibold text-slate-900 text-left border border-gray-300">
                                     {phase.phase_name}
                                     {phase.revision_count > 0 && (
                                       <span className="ml-2 text-xs text-blue-600 font-normal">
@@ -683,7 +675,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                                       </span>
                                     )}
                                   </td>
-                                  <td className="px-2 py-1 text-sm text-slate-800 text-center">
+                                  <td className="px-2 py-1 text-sm text-slate-800 text-center border border-gray-300">
                                     <span className={`px-2 py-1 text-xs rounded-full font-medium inline-block ${
                                       phase.status === 'Completed' 
                                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
@@ -694,16 +686,16 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                                       {phase.status}
                                     </span>
                                   </td>
-                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center">
+                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center border border-gray-300">
                                     {formatDateSafe(phase.requested_date)}
                                   </td>
-                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center">
+                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center border border-gray-300">
                                     {formatDateSafe(phase.follow_up_date)}
                                   </td>
-                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center">
+                                  <td className="px-2 py-1 text-sm font-medium text-slate-700 text-center border border-gray-300">
                                     {formatDateSafe(phase.received_date)}
                                   </td>
-                                  <td className="px-2 py-1 text-sm text-slate-600 text-center">
+                                  <td className="px-2 py-1 text-sm text-slate-600 text-center border border-gray-300">
                                     {phase.notes ? (
                                       <Popover open={openNotePopover === phase.id} onOpenChange={(open) => setOpenNotePopover(open ? phase.id : null)}>
                                         <PopoverTrigger asChild>
@@ -736,21 +728,31 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
                                       '—'
                                     )}
                                   </td>
-                                  <td className="px-2 py-1 text-sm text-slate-800 text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                      <button
-                                        className="text-blue-600 hover:text-blue-700 font-medium text-xs transition-colors"
-                                        onClick={() => handleEditPhase(vendor, phase)}
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        className="text-red-600 hover:text-red-700 font-medium text-xs transition-colors"
-                                        onClick={() => handleDeletePhase(phase)}
-                                      >
-                                        Delete
-                                      </button>
-                                    </div>
+                                  <td className="px-2 py-1 text-sm text-slate-800 text-center border border-gray-300">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button
+                                          className="inline-flex items-center justify-center p-1.5 rounded hover:bg-gray-100 focus:outline-none"
+                                          aria-label="Phase actions"
+                                        >
+                                          <EllipsisVerticalIcon className="w-5 h-5 text-gray-600" />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-40">
+                                        <DropdownMenuItem
+                                          className="cursor-pointer"
+                                          onClick={() => handleEditPhase(vendor, phase)}
+                                        >
+                                          Edit phase
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          className="cursor-pointer text-red-600 focus:text-red-700"
+                                          onClick={() => handleDeletePhase(phase)}
+                                        >
+                                          Delete phase
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   </td>
                                 </tr>
                               ))
@@ -801,6 +803,7 @@ const APMVendorTable: React.FC<APMVendorTableProps> = ({
         onClose={() => setIsPhaseModalOpen(false)}
         onSubmit={handlePhaseModalSubmit}
         vendor={selectedVendorForPhase}
+        vendorName={selectedVendorForPhase ? getVendorName(selectedVendorForPhase.vendor_id) : undefined}
         existingPhase={selectedPhase}
         mode={modalMode}
       />

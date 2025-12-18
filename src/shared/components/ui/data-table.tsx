@@ -28,6 +28,8 @@ interface DataTableProps<TData, TValue> {
   // Empty state
   emptyMessage?: string
   emptyIcon?: React.ComponentType<{ className?: string }>
+  emptyActionLabel?: string
+  onEmptyAction?: () => void
   // Custom row styling
   getRowClassName?: (row: TData) => string
   getRowStyle?: (row: TData) => React.CSSProperties
@@ -52,6 +54,8 @@ export function DataTable<TData, TValue>({
   onRowSelectionChange,
   onRowClick,
   isLoading = false,
+  emptyActionLabel,
+  onEmptyAction,
   getRowClassName,
   getRowStyle,
   getRowBorderColor,
@@ -187,41 +191,62 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className="bg-slate-100 shadow-sm overflow-hidden flex-1 flex flex-col h-full">
-      <div className="overflow-x-auto overflow-y-auto flex-1">
-        <table className="w-full table-fixed min-w-[1200px]">
+    <div className="bg-slate-100 shadow-sm flex-1 flex flex-col h-full relative">
+      <div className="overflow-x-scroll overflow-y-auto flex-1 min-w-0 pb-4 data-table-scroll" style={{ scrollbarWidth: 'thin', scrollbarColor: '#94a3b8 #f1f5f9' }}>
+        <table className="table-auto w-full">
           <thead className="bg-slate-100 border-b-2 border-gray-200">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={`px-2 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide ${
-                      header.column.columnDef.meta?.width || ''
-                    }`}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
-                ))}
+                {headerGroup.headers.map((header, headerIndex) => {
+                  const columnId = header.column.id;
+                  const shouldCenter = columnId !== 'project' && columnId !== 'notes' && columnId !== 'description';
+                  const isStickyProjectColumn = columnId === 'project';
+                  return (
+                    <th
+                      key={header.id}
+                      className={`px-2 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide border-r border-gray-200 last:border-r-0 ${
+                        header.column.columnDef.meta?.width || ''
+                      } ${
+                        isStickyProjectColumn 
+                          ? 'sticky left-0 z-20 bg-slate-100 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]' 
+                          : ''
+                      } ${
+                        shouldCenter ? 'text-center' : 'text-left'
+                      }`}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
           <tbody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => {
+              table.getRowModel().rows.map((row, rowIndex) => {
                 const borderColor = getRowBorderColor ? getRowBorderColor(row.original) : '';
+                const isEven = rowIndex % 2 === 0;
+                // Always apply default background color for alternating rows
+                const baseBgColor = isEven ? 'bg-white' : 'bg-gray-50';
+                const baseBgColorValue = isEven ? '#ffffff' : '#f9fafb';
+                const rowStyle = getRowStyle ? getRowStyle(row.original) : {};
+                // Merge row style with background color to ensure alternating colors work
+                const mergedRowStyle = {
+                  backgroundColor: rowStyle.backgroundColor || baseBgColorValue,
+                  ...rowStyle,
+                };
                 return (
                   <tr
                   key={row.id}
-                  className={`relative bg-white border-b border-gray-200 transition-all hover:bg-slate-100 cursor-pointer ${
+                  className={`relative ${baseBgColor} border-b border-gray-200 transition-all group hover:bg-blue-50 cursor-pointer ${
                     getRowClassName ? getRowClassName(row.original) : ''
                     }`}
-                    style={getRowStyle ? getRowStyle(row.original) : {}}
+                    style={mergedRowStyle}
                     onClick={(e) => handleRowClick(row.original, e)}
                     >
                     {borderColor && (
@@ -229,19 +254,41 @@ export function DataTable<TData, TValue>({
                         className={`absolute left-0 top-0 bottom-0 w-1 ${borderColor}`}
                       />
                     )}
-                    {row.getVisibleCells().map((cell) => (
-                      <td 
-                        key={cell.id} 
-                        className={`px-2 py-3 ${
-                          cell.column.columnDef.meta?.width || ''
-                        }`}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    ))}
+                    {row.getVisibleCells().map((cell, cellIndex) => {
+                      const columnId = cell.column.id;
+                      const isProjectColumn = columnId === 'project';
+                      // For sticky project column, ensure it has the same background as the row
+                      const cellBgColor = isProjectColumn ? baseBgColor : '';
+                      // For sticky column, use CSS variable approach or ensure hover works with inline style
+                      // Remove backgroundColor from inline style for sticky column to allow hover to work properly
+                      const cellStyle = isProjectColumn
+                        ? Object.fromEntries(Object.entries(rowStyle).filter(([key]) => key !== 'backgroundColor'))
+                        : {};
+                      const shouldCenter = columnId !== 'project' && columnId !== 'notes' && columnId !== 'description';
+                      const shouldWrap = columnId === 'notes' || columnId === 'project';
+                      return (
+                        <td 
+                          key={cell.id} 
+                          className={`px-2 py-3 border-r border-gray-200 last:border-r-0 transition-colors ${
+                            shouldWrap ? '' : 'whitespace-nowrap'
+                          } ${
+                            cell.column.columnDef.meta?.width || ''
+                          } ${
+                            isProjectColumn 
+                              ? `sticky left-0 z-20 ${cellBgColor} group-hover:bg-blue-50 text-left shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]` 
+                              : 'group-hover:bg-blue-50'
+                          } ${
+                            shouldCenter ? 'text-center' : ''
+                          }`}
+                          style={cellStyle}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })
@@ -249,9 +296,12 @@ export function DataTable<TData, TValue>({
               <tr>
                 <td
                   colSpan={tableColumns.length}
-                  className="text-center"
+                  className="text-center border-r border-gray-200"
                 >
-                  <NoDataFound />
+                  <NoDataFound 
+                    onAddNew={onEmptyAction}
+                    actionLabel={emptyActionLabel}
+                  />
                 </td>
               </tr>
             )}

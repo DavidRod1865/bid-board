@@ -13,8 +13,6 @@ import {
 } from "@heroicons/react/24/outline";
 import { Input } from "./FormField";
 import { Button } from "./Button";
-import StatusBadge from "./StatusBadge";
-import { BID_STATUSES } from "../../utils/constants";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +60,14 @@ interface PageHeaderProps {
     onClick: () => void;
     disabled?: boolean;
   };
+  reportsDropdown?: {
+    reports: Array<{
+      label: string;
+      onClick: () => void;
+      disabled?: boolean;
+      isLoading?: boolean;
+    }>;
+  };
   bulkActions?: {
     selectedCount: number;
     actions: Array<{
@@ -91,10 +97,13 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   secondaryActionButton,
   tertiaryActionButton,
   exportButton,
+  reportsDropdown,
   bulkActions,
 }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Close date picker when clicking outside
   useEffect(() => {
@@ -114,6 +123,23 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     }
   }, [showDatePicker]);
 
+  // Detect when container is too narrow for button text
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        // Switch to icon-only mode when container is less than 800px wide
+        setIsCompact(width < 800);
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, []);
+
   const handleReset = () => {
     setSearchTerm("");
     setStatusFilter([]);
@@ -122,17 +148,18 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     setShowDatePicker(false);
   };
 
-  const handleStatusFilter = (status: string) => {
-    // Only allow single selection - if clicking the same status, clear it
-    if (statusFilter.length === 1 && statusFilter[0] === status) {
+  const handleStatusFilter = (tab: string) => {
+    // "Open Jobs" shows all items (empty filter)
+    if (tab === "Open Jobs") {
       setStatusFilter([]);
     } else {
-      setStatusFilter([status]);
+      // For other tabs, toggle the filter - if clicking the same tab, clear it
+      if (statusFilter.length === 1 && statusFilter[0] === tab) {
+        setStatusFilter([]);
+      } else {
+        setStatusFilter([tab]);
+      }
     }
-  };
-
-  const handleClearAllStatuses = () => {
-    setStatusFilter([]);
   };
 
   const handleDateRangeChange = (ranges: RangeKeyDict) => {
@@ -178,24 +205,24 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   };
 
   return (
-    <div className="bg-slate-100">
+    <div className="bg-slate-100 min-w-0">
       {/* Single Row: Search, Date Picker, Reset, and Action Buttons */}
-      <div className="px-6 py-4">
-        <div className="flex items-center justify-between gap-4">
+      <div className="px-6 py-4 min-w-0" ref={containerRef}>
+        <div className="flex items-center justify-between gap-4 flex-wrap min-w-0" style={{ rowGap: '0.5rem' }}>
           {/* Left Side: Search, Date Picker, Reset */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             {/* Search Field */}
             <Input
               type="text"
               placeholder={searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="min-w-72 py-2 text-sm text-gray-500 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
+              className="max-w-72 flex-shrink-0 py-2 text-sm text-gray-500 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
             />
 
             {/* Date Picker */}
             {showDateFilter && (
-              <div className="relative" ref={datePickerRef}>
+              <div className="relative flex-shrink-0" ref={datePickerRef}>
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="w-56 px-3 py-2 text-sm text-gray-400 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
@@ -254,7 +281,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           </div>
 
           {/* Right Side: Action Buttons */}
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-wrap min-w-0">
             {/* Regular Action Buttons - show when no bulk actions are active */}
             {!(bulkActions && bulkActions.selectedCount > 0) && (
               <>
@@ -264,7 +291,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                     onClick={actionButton.onClick}
                     size="default"
                     className={`
-                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
+                  inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
                   ${
                     actionButton.color === "green"
                       ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
@@ -275,19 +302,63 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                       : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
                   }
                     `}
+                    title={actionButton.label}
                   >
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    {actionButton.label}
+                    <PlusIcon className={`w-5 h-5 ${!isCompact ? "mr-2" : ""}`} />
+                    {!isCompact && <span>{actionButton.label}</span>}
                   </Button>
                 )}
 
-                {/* Secondary Action Button */}
-                {secondaryActionButton && (
+                {/* Reports Dropdown */}
+                {reportsDropdown && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="inline-flex items-center justify-center px-4 h-9 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap"
+                        title="Release Report"
+                      >
+                        {!isCompact && <span>Release Report</span>}
+                        {isCompact && <span>Report</span>}
+                        <ChevronDownIcon className="w-4 h-4 ml-2" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {reportsDropdown.reports.map((report, index) => (
+                        <DropdownMenuItem
+                          key={index}
+                          onClick={report.onClick}
+                          disabled={report.disabled || report.isLoading}
+                          className="cursor-pointer"
+                        >
+                          {report.isLoading ? (
+                            <>
+                              <span className="mr-2">⏳</span>
+                              <span>Generating...</span>
+                            </>
+                          ) : (
+                            <>
+                              {index === reportsDropdown.reports.length - 1 && (
+                                <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                              )}
+                              {index !== reportsDropdown.reports.length - 1 && (
+                                <DocumentDuplicateIcon className="w-4 h-4 mr-2" />
+                              )}
+                              {report.label}
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
+                {/* Secondary Action Button - fallback if reportsDropdown not used */}
+                {!reportsDropdown && secondaryActionButton && (
                   <Button
                     onClick={secondaryActionButton.onClick}
                     size="default"
                     className={`
-                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
+                  inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
                   ${
                     secondaryActionButton.color === "green"
                       ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
@@ -298,24 +369,25 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                       : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
                   }
                     `}
+                    title={secondaryActionButton.label}
                   >
                     {secondaryActionButton.color === "blue" ? (
-                      <DocumentDuplicateIcon className="w-5 h-5 mr-2" />
+                      <DocumentDuplicateIcon className={`w-5 h-5 ${!isCompact ? "mr-2" : ""}`} />
                     ) : (
-                      <PlusIcon className="w-5 h-5 mr-2" />
+                      <PlusIcon className={`w-5 h-5 ${!isCompact ? "mr-2" : ""}`} />
                     )}
-                    {secondaryActionButton.label}
+                    {!isCompact && <span>{secondaryActionButton.label}</span>}
                   </Button>
                 )}
 
-                {/* Tertiary Action Button */}
-                {tertiaryActionButton && (
+                {/* Tertiary Action Button - fallback if reportsDropdown not used */}
+                {!reportsDropdown && tertiaryActionButton && (
                   <Button
                     onClick={tertiaryActionButton.onClick}
                     size="default"
                     disabled={tertiaryActionButton.disabled}
                     className={`
-                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
+                  inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2
                   ${
                     tertiaryActionButton.disabled
                       ? "opacity-50 cursor-not-allowed"
@@ -327,13 +399,14 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                       : tertiaryActionButton.color === "blue"
                       ? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
                       : tertiaryActionButton.color === "yellow"
-                      ? "bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500"
-                      : "bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500"
+                      ? "bg-orange-500 hover:bg-orange-600 focus:ring-orange-500"
+                      : "bg-orange-500 hover:bg-orange-600 focus:ring-orange-500"
                   }
                     `}
+                    title={tertiaryActionButton.label}
                   >
-                    <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
-                    {tertiaryActionButton.label}
+                    <ArrowDownTrayIcon className={`w-5 h-5 ${!isCompact ? "mr-2" : ""}`} />
+                    {!isCompact && <span>{tertiaryActionButton.label}</span>}
                   </Button>
                 )}
 
@@ -344,34 +417,17 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                     size="default"
                     disabled={exportButton.disabled}
                     className={`
-                  inline-flex items-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500
+                  inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500
                   ${
                     exportButton.disabled
                       ? "bg-yellow-300 cursor-not-allowed"
                       : "bg-yellow-500 hover:bg-yellow-600"
                   }
                     `}
+                    title={exportButton.label}
                   >
-                    <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
-                    {exportButton.label}
-                  </Button>
-                )}
-
-                {/* Overdue Items Filter */}
-                {overdueCount > 0 && (
-                  <Button
-                    onClick={() => setOverdueFilter(!overdueFilter)}
-                    size="default"
-                    className={`
-                text-sm border rounded-md font-medium transition-all duration-200
-                ${
-                  overdueFilter
-                    ? "bg-red-600 text-white border-red-600 hover:bg-red-800"
-                    : "bg-red-500 text-white border-red-500 hover:bg-red-600"
-                }
-              `}
-                  >
-                    {overdueCount} Overdue Items
+                    <ArrowDownTrayIcon className={`w-5 h-5 ${!isCompact ? "mr-2" : ""}`} />
+                    {!isCompact && <span>{exportButton.label}</span>}
                   </Button>
                 )}
               </>
@@ -382,9 +438,18 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               <div className="flex gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="inline-flex items-center px-4 h-9 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap">
-                      Bulk Actions ({bulkActions.selectedCount})
-                      <ChevronDownIcon className="w-4 h-4 ml-2" />
+                    <button className="inline-flex items-center justify-center px-4 h-9 border border-gray-300 text-sm font-medium rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 whitespace-nowrap" title={`Bulk Actions (${bulkActions.selectedCount})`}>
+                      {isCompact ? (
+                        <>
+                          <span>({bulkActions.selectedCount})</span>
+                          <ChevronDownIcon className="w-4 h-4 ml-1" />
+                        </>
+                      ) : (
+                        <>
+                          <span>Bulk Actions ({bulkActions.selectedCount})</span>
+                          <ChevronDownIcon className="w-4 h-4 ml-2" />
+                        </>
+                      )}
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
@@ -437,55 +502,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Status Tab Filters Row */}
-      {showStatusFilter && (
-        <div className="border-b border-gray-200 bg-slate-100">
-          <div className="px-6">
-            <nav
-              role="tablist"
-              aria-label="Filter projects by status"
-              className="-mb-px flex space-x-8"
-            >
-              <button
-                role="tab"
-                aria-selected={statusFilter.length === 0}
-                aria-controls="projects-table"
-                aria-label="Show all projects"
-                tabIndex={statusFilter.length === 0 ? 0 : -1}
-                onClick={handleClearAllStatuses}
-                className={`py-3 px-1 border-b-2 font-medium text-sm focus:outline-none transition-colors duration-200 ${
-                  statusFilter.length === 0
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                All
-              </button>
-
-              {BID_STATUSES.map((status) => (
-                <StatusBadge
-                  key={status}
-                  id={`status-tab-${status.toLowerCase().replace(/\s+/g, "-")}`}
-                  status={status}
-                  variant="tab"
-                  isActive={
-                    statusFilter.length === 1 && statusFilter[0] === status
-                  }
-                  ariaControls="projects-table"
-                  onClick={() => handleStatusFilter(status)}
-                />
-              ))}
-            </nav>
-            {/* Screen reader announcements */}
-            <div aria-live="polite" aria-atomic="true" className="sr-only">
-              {statusFilter.length === 0
-                ? "Showing all projects"
-                : `Showing projects with ${statusFilter[0]} status`}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

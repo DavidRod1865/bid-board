@@ -13,6 +13,7 @@ interface InputProps {
   type?: 'text' | 'email' | 'number' | 'date' | 'tel' | 'datetime-local';
   value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClick?: (e: React.MouseEvent<HTMLInputElement>) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -67,6 +68,7 @@ export const Input: React.FC<InputProps> = ({
   type = 'text',
   value,
   onChange,
+  onClick,
   placeholder,
   disabled = false,
   className = '',
@@ -92,6 +94,7 @@ export const Input: React.FC<InputProps> = ({
       type={type}
       value={value}
       onChange={onChange}
+      onClick={onClick}
       placeholder={placeholder}
       disabled={disabled}
       className={`${baseClasses} ${defaultStyling} ${className}`.trim()}

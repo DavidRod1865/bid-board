@@ -1,10 +1,15 @@
 import { type ColumnDef } from "@tanstack/table-core";
-import type { Bid, ProjectNote } from "../../types";
+import type { Bid, ProjectNote, User } from "../../types";
 import { DataTableColumnHeader } from "../../components/ui/data-table-column-header";
 import StatusBadge from "../../components/ui/StatusBadge";
-import { getBidUrgency, formatDate } from "../../utils/formatters";
+import { getBidUrgency, formatDate, formatRelativeDate } from "../../utils/formatters";
 import { BID_STATUSES } from "../../utils/constants";
 import { CheckIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { DocumentTextIcon } from "@heroicons/react/24/outline";
+import React, { useEffect, useState } from "react";
+import DialogModal from "../../components/ui/DialogModal";
+import { useToast } from "../../hooks/useToast";
+import { dbOperations } from "../supabase";
 
 // Simplified BidVendor structure that's actually passed from components
 interface SimpleBidVendor {
@@ -12,6 +17,7 @@ interface SimpleBidVendor {
   response_received_date?: string | null;
   cost_amount?: string | number | null;
   is_priority: boolean;
+  assigned_apm_user?: string | null;
 }
 
 interface BidColumnsContext {
@@ -22,7 +28,249 @@ interface BidColumnsContext {
   isOperationLoading?: (bidId: number) => boolean;
   showEstimatingColumns?: boolean;
   onAddedToProcoreChange?: (bidId: number, checked: boolean) => Promise<void>;
+  onProjectNameClick?: (bidId: number) => void;
+  useAPMRouting?: boolean;
+  apmUsers?: User[];
 }
+
+// Component to handle notes with clickable modal
+const NotesCell: React.FC<{ 
+  notes: ProjectNote[]; 
+  projectName: string;
+  truncateLength?: number;
+}> = ({ 
+  notes, 
+  projectName,
+  truncateLength = 80 
+}) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const sortedNotes = notes.sort(
+    (a: ProjectNote, b: ProjectNote) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  const firstNote = sortedNotes[0]?.content || "";
+  const hasMultipleNotes = sortedNotes.length > 1;
+  const isTruncated = firstNote.length > truncateLength;
+  const showClickable = hasMultipleNotes || isTruncated;
+
+  if (notes.length === 0) return null;
+
+  return (
+    <>
+      <div
+        className={`text-gray-600 text-xs truncate flex items-center gap-1 ${showClickable ? 'cursor-pointer' : ''}`}
+        onClick={(e) => {
+          if (showClickable) {
+            e.stopPropagation();
+            setIsModalOpen(true);
+          }
+        }}
+      >
+        {hasMultipleNotes && (
+          <>
+            <DocumentTextIcon className="h-4 w-4 text-gray-500 flex-shrink-0" />
+            <span className="text-gray-500 font-medium flex-shrink-0">{sortedNotes.length} Notes - </span>
+          </>
+        )}
+        <span className="truncate">{firstNote}</span>
+      </div>
+      <DialogModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={projectName}
+        size="lg"
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {sortedNotes.map((note, index) => (
+            <div key={note.id} className="bg-gray-50 rounded-lg p-4 border-l-4 border-[#d4af37]">
+              <div className="whitespace-pre-wrap break-words text-sm text-gray-900 mb-2">
+                {note.content}
+              </div>
+              <div className="text-xs text-gray-500">
+                {formatRelativeDate(note.created_at)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </DialogModal>
+    </>
+  );
+};
+
+interface EditableAssignmentCellProps {
+  bid: Bid;
+  value: string;
+  field: "apm" | "pm";
+  apmUsers?: User[];
+}
+
+const EditableAssignmentCell: React.FC<EditableAssignmentCellProps> = ({
+  bid,
+  value,
+  field,
+  apmUsers = [],
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState(value === "-" ? "" : value);
+  const [displayValue, setDisplayValue] = useState(value === "-" ? "" : value);
+  const [isSaving, setIsSaving] = useState(false);
+  const { showError } = useToast();
+
+  // Keep local display state in sync if parent value changes (e.g. real-time updates)
+  useEffect(() => {
+    const normalized = value === "-" ? "" : value;
+    setDisplayValue(normalized);
+    if (!isEditing) {
+      setInputValue(normalized);
+    }
+  }, [value, isEditing]);
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    const normalized = value === "-" ? "" : value;
+    setInputValue(normalized);
+    setDisplayValue(normalized);
+  };
+
+  const handleSave = async () => {
+    if (isSaving) return;
+    const trimmed = inputValue.trim();
+
+    // If nothing changed, just exit edit mode
+    if ((trimmed || "-") === (value || "-")) {
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Update the correct field based on whether this is APM or PM
+      const updateData = field === "pm" 
+        ? { assigned_pm: trimmed || null }
+        : { assign_to: trimmed || null };
+      
+      await dbOperations.updateAPMProject(bid.id, updateData);
+      setDisplayValue(trimmed);
+      // Let the real-time subscription handle the data refresh to avoid race conditions
+      // The optimistic update above will show immediate feedback
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Failed to update assignment:", error);
+      showError(
+        "Update Failed",
+        error instanceof Error ? error.message : "Failed to update assignment"
+      );
+      handleCancelEdit();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+      void handleSave();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      handleCancelEdit();
+    }
+  };
+
+  if (isEditing) {
+    // For APM field, show dropdown of APM users
+    if (field === "apm" && apmUsers.length > 0) {
+      const handleSelectChange: React.ChangeEventHandler<HTMLSelectElement> = (
+        event,
+      ) => {
+        const selectedId = event.target.value;
+        setInputValue(selectedId);
+        void (async () => {
+          setIsSaving(true);
+          try {
+            // APM field always updates assign_to since this is APM dropdown logic
+            await dbOperations.updateAPMProject(bid.id, {
+              assign_to: selectedId || null,
+            });
+            const selectedUser =
+              apmUsers.find(
+                (u) => u.id === selectedId || u.id.toString() === selectedId,
+              ) || null;
+            setDisplayValue(selectedUser?.name || "");
+            // Let the real-time subscription handle the data refresh to avoid race conditions
+            setIsEditing(false);
+          } catch (error) {
+            console.error("Failed to update APM assignment:", error);
+            showError(
+              "Update Failed",
+              error instanceof Error
+                ? error.message
+                : "Failed to update APM assignment",
+            );
+            handleCancelEdit();
+          } finally {
+            setIsSaving(false);
+          }
+        })();
+      };
+
+      const currentId = (bid.assign_to ?? bid.assigned_to ?? "").toString();
+
+      return (
+        <div
+          className="flex items-center justify-center text-gray-600 text-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <select
+            autoFocus
+            className="w-full max-w-[110px] px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            value={currentId}
+            onChange={handleSelectChange}
+            onBlur={() => {
+              // If user blurs without change, just close editor
+              setIsEditing(false);
+            }}
+          >
+            <option value="">Unassigned</option>
+            {apmUsers.map((user) => (
+              <option key={user.id} value={user.id.toString()}>
+                {user.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    // For PM (or if no APM users), fall back to text input
+    return (
+      <div
+        className="flex items-center justify-center text-gray-600 text-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <input
+          autoFocus
+          className="w-full max-w-[90px] px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center justify-center text-gray-600 text-sm"
+    >
+      {displayValue || "-"}
+    </div>
+  );
+};
 
 export function createBidColumns(
   context: BidColumnsContext = {}
@@ -34,6 +282,9 @@ export function createBidColumns(
     statusErrors,
     isOperationLoading,
     showEstimatingColumns = false,
+    onProjectNameClick,
+    useAPMRouting = false,
+    apmUsers = [],
   } = context;
 
   if (showEstimatingColumns) {
@@ -54,7 +305,15 @@ export function createBidColumns(
           return (
             <div className="flex items-center gap-3 min-w-0 flex-1 relative">
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-xs text-gray-900 truncate">
+                <div 
+                  className={`font-medium text-xs truncate ${onProjectNameClick ? 'cursor-pointer' : 'text-gray-900'}`}
+                  onClick={(e) => {
+                    if (onProjectNameClick) {
+                      e.stopPropagation();
+                      onProjectNameClick(bid.id);
+                    }
+                  }}
+                >
                   {bid.title}
                 </div>
                 <div className="text-gray-600 text-xs truncate">
@@ -264,20 +523,7 @@ export function createBidColumns(
           const bidNotes = projectNotes.filter(
             (note: ProjectNote) => note.bid_id === bid.id
           );
-          if (bidNotes.length === 0) return "";
-
-          // Sort by created_at descending to get most recent first
-          const sortedNotes = bidNotes.sort(
-            (a: ProjectNote, b: ProjectNote) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          );
-
-          return (
-            <div className="text-gray-600 text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-              {sortedNotes[0].content || ""}
-            </div>
-          );
+          return <NotesCell notes={bidNotes} projectName={bid.title} truncateLength={60} />;
         },
         enableSorting: false,
       },
@@ -301,7 +547,15 @@ export function createBidColumns(
           return (
             <div className="flex items-center gap-3 min-w-0 flex-1 relative">
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900 text-xs truncate">
+                <div 
+                  className={`font-medium text-xs truncate ${onProjectNameClick ? 'cursor-pointer' : 'text-gray-900'}`}
+                  onClick={(e) => {
+                    if (onProjectNameClick) {
+                      e.stopPropagation();
+                      onProjectNameClick(bid.id);
+                    }
+                  }}
+                >
                   {bid.title}
                 </div>
                 <div className="text-gray-600 text-xs truncate">
@@ -328,15 +582,9 @@ export function createBidColumns(
         cell: ({ row }) => {
           const contractor = row.getValue("general_contractor") as string;
           return (
-            <div className="flex items-center justify-center text-gray-600 text-sm min-w-0">
+            <div className="flex items-center justify-center text-gray-600 text-sm">
               <span
-                className="text-center leading-tight overflow-hidden"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  wordBreak: "break-word",
-                }}
+                className="text-center whitespace-nowrap overflow-hidden text-ellipsis"
                 title={contractor || "Not specified"}
               >
                 {contractor || "Not specified"}
@@ -346,32 +594,87 @@ export function createBidColumns(
         },
       },
       {
-        id: "project_start_date",
-        accessorKey: "project_start_date",
+        id: "apm",
+        accessorFn: (bid) => {
+          // First check the project's assign_to field (updated by modals)
+          const projectAssignTo = bid.assign_to || bid.assigned_to;
+          if (projectAssignTo) {
+            const apmUser = apmUsers.find(u => u.id === projectAssignTo || u.id.toString() === projectAssignTo);
+            return apmUser?.name || projectAssignTo;
+          }
+          
+          // Fall back to BidVendor records if project assign_to is not set
+          const projectBidVendors = bidVendors?.filter(bv => bv.bid_id === bid.id) || [];
+          const apmAssignments = projectBidVendors
+            .map(bv => bv.assigned_apm_user)
+            .filter((apm): apm is string => Boolean(apm));
+          
+          if (apmAssignments.length === 0) return "-";
+          if (apmAssignments.length === 1) {
+            const apmUser = apmUsers.find(u => u.id === apmAssignments[0] || u.id.toString() === apmAssignments[0]);
+            return apmUser?.name || apmAssignments[0];
+          }
+          
+          // Multiple APM assignments - check if they're all the same
+          const uniqueAssignments = [...new Set(apmAssignments)];
+          if (uniqueAssignments.length === 1) {
+            const apmUser = apmUsers.find(u => u.id === uniqueAssignments[0] || u.id.toString() === uniqueAssignments[0]);
+            return apmUser?.name || uniqueAssignments[0];
+          }
+          
+          return "Multiple APMs";
+        },
         meta: {
           width: "w-[12%]",
         },
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Start Date" center />
+          <DataTableColumnHeader
+            column={column}
+            title="APM"
+            center
+          />
         ),
         cell: ({ row }) => {
-          const bid = row.original;
+          const apm = row.getValue("apm") as string;
           return (
-            <div className="flex items-center justify-center text-gray-600 text-sm">
-              {bid.project_start_date ? formatDate(bid.project_start_date) : '-'}
+            <div className="flex items-center justify-center text-sm text-gray-900">
+              <span
+                className="text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-full"
+                title={apm}
+              >
+                {apm}
+              </span>
             </div>
           );
         },
-        sortingFn: (rowA, rowB) => {
-          const a = rowA.original.project_start_date ? new Date(rowA.original.project_start_date).getTime() : 0;
-          const b = rowB.original.project_start_date ? new Date(rowB.original.project_start_date).getTime() : 0;
-          return a - b;
+        enableSorting: true,
+      },
+      {
+        id: "pm",
+        accessorKey: "assigned_pm",
+        meta: {
+          width: "w-[12%] min-w-[100px]",
         },
+        header: ({ column }) => (
+          <DataTableColumnHeader
+            column={column}
+            title="PM"
+            center
+          />
+        ),
+        cell: ({ row }) => {
+          const bid = row.original;
+          // Project Manager assignment - use assigned_pm field
+          const pm = (bid.assigned_pm ?? "").trim() || "-";
+
+          return <EditableAssignmentCell bid={bid} value={pm} field="pm" />;
+        },
+        enableSorting: true,
       },
       {
         id: "gc_system",
         meta: {
-          width: "w-[13%]",
+          width: "w-[10%]",
         },
         header: () => (
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">
@@ -417,9 +720,61 @@ export function createBidColumns(
         enableSorting: false,
       },
       {
+        id: "binder",
+        meta: {
+          width: "w-[100px]",
+        },
+        header: () => (
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">
+            Binder
+          </div>
+        ),
+        cell: ({ row }) => {
+          const bid = row.original;
+          const hasBinder = bid.binder; // boolean
+          if (hasBinder) {
+            return (
+              <div className="flex items-center justify-center text-green-600">
+                <CheckIcon className="h-5 w-5" />
+              </div>
+            );
+          } else {
+            return (
+              <div className="flex items-center justify-center text-red-600">
+                <XMarkIcon className="h-5 w-5" />
+              </div>
+            );
+          }
+        },
+        enableSorting: false,
+      },
+      {
+        id: "project_start_date",
+        accessorKey: "project_start_date",
+        meta: {
+          width: "w-[110px]",
+        },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Start Date" center />
+        ),
+        cell: ({ row }) => {
+          const bid = row.original;
+          return (
+            <div className="flex items-center justify-center text-gray-600 text-sm">
+              {bid.project_start_date ? formatDate(bid.project_start_date) : '-'}
+            </div>
+          );
+        },
+        sortingFn: (rowA, rowB) => {
+          const a = rowA.original.project_start_date ? new Date(rowA.original.project_start_date).getTime() : 0;
+          const b = rowB.original.project_start_date ? new Date(rowB.original.project_start_date).getTime() : 0;
+          return a - b;
+        },
+      },
+      {
         id: "added_to_procore",
         meta: {
-          width: "w-[15%]",
+          width: "w-[130px]",
         },
         header: () => (
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">
@@ -460,44 +815,7 @@ export function createBidColumns(
           const bidNotes = projectNotes.filter(
             (note: ProjectNote) => note.bid_id === bid.id
           );
-          if (bidNotes.length === 0) return "";
-
-          // Sort by created_at descending to get most recent first
-          const sortedNotes = bidNotes.sort(
-            (a: ProjectNote, b: ProjectNote) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          );
-
-          return (
-            <div className="relative group" style={{ position: 'relative', zIndex: 1 }}>
-              <div className="text-gray-600 text-xs truncate cursor-help">
-                {sortedNotes.length > 0 ? sortedNotes[0].content || "" : ""}
-              </div>
-              {sortedNotes.length > 0 &&
-                sortedNotes[0].content &&
-                sortedNotes[0].content.length > 30 && (
-                  <div 
-                    className="hidden group-hover:block absolute rounded-md border border-gray-300 shadow-lg text-xs text-gray-700 whitespace-pre-wrap"
-                    style={{
-                      position: 'absolute',
-                      zIndex: 99999,
-                      left: 0,
-                      top: '100%',
-                      marginTop: '4px',
-                      width: '256px',
-                      padding: '8px',
-                      backgroundColor: 'white',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                    }}
-                  >
-                    {sortedNotes[0].content}
-                  </div>
-                )}
-            </div>
-          );
+          return <NotesCell notes={bidNotes} projectName={bid.title} />;
         },
         enableSorting: false,
       },

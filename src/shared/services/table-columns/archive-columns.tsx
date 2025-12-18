@@ -119,31 +119,6 @@ export function createArchiveColumns(context: ArchiveColumnsContext = {}): Colum
       },
     },
     {
-      id: "archivedDate",
-      accessorKey: "archived_at",
-      meta: {
-        width: "w-[9%]"
-      },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Archived On" center />
-      ),
-      cell: ({ row }) => {
-        const archivedAt = row.getValue("archivedDate") as string
-        return (
-          <div className="flex items-center justify-center gap-2 text-gray-600 text-xs">
-            <div className="rounded px-2 py-1">
-              <span>{archivedAt ? formatDate(archivedAt, 'short') : 'Unknown'}</span>
-            </div>
-          </div>
-        )
-      },
-      sortingFn: (rowA, rowB) => {
-        const a = rowA.original.archived_at ? new Date(rowA.original.archived_at).getTime() : 0
-        const b = rowB.original.archived_at ? new Date(rowB.original.archived_at).getTime() : 0
-        return b - a
-      },
-    },
-    {
       id: "notes",
       meta: {
         width: "w-[25%]"
@@ -279,31 +254,6 @@ export function createOnHoldColumns(context: ArchiveColumnsContext = {}): Column
       },
     },
     {
-      id: "onHoldSince",
-      accessorKey: "on_hold_at",
-      meta: {
-        width: "w-[9%]"
-      },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="On Hold" center />
-      ),
-      cell: ({ row }) => {
-        const onHoldAt = row.getValue("onHoldSince") as string
-        return (
-          <div className="flex items-center justify-center gap-2 text-gray-600 text-xs">
-            <div className="rounded px-2 py-1">
-              <span>{onHoldAt ? formatDate(onHoldAt, 'short') : 'Unknown'}</span>
-            </div>
-          </div>
-        )
-      },
-      sortingFn: (rowA, rowB) => {
-        const a = rowA.original.on_hold_at ? new Date(rowA.original.on_hold_at).getTime() : 0
-        const b = rowB.original.on_hold_at ? new Date(rowB.original.on_hold_at).getTime() : 0
-        return a - b
-      },
-    },
-    {
       id: "notes",
       meta: {
         width: "w-[25%]"
@@ -351,6 +301,9 @@ export function createAPMOnHoldColumns(context: ArchiveColumnsContext = {}): Col
             <div className="min-w-0 flex-1">
               <div className="font-medium text-gray-900 text-xs truncate">
                 {bid.title}
+              </div>
+              <div className="text-gray-600 text-xs truncate">
+                {bid.project_address || "No address provided"}
               </div>
             </div>
           </div>

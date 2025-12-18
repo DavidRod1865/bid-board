@@ -1,14 +1,20 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { DateRangePicker } from "react-date-range";
+import type { RangeKeyDict } from "react-date-range";
+import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import NoDataFound from "../../../shared/components/ui/NoDataFound";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../../shared/components/ui/Sidebar";
-import PageHeader from "../../../shared/components/ui/PageHeader";
+import { Input } from "../../../shared/components/ui/FormField";
+import { Button } from "../../../shared/components/ui/Button";
 import type { BidVendor, Vendor, VendorWithContact, Bid, User } from "../../../shared/types";
 import { getFollowUpUrgency } from "../../../shared/utils/phaseFollowUpUtils";
 import { exportAPMTasksToExcel, generateAPMTasksFromData } from "../../../shared/utils/excelGenerator";
 import { useToast } from "../../../shared/hooks/useToast";
 import { Toaster } from "../../../shared/components/ui/sonner";
 import AlertDialog from "../../../shared/components/ui/AlertDialog";
+import "react-date-range/dist/styles.css";
+import "react-date-range/dist/theme/default.css";
 
 interface APMDashboardProps {
   bids: Bid[];
@@ -132,6 +138,8 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
   const [dateRange, setDateRange] = useState<{
     startDate: Date | null;
     endDate: Date | null;
@@ -153,6 +161,23 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
   // Use loading state from props (consistent with other dashboards)
   const error = null; // Error handling is in AppContent
 
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        datePickerRef.current &&
+        !datePickerRef.current.contains(event.target as Node)
+      ) {
+        setShowDatePicker(false);
+      }
+    };
+
+    if (showDatePicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showDatePicker]);
 
   // Real-time data updates are handled by AppContent
 
@@ -420,6 +445,54 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
     }
   };
 
+  const handleReset = () => {
+    setSearchTerm("");
+    setDateRange({ startDate: null, endDate: null });
+    setShowDatePicker(false);
+  };
+
+  const handleDateRangeChange = (ranges: RangeKeyDict) => {
+    const { selection } = ranges;
+    setDateRange({
+      startDate: selection.startDate || null,
+      endDate: selection.endDate || null,
+    });
+  };
+
+  const formatDateRange = () => {
+    if (!dateRange.startDate && !dateRange.endDate) {
+      return "Pick a date range...";
+    }
+
+    const formatDate = (date: Date) =>
+      date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+
+    if (dateRange.startDate && dateRange.endDate) {
+      if (
+        dateRange.startDate.toDateString() === dateRange.endDate.toDateString()
+      ) {
+        return formatDate(dateRange.startDate);
+      }
+      return `${formatDate(dateRange.startDate)} - ${formatDate(
+        dateRange.endDate
+      )}`;
+    }
+
+    if (dateRange.startDate) {
+      return `From ${formatDate(dateRange.startDate)}`;
+    }
+
+    if (dateRange.endDate) {
+      return `Until ${formatDate(dateRange.endDate)}`;
+    }
+
+    return "Select date range";
+  };
+
   const handleExportToExcel = () => {
     setShowExportConfirm(true);
   };
@@ -511,22 +584,6 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
           <div className="px-6 pt-4">
             <h1 className="text-2xl font-bold text-gray-900">APM Follow Ups</h1>
           </div>
-          
-          <div className="flex items-center">
-          <PageHeader
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            searchPlaceholder="Search projects..."
-            dateRange={dateRange}
-            setDateRange={setDateRange}
-            showStatusFilter={false}
-            showDateFilter={true}
-            exportButton={{
-              label: "Export",
-              onClick: handleExportToExcel,
-              disabled: filteredTasks.length === 0
-            }}
-          />
 
         {error && (
           <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -535,7 +592,7 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
         )}
 
         {/* Urgency Stats */}
-          <div>
+          <div className="px-6 pb-2">
             <div className="flex gap-2 text-sm">
               <span className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-red-500 rounded"></div>
@@ -551,13 +608,106 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
               </span>
             </div>
           </div>
-          </div>
         </div>
 
         <div className="flex-1 overflow-auto bg-slate-100">
-          {/* Tab Navigation */}
+          {/* Tab Navigation with Search and Actions */}
           <div className="bg-slate-100 border-b border-gray-200">
-            <div className="px-6">
+            <div className="px-6 py-4">
+              {/* Search, Date Picker, Reset, and Export Row */}
+              <div className="flex items-center justify-between gap-4 flex-wrap mb-4" style={{ rowGap: '0.5rem' }}>
+                {/* Left Side: Search, Date Picker, Reset */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {/* Search Field */}
+                  <Input
+                    type="text"
+                    placeholder="Search projects..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-72 flex-shrink-0 py-2 text-sm text-gray-500 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
+                  />
+
+                  {/* Date Picker */}
+                  <div className="relative flex-shrink-0" ref={datePickerRef}>
+                    <button
+                      onClick={() => setShowDatePicker(!showDatePicker)}
+                      className="w-56 px-3 py-2 text-sm text-gray-400 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-0 focus:ring-[#d4af37] focus:border-[#d4af37] text-left transition-colors"
+                    >
+                      {formatDateRange()}
+                    </button>
+
+                    {showDatePicker && (
+                      <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-gray-300 rounded shadow-lg">
+                        <DateRangePicker
+                          ranges={[
+                            {
+                              startDate: dateRange.startDate || new Date(),
+                              endDate: dateRange.endDate || new Date(),
+                              key: "selection",
+                            },
+                          ]}
+                          onChange={handleDateRangeChange}
+                          moveRangeOnFirstSelection={false}
+                          months={1}
+                          direction="horizontal"
+                          rangeColors={["#d4af37"]}
+                        />
+                        <div className="p-3 border-t border-gray-200 flex justify-end gap-2">
+                          <Button
+                            size="default"
+                            onClick={() => {
+                              setDateRange({ startDate: null, endDate: null });
+                              setShowDatePicker(false);
+                            }}
+                            className="px-3 py-1 text-sm text-white hover:bg-gray-500 bg-gray-400"
+                          >
+                            Clear
+                          </Button>
+                          <Button
+                            onClick={() => setShowDatePicker(false)}
+                            size="default"
+                            className="px-3 py-1 text-sm bg-[#d4af37] text-white hover:bg-[#c19b26]"
+                          >
+                            Apply
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reset Button */}
+                  <Button
+                    className="bg-gray-500 text-white hover:bg-gray-600"
+                    size="default"
+                    onClick={handleReset}
+                  >
+                    Reset
+                  </Button>
+                </div>
+
+                {/* Right Side: Export Button */}
+                <div className="flex gap-2 flex-wrap min-w-0">
+                  <Button
+                    onClick={handleExportToExcel}
+                    size="default"
+                    disabled={filteredTasks.length === 0}
+                    className={`
+                      inline-flex items-center justify-center border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500
+                      ${
+                        filteredTasks.length === 0
+                          ? "bg-yellow-300 cursor-not-allowed"
+                          : "bg-yellow-500 hover:bg-yellow-600"
+                      }
+                    `}
+                    title="Export"
+                  >
+                    <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+                    <span>Export</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tab Navigation */}
               <nav className="-mb-px flex space-x-8">
                 <button
                   onClick={() => setActiveTab("all")}
@@ -614,9 +764,6 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
 
           {/* Individual Tasks Table */}
           <div>
-            {filteredTasks.length === 0 ? (
-              <NoDataFound />
-            ) : (
               <div className="bg-slate-100 border border-gray-200">
                 {/* Table Header */}
                 <div className="border-b border-gray-200 bg-slate-100">
@@ -693,6 +840,10 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
 
                 {/* Table Body */}
                 <div className="w-full">
+                  {filteredTasks.length === 0 ? (
+                    <NoDataFound />
+                  ) : (
+                    <>
                   {filteredTasks.map((task) => {
                     const urgencyClasses = getPhaseUrgencyClasses(
                       task.phase.followUpDate,
@@ -819,9 +970,10 @@ const APMDashboard: React.FC<APMDashboardProps> = ({
                     </div>
                     );
                   })}
+                  </>
+                  )}
                 </div>
               </div>
-            )}
           </div>
         </div>
       </div>

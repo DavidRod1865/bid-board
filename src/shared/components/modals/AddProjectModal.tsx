@@ -4,9 +4,12 @@ import { useUserProfile } from '../../../contexts/UserContext';
 import DialogModal from '../ui/DialogModal';
 import { Input, Select, Textarea } from '../ui/FormField';
 import { Button } from "../ui/Button";
-import { Checkbox } from '../ui/checkbox';
 import { BID_STATUSES } from '../../utils/constants';
 import VendorSelectorPopup from './VendorSelectorPopup';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { CalendarIcon } from '@heroicons/react/24/outline';
+import { format } from 'date-fns';
 
 interface AddProjectModalProps {
   isOpen: boolean;
@@ -41,17 +44,14 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     const currentDbUser = getCurrentDatabaseUser();
     return {
       project_name: '',
-      project_email: '',
+      project_email: '', // Add project_email field
       project_address: '',
       general_contractor: '',
       project_description: '',
       due_date: '',
-      project_start_date: '',
       status: 'New',
-      priority: false,
       file_location: '',
-      created_by: currentDbUser?.id || null, // Auto-assign to matched database user
-      assign_to: currentDbUser?.id || null // Auto-assign to matched database user
+      created_by: currentDbUser?.id || null // Auto-assign to matched database user
     };
   };
 
@@ -96,9 +96,6 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     if (!formData.project_name.trim()) {
       newErrors.project_name = 'Project name is required';
     }
-    if (formData.project_email.trim() && !/\S+@\S+\.\S+/.test(formData.project_email)) {
-      newErrors.project_email = 'Please enter a valid email address';
-    }
     if (!formData.project_address.trim()) {
       newErrors.project_address = 'Project address is required';
     }
@@ -128,12 +125,14 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
     const projectData = {
       ...formData,
       title: formData.project_name, // Use project_name as the title
+      project_email: formData.project_email || null, // Add required project_email field
       due_date: new Date(formData.due_date).toISOString(),
-      project_start_date: formData.project_start_date || null, // Convert empty string to null
+      project_start_date: null,
       created_by: formData.created_by || null, // Convert empty string to null
-      assign_to: formData.assign_to || null, // Convert empty string to null
+      assign_to: null,
       estimated_value: 0, // Add default estimated_value
       notes: '', // Add default notes
+      priority: false,
       archived: false,
       archived_at: null,
       archived_by: null,
@@ -249,37 +248,6 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
           {errors.project_name && <p className="text-red-600 text-sm mt-1">{errors.project_name}</p>}
         </div>
 
-        {/* Project Email & General Contractor */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project Email
-            </label>
-            <Input
-              type="email"
-              value={formData.project_email}
-              onChange={(e) => handleInputChange('project_email', e.target.value)}
-              placeholder="Enter project email"
-              disabled={isLoading || isSubmitting}
-            />
-            {errors.project_email && <p className="text-red-600 text-sm mt-1">{errors.project_email}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              General Contractor *
-            </label>
-            <Input
-              type="text"
-              value={formData.general_contractor}
-              onChange={(e) => handleInputChange('general_contractor', e.target.value)}
-              placeholder="Enter contractor name"
-              disabled={isLoading || isSubmitting}
-            />
-            {errors.general_contractor && <p className="text-red-600 text-sm mt-1">{errors.general_contractor}</p>}
-          </div>
-        </div>
-
         {/* Project Address */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -293,6 +261,21 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
             disabled={isLoading || isSubmitting}
           />
           {errors.project_address && <p className="text-red-600 text-sm mt-1">{errors.project_address}</p>}
+        </div>
+
+        {/* General Contractor */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            General Contractor *
+          </label>
+          <Input
+            type="text"
+            value={formData.general_contractor}
+            onChange={(e) => handleInputChange('general_contractor', e.target.value)}
+            placeholder="Enter contractor name"
+            disabled={isLoading || isSubmitting}
+          />
+          {errors.general_contractor && <p className="text-red-600 text-sm mt-1">{errors.general_contractor}</p>}
         </div>
 
         {/* Status, Due Date, Priority */}
@@ -318,25 +301,36 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Due Date *
             </label>
-            <Input
-              type="date"
-              value={formData.due_date}
-              onChange={(e) => handleInputChange('due_date', e.target.value)}
-              disabled={isLoading || isSubmitting}
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isLoading || isSubmitting}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-left"
+                >
+                  <span className={formData.due_date ? 'text-gray-900' : 'text-gray-500'}>
+                    {formData.due_date ? format(new Date(formData.due_date + 'T12:00:00Z'), 'MMM d, yyyy') : 'Select date'}
+                  </span>
+                  <CalendarIcon className="h-4 w-4 text-gray-400" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.due_date ? new Date(formData.due_date + 'T12:00:00Z') : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      // Format in UTC to avoid timezone shifts
+                      const year = date.getUTCFullYear();
+                      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                      const day = String(date.getUTCDate()).padStart(2, '0');
+                      handleInputChange('due_date', `${year}-${month}-${day}`);
+                    }
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
             {errors.due_date && <p className="text-red-600 text-sm mt-1">{errors.due_date}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project Start Date
-            </label>
-            <Input
-              type="date"
-              value={formData.project_start_date}
-              onChange={(e) => handleInputChange('project_start_date', e.target.value)}
-              disabled={isLoading || isSubmitting}
-            />
           </div>
 
           <div>
@@ -351,40 +345,6 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({
               disabled={isLoading || isSubmitting}
             />
           </div>
-        </div>
-
-        {/* Priority Checkbox */}
-        <div>
-          <label className="flex items-center">
-            <Checkbox
-              checked={formData.priority}
-              onCheckedChange={(checked) => handleInputChange('priority', checked as boolean)}
-              className="h-4 w-4 data-[state=checked]:bg-[#d4af37] data-[state=checked]:border-[#d4af37] focus-visible:ring-[#d4af37]/50"
-              disabled={isLoading || isSubmitting}
-            />
-            <span className="ml-2 block text-sm text-gray-700">
-              Mark as priority project
-            </span>
-          </label>
-        </div>
-
-        {/* Assign To */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Assign To
-          </label>
-          <Select
-            value={formData.assign_to || ''}
-            onChange={(e) => handleInputChange('assign_to', e.target.value)}
-            disabled={isLoading || isSubmitting}
-          >
-            <option value="">Select user...</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </Select>
         </div>
 
         {/* Project Description */}

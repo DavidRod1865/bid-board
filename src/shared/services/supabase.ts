@@ -36,6 +36,7 @@ export const supabase = (() => {
 // Real-time channel management for normalized tables
 export class RealtimeManager {
   private channels: { [key: string]: ReturnType<typeof supabase.channel> } = {}
+  private refreshTimeout: NodeJS.Timeout | null = null
 
   setStateUpdaters(_updaters: {
     setBids?: (bids: any[] | ((prev: any[]) => any[])) => void;
@@ -74,7 +75,12 @@ export class RealtimeManager {
         this.triggerDataRefresh();
         callback?.(payload);
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_notes' }, (payload: any) => {
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'project_notes'
+      }, (payload: any) => {
+        console.log('Real-time: project_notes table changed:', payload.eventType, payload.new);
         this.triggerDataRefresh();
         callback?.(payload);
       })
@@ -82,16 +88,61 @@ export class RealtimeManager {
         this.triggerDataRefresh();
         callback?.(payload);
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_equipment' }, (payload: any) => {
+        this.triggerDataRefresh();
+        callback?.(payload);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_timeline_events' }, (payload: any) => {
+        this.triggerDataRefresh();
+        callback?.(payload);
+      })
       .subscribe();
 
     this.channels['normalized_data_changes'] = channel;
+    
+    // Create a dedicated subscription just for project_notes to ensure it works
+    const notesChannel = supabase
+      .channel('project_notes_channel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'project_notes'
+      }, (payload: any) => {
+        this.triggerDataRefresh();
+      })
+      .subscribe();
+
+    this.channels['project_notes_channel'] = notesChannel;
+    
+    // Create a dedicated subscription for projects/bids to ensure it works
+    const projectsChannel = supabase
+      .channel('projects_channel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'projects'
+      }, (payload: any) => {
+        this.triggerDataRefresh();
+      })
+      .subscribe();
+
+    this.channels['projects_channel'] = projectsChannel;
     return channel;
   }
 
-  // Trigger full data refresh for normalized tables
+  // Trigger full data refresh for normalized tables (debounced to prevent spam)
   private triggerDataRefresh() {
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+      // Clear any pending refresh
+      if (this.refreshTimeout) {
+        clearTimeout(this.refreshTimeout);
+      }
+      
+      // Debounce refresh to prevent rapid-fire updates
+      this.refreshTimeout = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+        this.refreshTimeout = null;
+      }, 100); // 100ms debounce
     }
   }
 
@@ -189,15 +240,19 @@ export const dbOperations = {
         added_to_procore: project.added_to_procore || false,
         made_by_apm: project.made_by_apm || false,
         project_start_date: project.project_start_date,
+        binder: project.binder || false,
         
         // Legacy compatibility fields (primary interface for components)
         title: project.project_name,
         due_date: project.est_due_date,
-        assign_to: project.assigned_to,
+        // Map legacy assign_to field from the normalized column
+        assign_to: project.assign_to,
         
         // Database field names (optional, for transition compatibility)
         est_due_date: project.est_due_date,
-        assigned_to: project.assigned_to,
+        // Keep a copy under the legacy database-style name for backwards compatibility
+        assigned_to: project.assign_to,
+        assigned_pm: project.assigned_pm,
         
         // Timestamps
         created_at: project.created_at,
@@ -306,6 +361,38 @@ export const dbOperations = {
     return data || [];
   },
 
+  // Get timeline events for a project
+  async getTimelineEvents(projectId?: number) {
+    this.trackApiCall('getTimelineEvents');
+    
+    let query = supabase
+      .from('project_timeline_events')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('order_by', { ascending: true });
+    
+    if (projectId) {
+      query = query.eq('project_id', projectId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get timeline event templates
+  async getTimelineEventTemplates() {
+    this.trackApiCall('getTimelineEventTemplates');
+    
+    const { data, error } = await supabase
+      .from('timeline_event_templates')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
   // ===========================================
   // CREATE OPERATIONS
   // ===========================================
@@ -331,6 +418,9 @@ export const dbOperations = {
         added_to_procore: projectData.added_to_procore || false,
         made_by_apm: projectData.made_by_apm || false,
         project_start_date: projectData.project_start_date,
+        gc_contact_id: projectData.gc_contact_id ?? null,
+        assigned_pm: projectData.assigned_pm ?? null,
+        binder: projectData.binder ?? false,
         est_activity_cycle: projectData.archived ? 'Archived' : (projectData.on_hold ? 'On Hold' : 'Active'),
         apm_activity_cycle: projectData.apm_archived ? 'Archived' : (projectData.apm_on_hold ? 'On Hold' : 'Active')
       }])
@@ -375,12 +465,11 @@ export const dbOperations = {
 
     if (erError) throw erError;
 
-    // Create corresponding project_financials
+    // Create corresponding project_financials (for APM-specific fields only)
     const { data: projectFinancials, error: pfError } = await supabase
       .from('project_financials')
       .insert([{
         project_vendor_id: projectVendor.id,
-        estimated_amount: data.cost_amount,
         final_amount: data.final_quote_amount,
         buy_number: data.buy_number,
         po_number: data.po_number
@@ -390,7 +479,36 @@ export const dbOperations = {
 
     if (pfError) throw pfError;
 
+    // Fallback UI refresh: in some environments realtime events may not arrive
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+    }
+
     return { projectVendor, estResponse, projectFinancials };
+  },
+
+  // Create timeline event
+  async createTimelineEvent(eventData: any) {
+    this.trackApiCall('createTimelineEvent');
+    
+    const { data, error } = await supabase
+      .from('project_timeline_events')
+      .insert([{
+        project_id: eventData.project_id,
+        event_category: eventData.event_category,
+        event_name: eventData.event_name,
+        event_type: eventData.event_type,
+        order_by: eventData.order_by,
+        required_by: eventData.required_by,
+        status: eventData.status || 'pending',
+        notes: eventData.notes,
+        sort_order: eventData.sort_order || 9999,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 
   // ===========================================
@@ -440,6 +558,7 @@ export const dbOperations = {
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.department !== undefined) updateData.department = updates.department;
     if (updates.assign_to !== undefined) updateData.assign_to = updates.assign_to;
+    if (updates.assigned_pm !== undefined) updateData.assigned_pm = updates.assigned_pm;
     if (updates.created_by !== undefined) updateData.created_by = updates.created_by;
     if (updates.general_contractor !== undefined) updateData.old_general_contractor = updates.general_contractor;
     if (updates.file_location !== undefined) updateData.file_location = updates.file_location;
@@ -503,8 +622,11 @@ export const dbOperations = {
     if (updates.due_date !== undefined) updateData.est_due_date = updates.due_date;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.department !== undefined) updateData.department = updates.department;
-    if (updates.assign_to !== undefined) updateData.assign_to = updates.assign_to;
-    if (updates.created_by !== undefined) updateData.created_by = updates.created_by;
+    
+    // UUID fields - convert empty strings to null to avoid database errors
+    if (updates.assign_to !== undefined) updateData.assign_to = updates.assign_to || null;
+    if (updates.created_by !== undefined) updateData.created_by = updates.created_by || null;
+    
     if (updates.general_contractor !== undefined) updateData.old_general_contractor = updates.general_contractor;
     if (updates.file_location !== undefined) updateData.file_location = updates.file_location;
     
@@ -513,9 +635,9 @@ export const dbOperations = {
     
     // Estimating timestamp fields
     if (updates.archived_at !== undefined) updateData.archived_at = updates.archived_at;
-    if (updates.archived_by !== undefined) updateData.archived_by = updates.archived_by;
+    if (updates.archived_by !== undefined) updateData.archived_by = updates.archived_by || null; // UUID field
     if (updates.on_hold_at !== undefined) updateData.on_hold_at = updates.on_hold_at;
-    if (updates.on_hold_by !== undefined) updateData.on_hold_by = updates.on_hold_by;
+    if (updates.on_hold_by !== undefined) updateData.on_hold_by = updates.on_hold_by || null; // UUID field
     
     // Workflow fields
     if (updates.sent_to_apm !== undefined) updateData.sent_to_apm = updates.sent_to_apm;
@@ -577,6 +699,7 @@ export const dbOperations = {
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.department !== undefined) updateData.department = updates.department;
     if (updates.assign_to !== undefined) updateData.assign_to = updates.assign_to;
+    if (updates.assigned_pm !== undefined) updateData.assigned_pm = updates.assigned_pm;
     if (updates.created_by !== undefined) updateData.created_by = updates.created_by;
     if (updates.general_contractor !== undefined) updateData.old_general_contractor = updates.general_contractor;
     if (updates.file_location !== undefined) updateData.file_location = updates.file_location;
@@ -586,6 +709,8 @@ export const dbOperations = {
     if (updates.added_to_procore !== undefined) updateData.added_to_procore = updates.added_to_procore;
     if (updates.project_start_date !== undefined) updateData.project_start_date = updates.project_start_date;
     if (updates.gc_contact_id !== undefined) updateData.gc_contact_id = updates.gc_contact_id;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.binder !== undefined) updateData.binder = updates.binder;
     
     // Activity cycle enums
     if (estActivityCycle !== undefined) updateData.est_activity_cycle = estActivityCycle;
@@ -619,6 +744,24 @@ export const dbOperations = {
 
     if (error) throw error;
     
+    return data;
+  },
+
+  // Update timeline event
+  async updateTimelineEvent(eventId: number, updates: any) {
+    this.trackApiCall('updateTimelineEvent');
+    
+    const { data, error } = await supabase
+      .from('project_timeline_events')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', eventId)
+      .select()
+      .single();
+
+    if (error) throw error;
     return data;
   },
 
@@ -687,6 +830,21 @@ export const dbOperations = {
     }
 
     const { data, error } = projectResult.value;
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete timeline event
+  async deleteTimelineEvent(eventId: number) {
+    this.trackApiCall('deleteTimelineEvent');
+    
+    const { data, error } = await supabase
+      .from('project_timeline_events')
+      .delete()
+      .eq('id', eventId)
+      .select()
+      .single();
+
     if (error) throw error;
     return data;
   },
@@ -818,6 +976,12 @@ export const dbOperations = {
       .single();
 
     if (error) throw error;
+
+    // Fallback UI refresh: in some environments realtime events may not arrive
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+    }
+
     return data;
   },
 
@@ -826,32 +990,39 @@ export const dbOperations = {
     this.trackApiCall('updateProjectVendor');
     
     // For backwards compatibility, we'll distribute updates across the normalized tables
-    // Update est_responses if relevant fields are provided
-    if (updates.response_received_date || updates.status || updates.response_notes || 
-        updates.responded_by || updates.follow_up_count || updates.last_follow_up_date) {
+    // Update est_responses if relevant fields are provided (including cost_amount)
+    if (updates.response_received_date !== undefined || updates.status !== undefined || 
+        updates.response_notes !== undefined || updates.responded_by !== undefined || 
+        updates.follow_up_count !== undefined || updates.last_follow_up_date !== undefined ||
+        updates.cost_amount !== undefined || updates.due_date !== undefined) {
+      const estResponseUpdates: any = {};
+      
+      if (updates.response_received_date !== undefined) estResponseUpdates.response_received_date = updates.response_received_date;
+      if (updates.status !== undefined) estResponseUpdates.status = updates.status;
+      if (updates.response_notes !== undefined) estResponseUpdates.response_notes = updates.response_notes;
+      if (updates.responded_by !== undefined) estResponseUpdates.responded_by = updates.responded_by;
+      if (updates.follow_up_count !== undefined) estResponseUpdates.follow_up_count = updates.follow_up_count;
+      if (updates.last_follow_up_date !== undefined) estResponseUpdates.last_follow_up_date = updates.last_follow_up_date;
+      if (updates.cost_amount !== undefined) estResponseUpdates.cost_amount = updates.cost_amount;
+      if (updates.due_date !== undefined) estResponseUpdates.response_due_date = updates.due_date;
+      
       await supabase
         .from('est_responses')
-        .update({
-          response_received_date: updates.response_received_date,
-          status: updates.status,
-          response_notes: updates.response_notes,
-          responded_by: updates.responded_by,
-          follow_up_count: updates.follow_up_count,
-          last_follow_up_date: updates.last_follow_up_date
-        })
+        .update(estResponseUpdates)
         .eq('project_vendor_id', projectVendorId);
     }
 
-    // Update project_financials if relevant fields are provided
-    if (updates.cost_amount || updates.final_quote_amount || updates.buy_number || updates.po_number) {
+    // Update project_financials for APM-specific fields (final_quote_amount, buy_number, po_number)
+    if (updates.final_quote_amount !== undefined || updates.buy_number !== undefined || updates.po_number !== undefined) {
+      const financialUpdates: any = {};
+      
+      if (updates.final_quote_amount !== undefined) financialUpdates.final_amount = updates.final_quote_amount;
+      if (updates.buy_number !== undefined) financialUpdates.buy_number = updates.buy_number;
+      if (updates.po_number !== undefined) financialUpdates.po_number = updates.po_number;
+      
       await supabase
         .from('project_financials')
-        .update({
-          estimated_amount: updates.cost_amount,
-          final_amount: updates.final_quote_amount,
-          buy_number: updates.buy_number,
-          po_number: updates.po_number
-        })
+        .update(financialUpdates)
         .eq('project_vendor_id', projectVendorId);
     }
 
@@ -999,15 +1170,19 @@ export const dbOperations = {
       added_to_procore: project.added_to_procore || false,
       made_by_apm: project.made_by_apm || false,
       project_start_date: project.project_start_date,
+      binder: project.binder || false,
       
       // Legacy compatibility fields (primary interface for components)
       title: project.project_name,
       due_date: project.est_due_date,
-      assign_to: project.assigned_to,
+      // Map legacy assign_to field from the normalized column
+      assign_to: project.assign_to,
       
       // Database field names (optional, for transition compatibility)
       est_due_date: project.est_due_date,
-      assigned_to: project.assigned_to,
+      // Keep a copy under the legacy database-style name for backwards compatibility
+      assigned_to: project.assign_to,
+      assigned_pm: project.assigned_pm,
       
       // Timestamps
       created_at: project.created_at,
@@ -1413,6 +1588,12 @@ export const dbOperations = {
       .single();
 
     if (error) throw error;
+
+    // Fallback UI refresh: in some environments realtime events may not arrive
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+    }
+
     return data;
   },
 
@@ -1439,6 +1620,12 @@ export const dbOperations = {
       .single();
 
     if (error) throw error;
+
+    // Fallback UI refresh: in some environments realtime events may not arrive
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+    }
+
     return data;
   },
 
@@ -1454,6 +1641,12 @@ export const dbOperations = {
       .single();
 
     if (error) throw error;
+
+    // Fallback UI refresh: in some environments realtime events may not arrive
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+    }
+
     return data;
   },
 
@@ -1476,5 +1669,240 @@ export const dbOperations = {
       projectVendor: projectVendor.data,
       apmPhases: phases
     };
+  },
+
+  // ===========================================
+  // PROJECT EQUIPMENT OPERATIONS
+  // ===========================================
+
+  // Get all equipment for a project vendor
+  async getProjectEquipment(projectVendorId: number) {
+    this.trackApiCall('getProjectEquipment');
+    
+    const { data, error } = await supabase
+      .from('project_equipment')
+      .select(`
+        *,
+        timeline_event:project_timeline_events(
+          id,
+          event_name,
+          event_category,
+          status,
+          order_by,
+          required_by
+        )
+      `)
+      .eq('project_vendor_id', projectVendorId)
+      .order('date_received', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get equipment received on a specific date (for daily reports)
+  async getEquipmentByDate(dateReceived: string) {
+    this.trackApiCall('getEquipmentByDate');
+    
+    const { data, error } = await supabase
+      .from('project_equipment')
+      .select(`
+        *,
+        project_vendor:project_vendors!project_vendor_id (
+          id,
+          project_id,
+          vendor_id
+        ),
+        vendor:project_vendors!project_vendor_id (
+          vendor:vendors!vendor_id (
+            id,
+            company_name
+          )
+        ),
+        project:project_vendors!project_vendor_id (
+          project:projects!project_id (
+            id,
+            project_name,
+            project_address
+          )
+        )
+      `)
+      .eq('date_received', dateReceived)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Create new equipment entry
+  async createProjectEquipment(equipmentData: {
+    project_vendor_id: number;
+    po_number?: string | null;
+    quantity: number;
+    description: string;
+    unit?: string | null;
+    date_received?: string | null;
+    timeline_event_id?: number | null;
+  }) {
+    this.trackApiCall('createProjectEquipment');
+    
+    const { data, error } = await supabase
+      .from('project_equipment')
+      .insert([equipmentData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Update equipment entry
+  async updateProjectEquipment(equipmentId: number, updates: {
+    po_number?: string | null;
+    quantity?: number;
+    description?: string | null;
+    unit?: string | null;
+    date_received?: string | null;
+    received_at_wp?: boolean | null;
+    timeline_event_id?: number | null;
+  }) {
+    this.trackApiCall('updateProjectEquipment');
+    
+    const { data, error } = await supabase
+      .from('project_equipment')
+      .update(updates)
+      .eq('id', equipmentId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Delete equipment entry
+  async deleteProjectEquipment(equipmentId: number) {
+    this.trackApiCall('deleteProjectEquipment');
+    
+    const { data, error } = await supabase
+      .from('project_equipment')
+      .delete()
+      .eq('id', equipmentId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Get equipment for all projects (for reports)
+  async getAllProjectEquipment() {
+    this.trackApiCall('getAllProjectEquipment');
+    
+    const { data, error } = await supabase
+      .from('project_equipment')
+      .select(`
+        *,
+        timeline_event:project_timeline_events(
+          id,
+          event_name,
+          event_category,
+          status,
+          order_by,
+          required_by
+        ),
+        project_vendor:project_vendors!project_vendor_id (
+          id,
+          project_id,
+          vendor_id
+        ),
+        vendor:project_vendors!project_vendor_id (
+          vendor:vendors!vendor_id (
+            id,
+            company_name
+          )
+        ),
+        project:project_vendors!project_vendor_id (
+          project:projects!project_id (
+            id,
+            project_name,
+            project_address
+          )
+        )
+      `)
+      .order('date_received', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get equipment overview using the comprehensive view (much more efficient)
+  async getEquipmentOverview(filters?: {
+    projectId?: number;
+    vendorId?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    hasReceiveDate?: boolean;
+  }) {
+    this.trackApiCall('getEquipmentOverview');
+    
+    let query = supabase.from('equipment_overview').select('*');
+    
+    // Apply filters if provided
+    if (filters?.projectId) {
+      query = query.eq('project_id', filters.projectId);
+    }
+    
+    if (filters?.vendorId) {
+      query = query.eq('vendor_id', filters.vendorId);
+    }
+    
+    if (filters?.dateFrom) {
+      query = query.gte('date_received', filters.dateFrom);
+    }
+    
+    if (filters?.dateTo) {
+      query = query.lte('date_received', filters.dateTo);
+    }
+    
+    if (filters?.hasReceiveDate === true) {
+      query = query.not('date_received', 'is', null);
+    } else if (filters?.hasReceiveDate === false) {
+      query = query.is('date_received', null);
+    }
+    
+    // Order by date received (most recent first), then by created date
+    query = query.order('date_received', { ascending: false, nullsFirst: false })
+                 .order('equipment_created_at', { ascending: false });
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get project vendors from normalized table for a specific project
+  async getProjectVendors(projectId: number) {
+    this.trackApiCall('getProjectVendors');
+    
+    const { data, error } = await supabase
+      .from('project_vendors')
+      .select(`
+        id,
+        project_id,
+        vendor_id,
+        assigned_by_user,
+        is_priority,
+        created_at,
+        updated_at,
+        vendor:vendors!vendor_id (
+          id,
+          company_name,
+          vendor_type
+        )
+      `)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   }
 };

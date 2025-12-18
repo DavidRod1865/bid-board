@@ -213,7 +213,7 @@ const Archives: React.FC<ArchivesProps> = ({ bids = [], projectNotes = [] }) => 
         <div className="flex-shrink-0">
           {/* Page Title */}
           <div className="px-6 pt-4">
-            <h1 className="text-2xl font-bold text-gray-900">Archived Bids</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Estimating - Completed Bids</h1>
           </div>
           
           <PageHeader

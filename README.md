@@ -7,9 +7,10 @@ A modern React TypeScript application for managing construction project bids, ve
 ### 📊 Project Management
 - **Project Dashboard** - Overview of all construction projects with advanced filtering and sorting
 - **Project Details** - Comprehensive project information with tabbed interface
-- **Real-time Updates** - Live data synchronization using Supabase real-time subscriptions
+- **Equipment Tracking** - Track equipment deliveries by vendor with PO numbers, quantities, and received dates
+- **Real-time Updates** - Live data synchronization using Supabase real-time subscriptions for projects, notes, equipment, and vendor changes
 - **Status Tracking** - Visual status indicators with color-coded urgency levels
-- **Notes System** - Project notes with user attribution and timestamps
+- **Notes System** - Project notes with user attribution, timestamps, and real-time editing capabilities
 - **Bulk Operations** - Select and perform actions on multiple projects
 
 ### 👥 Vendor Management
@@ -41,8 +42,16 @@ A modern React TypeScript application for managing construction project bids, ve
 - **Responsive Design** - Works across desktop and mobile devices
 - **Visual Status Indicators** - Color-coded borders and highlighting for urgency and priority
 
+### 📦 Equipment Management
+- **Equipment Tracking** - Track equipment received per vendor with detailed information
+- **Daily Equipment Reports** - Query equipment received on specific dates for daily reporting
+- **Equipment Details** - PO numbers, quantities, descriptions, units, and received dates
+- **Inline Editing** - Add, edit, and delete equipment entries directly in project views
+- **Real-time Updates** - Live equipment data synchronization across all users
+
 ### 📧 Automated Reporting
 - **Insurance Expiry Reports** - Automated bi-weekly reports for vendor insurance certificates
+- **Equipment Reports** - Daily equipment delivery reports by date for project tracking
 - **Email Notifications** - Professional HTML email reports via SMTP2GO
 - **Scheduled Reports** - Automated reports on 1st and 15th of every month
 - **Real-time Monitoring** - Track vendors with insurance expiring within 30 days
@@ -53,7 +62,7 @@ A modern React TypeScript application for managing construction project bids, ve
 - **Build Tool**: Vite 7.x
 - **Styling**: Tailwind CSS 4.x (no config file - uses Vite plugin)
 - **Backend**: Supabase (PostgreSQL + Real-time subscriptions + Edge Functions)
-- **Authentication**: Auth0 (configured but optional)
+- **Authentication**: Auth0 with UserContext for proper user identification
 - **Routing**: React Router v7
 - **State Management**: React Hooks (useState/useEffect)
 - **Table Library**: TanStack Table (@tanstack/react-table)
@@ -103,7 +112,8 @@ src/
 ### Dashboard & Project Management
 - **BidTable**: Sortable table with status management, priority highlighting, and bulk actions
 - **SearchFilters**: Multi-status filtering with date ranges and search capabilities
-- **ProjectDetail**: Tabbed interface with project overview, vendors, notes, and timeline
+- **ProjectDetail**: Tabbed interface with project overview, vendors, notes, and equipment tracking
+- **EquipmentTable**: Equipment management with inline forms and real-time updates
 - **Archives/OnHold**: Dedicated views for archived and on-hold projects
 
 ### Vendor Management
@@ -170,20 +180,87 @@ VITE_SMTP2GO_SENDER_EMAIL=your-sender@domain.com
 
 ## Database Schema
 
-The application uses Supabase with the following main tables:
+The application uses Supabase with both legacy and normalized table structures:
 
+**Legacy Tables:**
 - **bids** - Project information, status, dates, and assignments
+- **bid_vendors** - Legacy project-vendor associations (being phased out)
+
+**Normalized Tables:**
+- **projects** - Normalized project information
+- **project_vendors** - Normalized project-vendor relationships
+- **project_equipment** - Equipment tracking per project-vendor relationship
+- **project_financials** - Financial tracking for normalized structure
+- **apm_phases** - APM workflow phase management
+
+**Shared Tables:**
 - **vendors** - Contractor directory with contact information and insurance tracking
-- **vendor_contacts** - Contact information for vendor representatives
-- **bid_vendors** - Many-to-many project-vendor associations with cost tracking and priority flags
+- **vendor_contacts** - Contact information for vendor representatives  
 - **project_notes** - User-attributed notes with timestamps
 - **users** - User management with Auth0 integration
 
 ### Real-time Subscriptions
-- `bids_changes` - Project updates
-- `vendors_changes` - Vendor updates  
-- `bid_vendors_changes` - Project-vendor associations
-- `project_notes_changes` - Note updates
+**Active Real-time Channels:**
+- `projects` - Project updates, status changes, and metadata
+- `project_vendors` - Project-vendor relationship changes
+- `project_equipment` - Equipment tracking and delivery updates
+- `project_notes` - Note creation, editing, and deletion (dedicated channel)
+- `vendors` - Vendor information updates
+- `vendor_contacts` - Contact information changes
+- `est_responses` - Estimating response tracking
+- `project_financials` - Financial data updates
+- `apm_phases` - APM workflow phase tracking
+
+**Features:**
+- **Dedicated Channels** - Separate subscriptions for critical data like notes and projects
+- **Debounced Updates** - 100ms debounce to prevent rapid-fire refresh events
+- **Fallback Triggers** - Manual refresh triggers for environments where real-time may be delayed
+- **Event Deduplication** - Prevents duplicate updates and ensures data consistency
+
+## Equipment Management System
+
+### Overview
+The Equipment Management system allows project managers to track equipment deliveries for each vendor-project relationship. This feature provides detailed tracking of equipment received on-site with support for daily reporting and real-time updates.
+
+### Features
+- **Equipment Entry**: Track PO numbers, quantities, descriptions, units, and received dates
+- **Vendor Association**: Equipment entries are linked to specific project-vendor relationships
+- **Daily Reports**: Query all equipment received on specific dates for daily project tracking
+- **Inline Forms**: Add and edit equipment entries directly within project detail views
+- **Real-time Updates**: Live synchronization of equipment data across all users
+- **Equipment Count**: Visual display of total equipment entries per vendor
+
+### Database Structure
+The equipment system uses the normalized database architecture:
+
+```sql
+-- Equipment table linked to project vendors
+project_equipment (
+  id SERIAL PRIMARY KEY,
+  project_vendor_id INTEGER REFERENCES project_vendors(id),
+  po_number TEXT,                    -- Purchase order number
+  quantity NUMERIC NOT NULL,         -- Equipment quantity (supports decimals)
+  description TEXT NOT NULL,         -- Equipment description
+  unit TEXT,                        -- Unit of measurement (each, feet, tons, etc.)
+  date_received DATE,               -- Date equipment was received on site
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### API Operations
+- **`getProjectEquipment(projectVendorId)`** - Get all equipment for a specific project-vendor
+- **`createProjectEquipment(equipmentData)`** - Add new equipment entry
+- **`updateProjectEquipment(equipmentId, updates)`** - Update existing equipment
+- **`deleteProjectEquipment(equipmentId)`** - Remove equipment entry
+- **`getEquipmentByDate(date)`** - Get all equipment received on a specific date
+
+### Usage
+1. Navigate to a project detail page
+2. Click the "Equipment" tab
+3. Expand a vendor to view/add equipment entries
+4. Use inline forms to add new equipment or edit existing entries
+5. Equipment updates are synchronized in real-time across all users
 
 ## Automated Insurance Reporting
 
@@ -250,6 +327,26 @@ The app deploys as a Single Page Application (SPA) on Netlify:
 - **Priority Sorting** - Automatic priority vendor sorting with due date secondary sort
 - **Data Transformation** - Client-side data processing for optimal performance
 
+## Recent Updates & Fixes
+
+### Real-time System Improvements (December 2025)
+- **✅ Fixed Project Notes Real-time**: Notes now update instantly across all users when created, edited, or deleted
+- **✅ User Authentication Fix**: Resolved user identification issue where wrong user was being attributed to notes
+- **✅ Enhanced Real-time Subscriptions**: Added dedicated channels for critical data tables to ensure reliable updates
+- **✅ TypeScript Build Fixes**: Resolved all compilation errors and type mismatches for production builds
+- **✅ Improved Error Handling**: Enhanced error handling in note creation/update operations with proper user feedback
+
+### Technical Improvements
+- **Real-time Architecture**: Implemented dual subscription pattern with main channel + dedicated channels for critical tables
+- **User Context Integration**: Proper Auth0 integration with UserContext for accurate user identification
+- **Type Safety**: Fixed CalendarEvent interface mismatches and Select component prop requirements
+- **Clean Code**: Removed debugging logs while maintaining robust error handling
+
+### Database Optimizations
+- **Real-time Publications**: Verified and optimized Supabase real-time publications for all critical tables
+- **UUID Field Handling**: Fixed PostgreSQL UUID constraint violations by properly handling empty string to null conversions
+- **Foreign Key Integrity**: Resolved project_notes table foreign key references
+
 ## Performance Optimizations
 
 - **useMemo** for expensive calculations and data transformations
@@ -257,6 +354,7 @@ The app deploys as a Single Page Application (SPA) on Netlify:
 - **Efficient Re-renders** with proper dependency arrays
 - **Real-time Deduplication** to prevent duplicate entries
 - **Component-level Optimization** with selective re-rendering
+- **Debounced Real-time Updates** - 100ms debounce prevents excessive refresh events
 
 ## Contributing
 
