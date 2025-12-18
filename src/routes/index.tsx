@@ -169,14 +169,18 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         path="/apm" 
         element={
           <ProtectedRoute allowedRoles={['Admin', 'APM']}>
-            <APMDashboard 
-              bids={bids.filter(bid => bid && bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
-              bidVendors={bidVendors.filter(bv => 
-                bv && bv.bid_id && bids.find(b => b && b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold)
-              )}
+            <APMProjects 
+              bids={bids.filter(bid => bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
+              bidVendors={bidVendors}
               vendors={vendors}
+              projectNotes={projectNotes}
+              equipment={equipment}
+              handleStatusChange={handleStatusChange}
               users={users}
               isLoading={isLoading}
+              onAddProject={handleAddBid}
+              onAddProjectWithVendors={handleAddProjectWithVendors}
+              onCopyProject={handleCopyProject}
             />
           </ProtectedRoute>
         } 
@@ -198,6 +202,23 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
               onAddProject={handleAddBid}
               onAddProjectWithVendors={handleAddProjectWithVendors}
               onCopyProject={handleCopyProject}
+            />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/apm/dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin', 'APM']}>
+            <APMDashboard 
+              bids={bids.filter(bid => bid && bid.sent_to_apm && !bid.apm_archived && !bid.apm_on_hold)}
+              bidVendors={bidVendors.filter(bv => 
+                bv && bv.bid_id && bids.find(b => b && b.id === bv.bid_id && b.sent_to_apm && !b.apm_archived && !b.apm_on_hold)
+              )}
+              vendors={vendors}
+              users={users}
+              isLoading={isLoading}
             />
           </ProtectedRoute>
         } 

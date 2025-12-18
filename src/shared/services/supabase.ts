@@ -788,7 +788,8 @@ export const dbOperations = {
       const childDeleteOperations = [
         supabase.from('apm_phases').delete().in('project_vendor_id', projectVendorIds),
         supabase.from('est_responses').delete().in('project_vendor_id', projectVendorIds),
-        supabase.from('project_financials').delete().in('project_vendor_id', projectVendorIds)
+        supabase.from('project_financials').delete().in('project_vendor_id', projectVendorIds),
+        supabase.from('project_equipment').delete().in('project_vendor_id', projectVendorIds)
       ];
 
       // Execute child deletions concurrently
@@ -797,10 +798,13 @@ export const dbOperations = {
       // Check for any failures in child deletions
       const childErrors = childResults
         .filter(result => result.status === 'rejected')
-        .map(result => (result as PromiseRejectedResult).reason);
+        .map((result, index) => {
+          const tableNames = ['apm_phases', 'est_responses', 'project_financials', 'project_equipment'];
+          return `${tableNames[index]}: ${(result as PromiseRejectedResult).reason?.message || (result as PromiseRejectedResult).reason}`;
+        });
       
       if (childErrors.length > 0) {
-        throw new Error(`Failed to delete child records: ${childErrors.join(', ')}`);
+        throw new Error(`Failed to delete child records: ${childErrors.join('; ')}`);
       }
 
       // Delete project_vendors after children are deleted
@@ -812,10 +816,11 @@ export const dbOperations = {
       if (pvDeleteError) throw pvDeleteError;
     }
 
-    // Delete project notes and project concurrently (independent operations)
-    const [notesResult, projectResult] = await Promise.allSettled([
+    // Delete project notes, timeline events, and project concurrently (independent operations)
+    const [notesResult, timelineResult, projectResult] = await Promise.allSettled([
       supabase.from('project_notes').delete().eq('bid_id', projectId),
-      supabase.from('projects').delete().eq('id', projectId).select().single()
+      supabase.from('project_timeline_events').delete().eq('project_id', projectId),
+      supabase.from('projects').delete().eq('id', projectId)
     ]);
 
     // Handle project notes deletion result
@@ -824,14 +829,23 @@ export const dbOperations = {
       // Don't fail the entire operation for notes deletion failure
     }
 
-    // Handle project deletion result
-    if (projectResult.status === 'rejected') {
-      throw projectResult.reason;
+    // Handle timeline events deletion result
+    if (timelineResult.status === 'rejected') {
+      console.warn('Failed to delete timeline events:', timelineResult.reason);
+      // Don't fail the entire operation for timeline deletion failure
     }
 
-    const { data, error } = projectResult.value;
-    if (error) throw error;
-    return data;
+    // Handle project deletion result
+    if (projectResult.status === 'rejected') {
+      const reason = projectResult.reason;
+      throw new Error(`Failed to delete project: ${reason?.message || reason}`);
+    }
+
+    const { error } = projectResult.value;
+    if (error) {
+      throw new Error(`Project deletion error: ${error.message}`);
+    }
+    return { success: true, projectId }; // Return success confirmation
   },
 
   // Delete timeline event

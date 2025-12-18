@@ -79,6 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
   const isActive = (path?: string) => {
     if (!path) return false;
     if (path === "/estimating" && location.pathname === "/") return true;
+    if (path === "/apm/projects" && (location.pathname === "/apm" || location.pathname === "/apm/projects")) return true;
     return location.pathname === path;
   };
 
