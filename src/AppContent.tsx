@@ -100,6 +100,7 @@ const AppContentInternal: React.FC = () => {
           dbOperations.getProjectNotes(),
           dbOperations.getAllProjectEquipment()
         ]);
+        
 
         const { bids: transformedBids, bidVendors: extractedBidVendors } = bidsResult;
 

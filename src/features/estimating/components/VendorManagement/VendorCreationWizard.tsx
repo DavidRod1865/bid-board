@@ -33,9 +33,6 @@ const VendorCreationWizard: React.FC<VendorCreationWizardProps> = ({
   const [vendorData, setVendorData] = useState<Partial<Vendor>>({
     company_name: '',
     address: '',
-    contact_person: '',
-    phone: '',
-    email: '',
     notes: '',
     specialty: '',
     is_priority: false,

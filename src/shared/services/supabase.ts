@@ -127,6 +127,35 @@ export class RealtimeManager {
       .subscribe();
 
     this.channels['projects_channel'] = projectsChannel;
+    
+    // Create a dedicated subscription for vendors to ensure it works
+    const vendorsChannel = supabase
+      .channel('vendors_channel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vendors'
+      }, (payload: any) => {
+        this.triggerDataRefresh();
+      })
+      .subscribe();
+
+    this.channels['vendors_channel'] = vendorsChannel;
+    
+    // Create a dedicated subscription for vendor_contacts to ensure it works
+    const vendorContactsChannel = supabase
+      .channel('vendor_contacts_channel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vendor_contacts'
+      }, (payload: any) => {
+        this.triggerDataRefresh();
+      })
+      .subscribe();
+
+    this.channels['vendor_contacts_channel'] = vendorContactsChannel;
+    
     return channel;
   }
 
@@ -871,39 +900,117 @@ export const dbOperations = {
   async createVendorWithContacts(vendorData: any, contactsData: any[] = []) {
     this.trackApiCall('createVendorWithContacts');
     
-    // Create vendor first
-    const { data: vendor, error: vendorError } = await supabase
-      .from('vendors')
-      .insert([vendorData])
-      .select()
-      .single();
+    try {
+      // Create vendor first - filter out legacy contact fields that don't exist in the database
+      const cleanVendorData = {
+        company_name: vendorData.company_name,
+        address: vendorData.address,
+        notes: vendorData.notes,
+        specialty: vendorData.specialty,
+        is_priority: vendorData.is_priority,
+        vendor_type: vendorData.vendor_type,
+        insurance_expiry_date: vendorData.insurance_expiry_date,
+        insurance_notes: vendorData.insurance_notes,
+        insurance_file_path: vendorData.insurance_file_path,
+        insurance_file_name: vendorData.insurance_file_name,
+        insurance_file_size: vendorData.insurance_file_size,
+        insurance_file_uploaded_at: vendorData.insurance_file_uploaded_at,
+        primary_contact_id: vendorData.primary_contact_id,
+        created_by: vendorData.created_by
+      };
+      
+      const { data: vendor, error: vendorError } = await supabase
+        .from('vendors')
+        .insert([cleanVendorData])
+        .select()
+        .single();
 
-    if (vendorError) throw vendorError;
+      if (vendorError) {
+        throw vendorError;
+      }
 
-    // Create contacts if provided
-    if (contactsData.length > 0) {
-      const contactsToInsert = contactsData.map(contact => ({
-        ...contact,
-        vendor_id: vendor.id
-      }));
+      // Create contacts if provided
+      if (contactsData.length > 0) {
+        const contactsToInsert = contactsData.map(contact => ({
+          ...contact,
+          vendor_id: vendor.id
+        }));
 
-      const { error: contactsError } = await supabase
-        .from('vendor_contacts')
-        .insert(contactsToInsert);
+        const { data: createdContacts, error: contactsError } = await supabase
+          .from('vendor_contacts')
+          .insert(contactsToInsert)
+          .select();
 
-      if (contactsError) throw contactsError;
+        if (contactsError) {
+          // Cleanup: Delete vendor if contact creation fails
+          await supabase.from('vendors').delete().eq('id', vendor.id);
+          throw contactsError;
+        }
+
+        // Set primary contact relationships
+        const primaryContact = contactsData.find(c => c.is_primary);
+        if (primaryContact && createdContacts) {
+          const primaryContactIndex = contactsData.findIndex(c => c.is_primary);
+          const createdPrimaryContact = createdContacts[primaryContactIndex];
+          
+          if (createdPrimaryContact) {
+            // Update vendor with primary contact ID
+            await supabase
+              .from('vendors')
+              .update({ primary_contact_id: createdPrimaryContact.id })
+              .eq('id', vendor.id);
+          }
+        } else if (createdContacts && createdContacts.length > 0) {
+          // If no primary contact specified, set first contact as primary
+          const firstContact = createdContacts[0];
+          
+          // Mark first contact as primary in vendor_contacts table
+          await supabase
+            .from('vendor_contacts')
+            .update({ is_primary: true })
+            .eq('id', firstContact.id);
+            
+          // Update vendor with primary contact ID
+          await supabase
+            .from('vendors')
+            .update({ primary_contact_id: firstContact.id })
+            .eq('id', vendor.id);
+        }
+      }
+
+      return vendor;
+    } catch (error) {
+      // Re-throw the error for proper handling
+      throw error;
     }
-
-    return vendor;
   },
 
   // Update vendor
   async updateVendor(vendorId: number, updates: any) {
     this.trackApiCall('updateVendor');
     
+    // Filter out legacy contact fields that don't exist in the database
+    const cleanUpdates: any = {};
+    
+    // Only include valid vendor table fields
+    if (updates.company_name !== undefined) cleanUpdates.company_name = updates.company_name;
+    if (updates.address !== undefined) cleanUpdates.address = updates.address;
+    if (updates.notes !== undefined) cleanUpdates.notes = updates.notes;
+    if (updates.specialty !== undefined) cleanUpdates.specialty = updates.specialty;
+    if (updates.is_priority !== undefined) cleanUpdates.is_priority = updates.is_priority;
+    if (updates.vendor_type !== undefined) cleanUpdates.vendor_type = updates.vendor_type;
+    if (updates.insurance_expiry_date !== undefined) cleanUpdates.insurance_expiry_date = updates.insurance_expiry_date;
+    if (updates.insurance_notes !== undefined) cleanUpdates.insurance_notes = updates.insurance_notes;
+    if (updates.insurance_file_path !== undefined) cleanUpdates.insurance_file_path = updates.insurance_file_path;
+    if (updates.insurance_file_name !== undefined) cleanUpdates.insurance_file_name = updates.insurance_file_name;
+    if (updates.insurance_file_size !== undefined) cleanUpdates.insurance_file_size = updates.insurance_file_size;
+    if (updates.insurance_file_uploaded_at !== undefined) cleanUpdates.insurance_file_uploaded_at = updates.insurance_file_uploaded_at;
+    if (updates.primary_contact_id !== undefined) cleanUpdates.primary_contact_id = updates.primary_contact_id;
+    if (updates.created_by !== undefined) cleanUpdates.created_by = updates.created_by;
+    
     const { data, error } = await supabase
       .from('vendors')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', vendorId)
       .select()
       .single();
@@ -1393,6 +1500,17 @@ export const dbOperations = {
       .single();
 
     if (error) throw error;
+
+    // If this contact is marked as primary or no other primary exists, sync primary contact
+    if (data && (contactData.is_primary || !contactData.hasOwnProperty('is_primary'))) {
+      try {
+        await this.syncVendorPrimaryContact(data.vendor_id, data.id);
+      } catch (syncError) {
+        // If sync fails, the contact was still created successfully
+        console.warn('Failed to sync primary contact:', syncError);
+      }
+    }
+
     return data;
   },
 
