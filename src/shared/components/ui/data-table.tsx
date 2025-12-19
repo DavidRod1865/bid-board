@@ -146,10 +146,6 @@ export function DataTable<TData, TValue>({
       columnFilters,
       columnVisibility,
       rowSelection,
-      pagination: {
-        pageIndex: 0,
-        pageSize,
-      },
     },
   })
 
@@ -197,7 +193,7 @@ export function DataTable<TData, TValue>({
           <thead className="bg-slate-100 border-b-2 border-gray-200">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header, headerIndex) => {
+                {headerGroup.headers.map((header) => {
                   const columnId = header.column.id;
                   const shouldCenter = columnId !== 'project' && columnId !== 'notes' && columnId !== 'description';
                   const isStickyProjectColumn = columnId === 'project';
@@ -254,7 +250,7 @@ export function DataTable<TData, TValue>({
                         className={`absolute left-0 top-0 bottom-0 w-1 ${borderColor}`}
                       />
                     )}
-                    {row.getVisibleCells().map((cell, cellIndex) => {
+                    {row.getVisibleCells().map((cell) => {
                       const columnId = cell.column.id;
                       const isProjectColumn = columnId === 'project';
                       // For sticky project column, ensure it has the same background as the row

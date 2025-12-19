@@ -11,6 +11,7 @@ import { ViewToggle } from "./ViewToggle";
 import { useUserProfile } from "../../../contexts/UserContext";
 import type { TeamView } from "../../../contexts/UserContext";
 import UserProfileModal from "../modals/UserProfileModal";
+import HelpModal from "../modals/HelpModal";
 import wpbbBlueIcon from "../../../assets/WPBB_blue.png";
 import Folder from "../../../components/Folder";
 import AnimatedUsers from "../../../components/AnimatedUsers";
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
   const { user, logout } = useAuth0();
   const { userProfile, updateProfile, currentView } = useUserProfile();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   // Save sidebar state to localStorage whenever it changes
@@ -812,7 +814,7 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
         <div className={`flex ${isCollapsed ? 'flex-col items-center gap-3' : 'flex-row gap-3 justify-center'}`}>
           {/* Help Icon */}
           <button
-            onClick={() => {/* TODO: Help/Documentation */}}
+            onClick={() => setShowHelpModal(true)}
             className="p-2 rounded-lg transition-all duration-300 ease-in-out cursor-pointer hover:bg-gray-100 text-gray-600"
             title="Help"
           >
@@ -853,6 +855,13 @@ const Sidebar: React.FC<SidebarProps> = ({ showViewToggle = false }) => {
         currentName={displayName}
         currentColorPreference={displayColor}
         onSave={handleProfileSave}
+      />
+
+      <HelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        currentView={currentView}
+        userRole={userProfile?.role ?? null}
       />
     </div>
   );
