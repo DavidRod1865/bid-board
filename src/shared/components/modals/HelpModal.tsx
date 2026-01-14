@@ -1,7 +1,7 @@
 import React from "react";
 import DialogModal from "../ui/DialogModal";
 import { Button } from "../ui/Button";
-import type { TeamView } from "../../contexts/UserContext";
+import type { TeamView } from "../../../contexts/UserContext";
 
 interface HelpModalProps {
   isOpen: boolean;
