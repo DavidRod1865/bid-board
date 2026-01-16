@@ -1365,10 +1365,16 @@ export const dbOperations = {
   // Create or update user profile
   async createOrUpdateUserProfile(userData: any) {
     this.trackApiCall('createOrUpdateUserProfile');
-    
+
+    // Generate UUID if not provided (for new users from Auth0 auto-provisioning)
+    const dataWithId = {
+      ...userData,
+      id: userData.id || crypto.randomUUID()
+    };
+
     const { data, error } = await supabase
       .from('users')
-      .upsert([userData])
+      .upsert([dataWithId], { onConflict: 'email' })
       .select()
       .single();
 
