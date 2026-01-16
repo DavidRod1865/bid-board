@@ -13,6 +13,7 @@ import AlertDialog from "../../../../shared/components/ui/AlertDialog";
 import VendorTable from "../../../estimating/components/VendorManagement/VendorTable";
 import ProjectNotes from "../../../../shared/components/modals/ProjectNotes";
 import AddVendorToProjectModal from "../../../estimating/components/VendorManagement/AddVendorToProjectModal";
+import BulkAddVendorsModal from "../../../estimating/components/VendorManagement/BulkAddVendorsModal";
 import AddNoteModal from "../../../../shared/components/modals/AddNoteModal";
 import {
   Breadcrumb,
@@ -34,6 +35,7 @@ import { formatDate } from "../../../../shared/utils/formatters";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 import {
   UserPlusIcon,
+  UsersIcon,
   PencilIcon,
   PencilSquareIcon,
   PauseCircleIcon,
@@ -69,6 +71,7 @@ interface ProjectDetailProps {
     vendorData: Partial<BidVendor>
   ) => Promise<void>;
   onRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
+  onBulkAddVendors: (bidId: number, vendorIds: number[]) => Promise<void>;
 }
 
 const ProjectDetail: React.FC<ProjectDetailProps> = ({
@@ -82,6 +85,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   onAddBidVendor,
   onUpdateBidVendor,
   onRemoveBidVendors,
+  onBulkAddVendors,
 }) => {
   const navigate = useNavigate();
   const { userProfile } = useUserProfile();
@@ -91,6 +95,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showRemoveVendorsModal, setShowRemoveVendorsModal] = useState(false);
   const [vendorsToRemove, setVendorsToRemove] = useState<number[]>([]);
@@ -217,6 +222,20 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const handleAddVendor = () => {
     setEditingBidVendor(null);
     setShowVendorModal(true);
+  };
+
+  const handleBulkAddVendors = async (vendorIds: number[]) => {
+    setIsVendorLoading(true);
+    try {
+      await onBulkAddVendors(bid.id, vendorIds);
+      setShowBulkAddModal(false);
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to add vendors"
+      );
+    } finally {
+      setIsVendorLoading(false);
+    }
   };
 
   const handleEditVendor = (vendorId: number) => {
@@ -962,13 +981,22 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     {activeTab === "vendors" && (
                       <>
                         {selectedVendorIds.length === 0 ? (
-                          <button
-                            onClick={handleAddVendor}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            <UserPlusIcon className="w-4 h-4 mr-1" />
-                            Add Vendor
-                          </button>
+                          <>
+                            <button
+                              onClick={handleAddVendor}
+                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                              <UserPlusIcon className="w-4 h-4 mr-1" />
+                              Add Vendor
+                            </button>
+                            <button
+                              onClick={() => setShowBulkAddModal(true)}
+                              className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#d4af37]"
+                            >
+                              <UsersIcon className="w-4 h-4 mr-1" />
+                              Bulk Add
+                            </button>
+                          </>
                         ) : (
                           <button
                             onClick={handleSidebarRemoveVendors}
@@ -1084,6 +1112,16 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         vendors={vendors}
         existingVendorData={editingBidVendor}
         getVendorById={getVendorById}
+        isLoading={isVendorLoading}
+      />
+
+      {/* Bulk Add Vendors Modal */}
+      <BulkAddVendorsModal
+        isOpen={showBulkAddModal}
+        onClose={() => setShowBulkAddModal(false)}
+        onAdd={handleBulkAddVendors}
+        vendors={vendors}
+        existingVendorIds={projectVendors.map(pv => pv.vendor_id)}
         isLoading={isVendorLoading}
       />
 

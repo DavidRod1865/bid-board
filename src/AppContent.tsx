@@ -462,7 +462,7 @@ const AppContentInternal: React.FC = () => {
         response_notes: vendorData.response_notes,
         cost_amount: vendorData.cost_amount
       });
-      
+
       // Transform the response to match our BidVendor type
       const transformedBidVendor: BidVendor = {
         id: newBidVendor.projectVendor.id,
@@ -479,10 +479,47 @@ const AppContentInternal: React.FC = () => {
         cost_amount: vendorData.cost_amount,
         ...getDefaultAPMFields()
       };
-      
+
       setBidVendors(prevBidVendors => [...prevBidVendors, transformedBidVendor]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add vendor to bid');
+    }
+  };
+
+  // Handler functions for bulk adding vendors to a bid
+  const handleBulkAddBidVendors = async (bidId: number, vendorIds: number[]) => {
+    try {
+      // Add all vendors in parallel
+      const results = await Promise.all(
+        vendorIds.map(vendorId =>
+          dbOperations.addVendorToProject(bidId, vendorId, {
+            status: 'pending',
+            is_priority: false
+          })
+        )
+      );
+
+      // Transform all results to BidVendor type
+      const transformedBidVendors: BidVendor[] = results.map((result, index) => ({
+        id: result.projectVendor.id,
+        bid_id: bidId,
+        vendor_id: vendorIds[index],
+        due_date: null,
+        response_received_date: null,
+        status: 'pending',
+        follow_up_count: 0,
+        last_follow_up_date: null,
+        response_notes: null,
+        responded_by: null,
+        is_priority: false,
+        cost_amount: null,
+        ...getDefaultAPMFields()
+      }));
+
+      setBidVendors(prevBidVendors => [...prevBidVendors, ...transformedBidVendors]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to bulk add vendors to bid');
+      throw err; // Re-throw so the UI can handle it
     }
   };
 
@@ -637,6 +674,7 @@ const AppContentInternal: React.FC = () => {
         handleAddBidVendor={handleAddBidVendor}
         handleUpdateBidVendor={handleUpdateBidVendor}
         handleRemoveBidVendors={handleRemoveBidVendors}
+        handleBulkAddBidVendors={handleBulkAddBidVendors}
         handleBidRestored={handleBidRestored}
         handleVendorUpdated={handleVendorUpdated}
         timelineEvents={timelineEvents}

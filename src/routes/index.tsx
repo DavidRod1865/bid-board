@@ -53,6 +53,7 @@ interface AppRoutesProps {
   handleAddBidVendor: (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => Promise<void>;
   handleUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
   handleRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
+  handleBulkAddBidVendors: (bidId: number, vendorIds: number[]) => Promise<void>;
   handleBidRestored: (restoredBid: Bid) => void;
   handleVendorUpdated: () => void;
   handleAddTimelineEvent: (eventData: Omit<TimelineEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -83,6 +84,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   handleAddBidVendor,
   handleUpdateBidVendor,
   handleRemoveBidVendors,
+  handleBulkAddBidVendors,
   handleBidRestored,
   handleVendorUpdated,
   handleAddTimelineEvent,
@@ -278,10 +280,10 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
       />
       
       {/* Shared/Legacy Routes (maintaining backward compatibility) */}
-      <Route 
-        path="/project/:id" 
+      <Route
+        path="/project/:id"
         element={
-          <ProjectDetailWrapper 
+          <ProjectDetailWrapper
             bids={bids}
             users={users}
             vendors={vendors}
@@ -292,8 +294,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             onAddBidVendor={handleAddBidVendor}
             onUpdateBidVendor={handleUpdateBidVendor}
             onRemoveBidVendors={handleRemoveBidVendors}
+            onBulkAddVendors={handleBulkAddBidVendors}
           />
-        } 
+        }
       />
       
       <Route 

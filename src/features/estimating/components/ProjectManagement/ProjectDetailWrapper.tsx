@@ -16,6 +16,7 @@ interface ProjectDetailWrapperProps {
   onAddBidVendor: (bidId: number, vendorData: Omit<BidVendor, 'id' | 'bid_id'>) => Promise<void>;
   onUpdateBidVendor: (bidVendorId: number, vendorData: Partial<BidVendor>) => Promise<void>;
   onRemoveBidVendors: (bidVendorIds: number[]) => Promise<void>;
+  onBulkAddVendors: (bidId: number, vendorIds: number[]) => Promise<void>;
 }
 
 // ProjectDetailWrapper component definition
@@ -87,7 +88,7 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
   
   return (
     // Render ProjectDetail component with the determined project
-    <ProjectDetail 
+    <ProjectDetail
       bid={projectToShow}
       bidVendors={props.bidVendors}
       projectNotes={props.projectNotes}
@@ -98,6 +99,7 @@ const ProjectDetailWrapper: React.FC<ProjectDetailWrapperProps> = (props) => {
       onAddBidVendor={props.onAddBidVendor}
       onUpdateBidVendor={props.onUpdateBidVendor}
       onRemoveBidVendors={props.onRemoveBidVendors}
+      onBulkAddVendors={props.onBulkAddVendors}
     />
   );
 };
